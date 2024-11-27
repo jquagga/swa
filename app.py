@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import js
-from pyscript import display, fetch
+from pyscript import HTML, display, fetch, window
 from pyscript.ffi import create_proxy
 
 
@@ -16,7 +15,9 @@ async def weather(latitude, longitude):
     ).json()
 
     display(
-        f"{point["relativeLocation"]['city']}, {point["relativeLocation"]['state']} @ {latitude}, {longitude}"
+        HTML(
+            f"<h1>Weather for {point["relativeLocation"]['city']}, {point["relativeLocation"]['state']}</h1>"
+        )
     )
 
     # This pulls the daily forecast
@@ -25,20 +26,24 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    # And this loop pulls in 8 periods of daily weather
+    display(HTML('<div class="container">'))
+    # And this loop pulls in 6 periods of daily weather (next 3 days)
     for i in range(8):
         display(
-            f"{forecast["periods"][i]["name"]}: {forecast["periods"][i]["detailedForecast"]}"
+            HTML(
+                f'<div class="row"><div class="col"><b>{forecast["periods"][i]["name"]}</b></div><div class="col-10">{forecast["periods"][i]["detailedForecast"]}</div></div>'
+            )
         )
+    display(HTML("</div>"))
 
-    forecastHourly = await fetch(
-        point["forecastHourly"],
-        headers=headers,
-    ).json()
+    # forecastHourly = await fetch(
+    #     point["forecastHourly"],
+    #     headers=headers,
+    # ).json()
 
     # Limit this to 4 datapoints for now to prevent a flood of datapoints
-    for i in range(4):
-        display(forecastHourly["periods"][i])
+    # for i in range(4):
+    #     display(forecastHourly["periods"][i])
 
 
 # These are the geolocation functions.  They should ask for your current location
@@ -58,6 +63,6 @@ async def error(err):
     await weather(38.944444, -77.45583)
 
 
-js.window.navigator.geolocation.getCurrentPosition(
+window.navigator.geolocation.getCurrentPosition(
     create_proxy(success), create_proxy(error), options
 )
