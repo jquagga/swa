@@ -5,7 +5,8 @@ from pyscript import display, fetch
 from pyscript.ffi import create_proxy
 
 
-def weather(latitude, longitude):
+async def weather(latitude, longitude):
+    display("Hi")
     headers = {
         "accept": "application/ld+json",
         "user-agent": "https://github.com/jquagga/swa",
@@ -47,15 +48,15 @@ def weather(latitude, longitude):
 options = {"enableHighAccuracy": True, "timeout": 5000, "maximumAge": 0}
 
 
-def success(pos):
-    weather(pos.coords.latitude, pos.coords.longitude)
+async def success(pos):
+    await weather(pos.coords.latitude, pos.coords.longitude)
 
 
-def error(err):
-    #display("There was an error in the geolocation api")
+async def error(err):
+    display("There was an error in the geolocation api so let's pretend we are at IAD")
     # Until we can sort out geolocation api fun, let's use a fake location
-    # for building purposes (Dulles Airport)
-    weather(338.944444, -77.45583)
+    # for building purposes (Dulles Airport, VA)
+    await weather(38.944444, -77.45583)
 
 
 js.window.navigator.geolocation.getCurrentPosition(
