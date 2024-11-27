@@ -6,12 +6,11 @@ from pyscript.ffi import create_proxy
 
 
 async def weather(latitude, longitude):
-    display("Hi")
     headers = {
         "accept": "application/ld+json",
         "user-agent": "https://github.com/jquagga/swa",
     }
-    point = await fetch(  # noqa: F704
+    point = await fetch(
         f"https://api.weather.gov/points/{latitude},{longitude}",
         headers=headers,
     ).json()
@@ -21,7 +20,7 @@ async def weather(latitude, longitude):
     )
 
     # This pulls the daily forecast
-    forecast = await fetch(  # noqa: F704
+    forecast = await fetch(
         point["forecast"],
         headers=headers,
     ).json()
@@ -32,7 +31,7 @@ async def weather(latitude, longitude):
             f"{forecast["periods"][i]["name"]}: {forecast["periods"][i]["detailedForecast"]}"
         )
 
-    forecastHourly = await fetch(  # noqa: F704
+    forecastHourly = await fetch(
         point["forecastHourly"],
         headers=headers,
     ).json()
