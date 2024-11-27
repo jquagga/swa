@@ -14,18 +14,36 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    display(
-        HTML(
-            f"<h1>Weather for {point["relativeLocation"]['city']}, {point["relativeLocation"]['state']}</h1>"
-        )
-    )
-
     # This pulls the daily forecast
     forecast = await fetch(
         point["forecast"],
         headers=headers,
     ).json()
 
+    forecastHourly = await fetch(
+        point["forecastHourly"],
+        headers=headers,
+    ).json()
+
+    # Display our header and where we are displaying the weather for
+    display(HTML('<div class="container">'))
+    display(
+        HTML(
+            f"<h1>Weather for {point["relativeLocation"]['city']}, {point["relativeLocation"]['state']}</h1>"
+        )
+    )
+    display(HTML("</div>"))
+
+    # Current Conditions
+    display(HTML('<div class="container">'))
+    display(
+        HTML(
+            f'<div class="col"><h2>{forecastHourly["periods"][0]["shortForecast"]} {forecastHourly["periods"][0]["temperature"]} {forecastHourly["periods"][0]["temperatureUnit"]}</h2></div>'
+        )
+    )
+    display(HTML("</div>"))
+
+    # Daily weather for 3 days (6 day/night combos)
     display(HTML('<div class="container">'))
     # And this loop pulls in 6 periods of daily weather (next 3 days)
     for i in range(8):
@@ -35,15 +53,6 @@ async def weather(latitude, longitude):
             )
         )
     display(HTML("</div>"))
-
-    # forecastHourly = await fetch(
-    #     point["forecastHourly"],
-    #     headers=headers,
-    # ).json()
-
-    # Limit this to 4 datapoints for now to prevent a flood of datapoints
-    # for i in range(4):
-    #     display(forecastHourly["periods"][i])
 
 
 # These are the geolocation functions.  They should ask for your current location
