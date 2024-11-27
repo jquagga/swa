@@ -52,7 +52,10 @@ def success(pos):
 
 
 def error(err):
-    display("There was an error in the geolocation api")
+    #display("There was an error in the geolocation api")
+    # Until we can sort out geolocation api fun, let's use a fake location
+    # for building purposes (Dulles Airport)
+    weather(338.944444, -77.45583)
 
 
 js.window.navigator.geolocation.getCurrentPosition(
