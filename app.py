@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from pyscript import display, HTML, fetch, window
+from pyscript import HTML, display, fetch, window
 from pyscript.ffi import create_proxy
 
 
