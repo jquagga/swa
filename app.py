@@ -20,45 +20,63 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    forecastHourly = await fetch(
-        point["forecastHourly"],
-        headers=headers,
-    ).json()
+    # forecastHourly = await fetch(
+    #     point["forecastHourly"],
+    #     headers=headers,
+    # ).json()
 
     # Display our header and where we are displaying the weather for
-    display(HTML('<div class="container">'))
     display(
         HTML(
-            f"<h1>Weather for {point["relativeLocation"]['city']}, {point["relativeLocation"]['state']}</h1>"
+            f"""
+    <div class="container">
+      <h1>
+        Weather for {point["relativeLocation"]['city']},
+        {point["relativeLocation"]['state']}
+      </h1>
+    </div>
+
+    <table class="table table-striped">
+      <tbody>
+        <tr>
+          <td><b>{forecast["periods"][0]["name"]}</b></td>
+          <td>{forecast["periods"][0]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][1]["name"]}</b></td>
+          <td>{forecast["periods"][1]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][2]["name"]}</b></td>
+          <td>{forecast["periods"][2]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][3]["name"]}</b></td>
+          <td>{forecast["periods"][3]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][4]["name"]}</b></td>
+          <td>{forecast["periods"][4]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][5]["name"]}</b></td>
+          <td>{forecast["periods"][5]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td><b>{forecast["periods"][6]["name"]}</b></td>
+          <td>{forecast["periods"][6]["detailedForecast"]}</td>
+        </tr>
+      </tbody>
+    </table>
+    """
         )
     )
-    display(HTML("</div>"))
-
-    # Current Conditions
-    display(HTML('<div class="container">'))
-    display(
-        HTML(
-            f'<div class="col"><h2>{forecastHourly["periods"][0]["shortForecast"]} {forecastHourly["periods"][0]["temperature"]} {forecastHourly["periods"][0]["temperatureUnit"]}</h2></div>'
-        )
-    )
-    display(HTML("</div>"))
-
-    # Daily weather for 3 days (6 day/night combos)
-    display(HTML('<div class="container">'))
-    # And this loop pulls in 6 periods of daily weather (next 3 days)
-    for i in range(8):
-        display(
-            HTML(
-                f'<div class="row"><div class="col"><b>{forecast["periods"][i]["name"]}</b></div><div class="col-10">{forecast["periods"][i]["detailedForecast"]}</div></div>'
-            )
-        )
-    display(HTML("</div>"))
 
 
 # These are the geolocation functions.  They should ask for your current location
 # and then pass that off to weather()
 
-options = {"enableHighAccuracy": True, "timeout": 5000, "maximumAge": 0}
+options = {"enableHighAccuracy": True, "timeout": 27000, "maximumAge": 3600}
 
 
 async def success(pos):
