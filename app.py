@@ -20,7 +20,7 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    forecastHourly= await fetch(  # noqa: F841
+    forecastHourly = await fetch(  # noqa: F841
         point["forecastHourly"],
         headers=headers,
     ).json()
