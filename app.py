@@ -5,6 +5,7 @@ from pyscript.ffi import create_proxy
 
 
 async def weather(latitude, longitude):
+    # sourcery skip: use-fstring-for-concatenation
     headers = {
         "accept": "application/ld+json",
         "user-agent": "https://github.com/jquagga/swa",
@@ -20,10 +21,22 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    forecastHourly = await fetch(  # noqa: F841
+    forecastHourly = await fetch(
         point["forecastHourly"],
         headers=headers,
     ).json()
+
+    # Micropython doesn't really play nicely with datetime so
+    # we substr out the hour from the iso8601 date string and
+    # convert to AM/PM ye old fashioned way.
+    for i in range(6):
+        hour = (forecastHourly["periods"][i]["startTime"])[11:13]
+        if int(hour) > 12:
+            hour = int(hour) - 12
+            hour = str(hour) + " PM"
+        else:
+            hour = str(hour) + " AM"
+        forecastHourly["periods"][i]["startTime"] = hour
 
     # Build the html which will go into the page.
     display(
@@ -41,6 +54,54 @@ async def weather(latitude, longitude):
         <tr>
           <td><b>{forecast["periods"][0]["name"]}</b></td>
           <td>{forecast["periods"][0]["detailedForecast"]}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][0]['startTime']}</b
+            ><br />{forecastHourly['periods'][0]['temperature']}
+            {forecastHourly['periods'][0]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][0]['shortForecast']}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][1]['startTime']}</b
+            ><br />{forecastHourly['periods'][1]['temperature']}
+            {forecastHourly['periods'][1]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][1]['shortForecast']}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][2]['startTime']}</b
+            ><br />{forecastHourly['periods'][2]['temperature']}
+            {forecastHourly['periods'][2]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][2]['shortForecast']}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][3]['startTime']}</b
+            ><br />{forecastHourly['periods'][3]['temperature']}
+            {forecastHourly['periods'][3]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][3]['shortForecast']}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][4]['startTime']}</b
+            ><br />{forecastHourly['periods'][4]['temperature']}
+            {forecastHourly['periods'][4]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][4]['shortForecast']}</td>
+        </tr>
+        <tr>
+          <td>
+            <b>{forecastHourly['periods'][5]['startTime']}</b
+            ><br />{forecastHourly['periods'][5]['temperature']}
+            {forecastHourly['periods'][5]['temperatureUnit']}
+          </td>
+          <td>{forecastHourly['periods'][5]['shortForecast']}</td>
         </tr>
         <tr>
           <td><b>{forecast["periods"][1]["name"]}</b></td>
