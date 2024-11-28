@@ -20,12 +20,12 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    # forecastHourly = await fetch(
-    #     point["forecastHourly"],
-    #     headers=headers,
-    # ).json()
+    forecastHourly= await fetch(  # noqa: F841
+        point["forecastHourly"],
+        headers=headers,
+    ).json()
 
-    # Display our header and where we are displaying the weather for
+    # Build the html which will go into the page.
     display(
         HTML(
             f"""
@@ -76,7 +76,7 @@ async def weather(latitude, longitude):
 # These are the geolocation functions.  They should ask for your current location
 # and then pass that off to weather()
 
-options = {"enableHighAccuracy": True, "timeout": 27000, "maximumAge": 3600}
+options = {"enableHighAccuracy": True, "timeout": 6000, "maximumAge": 3600}
 
 
 async def success(pos):
