@@ -29,9 +29,13 @@ async def weather(latitude, longitude):
     # Micropython doesn't really play nicely with datetime so
     # we substr out the hour from the iso8601 date string and
     # convert to AM/PM ye old fashioned way.
-    for i in range(6):
+    for i in range(8):
         hour = (forecastHourly["periods"][i]["startTime"])[11:13]
-        if int(hour) > 12:
+        if int(hour) == 0:
+            hour = "12 AM"
+        elif int(hour) == 12:
+            hour = str(hour) + " PM"
+        elif int(hour) > 12:
             hour = int(hour) - 12
             hour = str(hour) + " PM"
         else:
@@ -49,61 +53,44 @@ async def weather(latitude, longitude):
       </h1>
     </div>
 
+    <div class="container">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <script>
+
+        const ctx = document.getElementById('myChart');
+
+        new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: ['{forecastHourly["periods"][0]["startTime"]}', '{forecastHourly["periods"][1]["startTime"]}', '{forecastHourly["periods"][2]["startTime"]}', '{forecastHourly["periods"][3]["startTime"]}', '{forecastHourly["periods"][4]["startTime"]}', '{forecastHourly["periods"][5]["startTime"]}', '{forecastHourly["periods"][6]["startTime"]}', '{forecastHourly["periods"][7]["startTime"]}'],
+                datasets: [{{
+                    label: 'Temperature',
+                    data: [{forecastHourly["periods"][0]["temperature"]}, {forecastHourly["periods"][1]["temperature"]}, {forecastHourly["periods"][2]["temperature"]}, {forecastHourly["periods"][3]["temperature"]}, {forecastHourly["periods"][4]["temperature"]}, {forecastHourly["periods"][5]["temperature"]}, {forecastHourly["periods"][6]["temperature"]}, {forecastHourly["periods"][7]["temperature"]}],
+                    borderColor: '#FF0000',
+                    backgroundColor: '#FF0000',
+                }}]
+            }},
+            options: {{
+                scales: {{
+                    y: {{
+                        beginAtZero: true
+                    }}
+                }}
+            }}
+        }});
+    </script>
+
     <table class="table table-striped">
       <tbody>
         <tr>
           <td><b>{forecast["periods"][0]["name"]}</b></td>
           <td>{forecast["periods"][0]["detailedForecast"]}</td>
         </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][0]['startTime']}</b
-            ><br />{forecastHourly['periods'][0]['temperature']}
-            {forecastHourly['periods'][0]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][0]['shortForecast']}</td>
-        </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][1]['startTime']}</b
-            ><br />{forecastHourly['periods'][1]['temperature']}
-            {forecastHourly['periods'][1]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][1]['shortForecast']}</td>
-        </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][2]['startTime']}</b
-            ><br />{forecastHourly['periods'][2]['temperature']}
-            {forecastHourly['periods'][2]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][2]['shortForecast']}</td>
-        </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][3]['startTime']}</b
-            ><br />{forecastHourly['periods'][3]['temperature']}
-            {forecastHourly['periods'][3]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][3]['shortForecast']}</td>
-        </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][4]['startTime']}</b
-            ><br />{forecastHourly['periods'][4]['temperature']}
-            {forecastHourly['periods'][4]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][4]['shortForecast']}</td>
-        </tr>
-        <tr>
-          <td>
-            <b>{forecastHourly['periods'][5]['startTime']}</b
-            ><br />{forecastHourly['periods'][5]['temperature']}
-            {forecastHourly['periods'][5]['temperatureUnit']}
-          </td>
-          <td>{forecastHourly['periods'][5]['shortForecast']}</td>
-        </tr>
-        <tr>
           <td><b>{forecast["periods"][1]["name"]}</b></td>
           <td>{forecast["periods"][1]["detailedForecast"]}</td>
         </tr>
