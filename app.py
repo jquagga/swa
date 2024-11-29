@@ -57,9 +57,6 @@ async def weather(latitude, longitude):
         <canvas id="myChart"></canvas>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-
     <script>
 
         const ctx = document.getElementById('myChart');
