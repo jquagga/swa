@@ -80,7 +80,7 @@ async def weather(latitude, longitude):
                     y: {{
                         type: 'linear',
                         beginAtZero: false,
-                        grade: "5%"
+                        grace: "5%"
                     }}
                 }},
               plugins: {{
