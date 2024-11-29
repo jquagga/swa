@@ -26,10 +26,12 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    # Micropython doesn't really play nicely with datetime so
-    # we substr out the hour from the iso8601 date string and
-    # convert to AM/PM ye old fashioned way.
+    # Let's tweak 8 periods (what we display in the chart) out
+    # of the 168 or so.
     for i in range(8):
+        # Micropython doesn't really play nicely with datetime so
+        # we substr out the hour from the iso8601 date string and
+        # convert to AM/PM ye old fashioned way.
         hour = (forecastHourly["periods"][i]["startTime"])[11:13]
         if int(hour) == 0:
             hour = "12 AM"
@@ -58,6 +60,7 @@ async def weather(latitude, longitude):
     </div>
 
     <script>
+        Chart.register(ChartDataLabels);
 
         const ctx = document.getElementById('myChart');
 
@@ -75,9 +78,30 @@ async def weather(latitude, longitude):
             options: {{
                 scales: {{
                     y: {{
-                        beginAtZero: true
+                        type: 'linear',
+                        beginAtZero: false,
+                        grace: "5%"
                     }}
-                }}
+                }},
+              plugins: {{
+              datalabels: {{
+                backgroundColor: function(context) {{
+                  return context.dataset.backgroundColor;
+                }},
+                borderRadius: 2,
+                color: 'white',
+                font: {{
+                  weight: 'bold'
+                }},
+                formatter: Math.round,
+                padding: 2
+              }},
+              legend: {{
+                display: true,
+                position: 'bottom',
+                align: 'start',
+              }},
+            }},
             }}
         }});
     </script>
