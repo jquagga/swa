@@ -101,6 +101,7 @@ async def weather(latitude, longitude):
                     data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
                     borderColor: '#0000CC',
                     backgroundColor: '#0000CC',
+                    borderDash: [5, 5],
                 }}]
             }},
             options: {{
