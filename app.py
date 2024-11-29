@@ -31,7 +31,9 @@ async def weather(latitude, longitude):
     # convert to AM/PM ye old fashioned way.
     for i in range(8):
         hour = (forecastHourly["periods"][i]["startTime"])[11:13]
-        if int(hour) == 12:
+        if int(hour) == 0:
+            hour = "12 AM"
+        elif int(hour) == 12:
             hour = str(hour) + " PM"
         elif int(hour) > 12:
             hour = int(hour) - 12
