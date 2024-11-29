@@ -43,6 +43,28 @@ async def weather(latitude, longitude):
         else:
             hour = str(hour) + " AM"
         forecastHourly["periods"][i]["startTime"] = hour
+        #################################################
+        # Ok, now on to computing Wind Chill for these 8 periods
+        # Yes, the full grid json includes Wind Chill, but that
+        # doesn't stay to hourly period (they vary) so that's a pain
+        # without datetime.  So we will use the data we have from
+        # forecastHourly to build the Wind Chill if it exists
+        # Formula etc: https://www.weather.gov/epz/wxcalc_windchill
+        # First, windSpeed has mph in the string so let's strip it out to a number
+        windspeed = forecastHourly["periods"][i]["windSpeed"].split()
+        windspeed[0] = float(windspeed[0])
+        if float(forecastHourly["periods"][i]["temperature"]) < 50 and windspeed[0] > 3:
+            forecastHourly["periods"][i]["windChill"] = (
+                35.74
+                + 0.6215 * forecastHourly["periods"][i]["temperature"]
+                - 35.75 * (windspeed[0] ** 0.16)
+                + 0.4275
+                * forecastHourly["periods"][i]["temperature"]
+                * (windspeed[0] ** 0.16)
+            )
+        else:
+            forecastHourly["periods"][i]["windChill"] = ""
+        # TODO - Heat Index
 
     # Build the html which will go into the page.
     display(
@@ -71,8 +93,15 @@ async def weather(latitude, longitude):
                 datasets: [{{
                     label: 'Temperature',
                     data: [{forecastHourly["periods"][0]["temperature"]}, {forecastHourly["periods"][1]["temperature"]}, {forecastHourly["periods"][2]["temperature"]}, {forecastHourly["periods"][3]["temperature"]}, {forecastHourly["periods"][4]["temperature"]}, {forecastHourly["periods"][5]["temperature"]}, {forecastHourly["periods"][6]["temperature"]}, {forecastHourly["periods"][7]["temperature"]}],
-                    borderColor: '#FF0000',
-                    backgroundColor: '#FF0000',
+                    borderColor: '#FA0000',
+                    backgroundColor: '#FA0000',
+                }},
+                {{
+                    label: 'Wind Chill',
+                    data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
+                    borderColor: '#0000CC',
+                    backgroundColor: '#0000CC',
+                    borderDash: [5, 5],
                 }}]
             }},
             options: {{
