@@ -31,8 +31,13 @@ async def fetch_weather(latitude, longitude):
         headers=headers,
     ).json()
 
+    alerts = await alert_processing(alerts)
     forecastHourly = await apparent_temp(forecastHourly)
-    await display_page(point, forecast, forecastHourly)
+    await display_page(point, forecast, forecastHourly, alerts)
+
+
+async def alert_processing(forecastHourly):
+    return ""
 
 
 async def apparent_temp(forecastHourly):
@@ -79,7 +84,7 @@ async def apparent_temp(forecastHourly):
     return forecastHourly
 
 
-async def display_page(point, forecast, forecastHourly):
+async def display_page(point, forecast, forecastHourly, alerts):
     # Build the html which will go into the page.
     display(
         HTML(
@@ -89,6 +94,10 @@ async def display_page(point, forecast, forecastHourly):
         Weather for {point["relativeLocation"]['city']},
         {point["relativeLocation"]['state']}
       </h1>
+    </div>
+
+    <div class="container">
+        {alerts}
     </div>
 
     <div class="container">
@@ -148,6 +157,7 @@ async def display_page(point, forecast, forecastHourly):
         }});
     </script>
 
+    <div class="container">
     <table class="table table-striped">
       <tbody>
         <tr>
@@ -179,6 +189,7 @@ async def display_page(point, forecast, forecastHourly):
         </tr>
       </tbody>
     </table>
+    </div>
     """
         )
     )
