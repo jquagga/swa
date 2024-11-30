@@ -4,7 +4,7 @@ from pyscript import HTML, display, fetch, window
 from pyscript.ffi import create_proxy
 
 
-async def weather(latitude, longitude):
+async def fetch_weather(latitude, longitude):
     # sourcery skip: use-fstring-for-concatenation
     headers = {
         "accept": "application/ld+json",
@@ -26,6 +26,11 @@ async def weather(latitude, longitude):
         headers=headers,
     ).json()
 
+    await apparent_temp(forecastHourly)
+    await display_page(point, forecast, forecastHourly)
+
+
+async def apparent_temp(forecastHourly):
     # Let's tweak 8 periods (what we display in the chart) out
     # of the 168 or so.
     for i in range(8):
@@ -39,9 +44,9 @@ async def weather(latitude, longitude):
             hour = "12 PM"
         elif int(hour) > 12:
             hour = int(hour) - 12
-            hour = str(hour) + " PM"
+            hour = f"{str(hour)} PM"
         else:
-            hour = str(int(hour)) + " AM"
+            hour = f"{int(hour)} AM"
         forecastHourly["periods"][i]["startTime"] = hour
         #################################################
         # Ok, now on to computing Wind Chill for these 8 periods
@@ -64,9 +69,9 @@ async def weather(latitude, longitude):
             )
         else:
             forecastHourly["periods"][i]["windChill"] = ""
-        # TODO - Heat Index
+            # TODO - Heat Index
 
-    await display_page(point, forecast, forecastHourly)
+    return forecastHourly
 
 
 async def display_page(point, forecast, forecastHourly):
@@ -181,7 +186,7 @@ options = {"enableHighAccuracy": True, "timeout": 6000, "maximumAge": 3600}
 
 
 async def success(pos):
-    await weather(pos.coords.latitude, pos.coords.longitude)
+    await fetch_weather(pos.coords.latitude, pos.coords.longitude)
 
 
 async def error(err):
@@ -196,7 +201,7 @@ async def error(err):
     )
     # Until we can sort out geolocation api fun, let's use a fake location
     # for building purposes (Hawaii)
-    await weather(21.306944, -157.858333)
+    await fetch_weather(21.306944, -157.858333)
 
 
 window.navigator.geolocation.getCurrentPosition(
