@@ -31,8 +31,8 @@ async def fetch_weather(latitude, longitude):
     ).json()
 
     alerts = await alert_processing(alerts)
-    forecastHourly = await apparent_temp(forecastHourly)
-    await display_page(point, forecast, forecastHourly, alerts)
+    chart = await build_chart(forecastHourly)
+    await display_page(point, forecast, chart, alerts)
 
 
 async def alert_processing(alerts):
@@ -56,7 +56,7 @@ async def alert_processing(alerts):
     return alert_string
 
 
-async def apparent_temp(forecastHourly):
+async def build_chart(forecastHourly):
     # Let's tweak 8 periods (what we display in the chart) out
     # of the 168 or so.
     for i in range(8):
@@ -97,28 +97,10 @@ async def apparent_temp(forecastHourly):
             forecastHourly["periods"][i]["windChill"] = ""
             # TODO - Heat Index
 
-    return forecastHourly
-
-
-async def display_page(point, forecast, forecastHourly, alerts):
-    # Build the html which will go into the page.
-    display(
-        HTML(
-            f"""
-    <div class="container">
-      <h1>
-        Weather for {point["relativeLocation"]['city']},
-        {point["relativeLocation"]['state']}
-      </h1>
-    </div>
-
-    <div class="container">
-        {alerts}
-    </div>
-
-    <div class="container">
+    return f"""
+        <div class="container">
         <canvas id="myChart"></canvas>
-    </div>
+        </div>
 
     <script>
         Chart.register(ChartDataLabels);
@@ -172,6 +154,26 @@ async def display_page(point, forecast, forecastHourly, alerts):
             }}
         }});
     </script>
+    """
+
+
+async def display_page(point, forecast, chart, alerts):
+    # Build the html which will go into the page.
+    display(
+        HTML(
+            f"""
+    <div class="container">
+      <h1>
+        Weather for {point["relativeLocation"]['city']},
+        {point["relativeLocation"]['state']}
+      </h1>
+    </div>
+
+    <div class="container">
+        {alerts}
+    </div>
+
+    {chart}
 
     <div class="container">
     <table class="table table-striped">
