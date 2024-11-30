@@ -181,10 +181,18 @@ async def success(pos):
 
 
 async def error(err):
-    display("There was an error in the geolocation api so let's pretend we are at IAD")
+    display(
+        HTML(
+            r"""<div class="alert alert-primary" role="alert">
+            <b>Hello!</b>
+            This site utilizes the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov</a> API to generate a local forecast from your geolocated position.
+             You may have answered "no" to the request for location, or your browser wasn't able to find your location so we're going to show the
+             weather in Honolulu, HI.  For more information, you can <a href="https://github.com/jquagga/swa">see the code for this project.</a></div>"""
+        )
+    )
     # Until we can sort out geolocation api fun, let's use a fake location
     # for building purposes (Dulles Airport, VA)
-    await weather(38.944444, -77.45583)
+    await weather(21.306944, -157.858333)
 
 
 window.navigator.geolocation.getCurrentPosition(
