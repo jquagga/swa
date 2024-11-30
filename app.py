@@ -66,6 +66,10 @@ async def weather(latitude, longitude):
             forecastHourly["periods"][i]["windChill"] = ""
         # TODO - Heat Index
 
+    await display_page(point, forecast, forecastHourly)
+
+
+async def display_page(point, forecast, forecastHourly):
     # Build the html which will go into the page.
     display(
         HTML(
@@ -191,7 +195,7 @@ async def error(err):
         )
     )
     # Until we can sort out geolocation api fun, let's use a fake location
-    # for building purposes (Dulles Airport, VA)
+    # for building purposes (Hawaii)
     await weather(21.306944, -157.858333)
 
 
