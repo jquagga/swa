@@ -15,6 +15,11 @@ async def fetch_weather(latitude, longitude):
         headers=headers,
     ).json()
 
+    alerts = await fetch(
+        f"https://api.weather.gov/alerts?active=true&status=actual&message_type=alert,update&point={latitude},{longitude}&limit=50",
+        headers=headers,
+    ).json()
+
     # This pulls the daily forecast
     forecast = await fetch(
         point["forecast"],
@@ -26,7 +31,7 @@ async def fetch_weather(latitude, longitude):
         headers=headers,
     ).json()
 
-    await apparent_temp(forecastHourly)
+    forecastHourly = await apparent_temp(forecastHourly)
     await display_page(point, forecast, forecastHourly)
 
 
