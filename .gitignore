@@ -1,3 +1,4 @@
 template.html
 chart.html
-response*
+*.json
+!renovate.json

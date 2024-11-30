@@ -5,7 +5,6 @@ from pyscript.ffi import create_proxy
 
 
 async def fetch_weather(latitude, longitude):
-    # sourcery skip: use-fstring-for-concatenation
     headers = {
         "accept": "application/ld+json",
         "user-agent": "https://github.com/jquagga/swa",
@@ -36,8 +35,25 @@ async def fetch_weather(latitude, longitude):
     await display_page(point, forecast, forecastHourly, alerts)
 
 
-async def alert_processing(forecastHourly):
-    return ""
+async def alert_processing(alerts):
+    alert_string = ""
+    # Pop the @graphs up a level in the dict since everything we want is in there.
+    alerts = alerts["@graph"]
+    # Loop through all of the alerts and append to the alert_string
+    for alert in alerts:
+        alert_string = f"""{alert_string}
+          <div class="alert alert-primary" role="alert">
+          <h4 class="alert-heading"><a data-bs-toggle="collapse" href="#collapse{alert['id']}">
+            {alert['event']}</a></h4>
+          <div class="collapse" id="collapse{alert['id']}">
+          <hr>
+          <p>{alert['headline']}</p>
+          <p>{alert['description']}</p>
+          <p>{alert['instruction']}</p>
+          </div>
+          </div>
+          """
+    return alert_string
 
 
 async def apparent_temp(forecastHourly):
