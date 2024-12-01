@@ -115,14 +115,29 @@ async def build_chart(forecastHourly):
                     data: [{forecastHourly["periods"][0]["temperature"]}, {forecastHourly["periods"][1]["temperature"]}, {forecastHourly["periods"][2]["temperature"]}, {forecastHourly["periods"][3]["temperature"]}, {forecastHourly["periods"][4]["temperature"]}, {forecastHourly["periods"][5]["temperature"]}, {forecastHourly["periods"][6]["temperature"]}, {forecastHourly["periods"][7]["temperature"]}],
                     borderColor: '#FF0000',
                     backgroundColor: '#FF0000',
-                    showLine: false
+                    showLine: false,
+                    yAxisID: 'y',
                 }},
                 {{
                     label: 'Apparent Temperature',
                     data: [{forecastHourly["periods"][0]["appTemp"]}, {forecastHourly["periods"][1]["appTemp"]}, {forecastHourly["periods"][2]["appTemp"]}, {forecastHourly["periods"][3]["appTemp"]}, {forecastHourly["periods"][4]["appTemp"]}, {forecastHourly["periods"][5]["appTemp"]}, {forecastHourly["periods"][6]["appTemp"]}, {forecastHourly["periods"][7]["appTemp"]}],
                     borderColor: '#a40000',
                     backgroundColor: '#a40000',
-                    showLine: false
+                    showLine: false,
+                    yAxisID: 'y',
+                }},
+                {{
+                    label: 'Chance of Preciptition',
+                    data: [{forecastHourly["periods"][0]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][1]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][2]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][3]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][4]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][5]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][6]["probabilityOfPrecipitation"]["value"]},{forecastHourly["periods"][7]["probabilityOfPrecipitation"]["value"]}],
+                    borderColor: '#add8e6',
+                    backgroundColor: '#add8e6',
+                    showLine: true,
+                    fill: true,
+                    yAxisID: 'y1',
+                    pointRadius: 0,
+                    datalabels: {{
+                    display: false
+                    }},
                 }}
                 ]
             }},
@@ -133,7 +148,19 @@ async def build_chart(forecastHourly):
                         type: 'linear',
                         beginAtZero: false,
                         grace: "5%"
-                    }}
+                    }},
+                    y1: {{
+                      type: 'linear',
+                      display: false,
+                      position: 'right',
+                      min: 0,
+                      max: 100,
+
+                      // grid line settings
+                      grid: {{
+                        drawOnChartArea: false, // only want the grid lines for one axis to show up
+                    }},
+                    }},
                 }},
               plugins: {{
               datalabels: {{
