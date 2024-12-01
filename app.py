@@ -59,6 +59,7 @@ async def alert_processing(alerts):
 async def build_chart(forecastHourly):
     # Let's tweak 8 periods (what we display in the chart) out
     # of the 168 or so.
+    is_chilly = 0  # We'll used this to determine if we have windchill.
     for i in range(8):
         # Micropython doesn't really play nicely with datetime so
         # we substr out the hour from the iso8601 date string and
@@ -85,6 +86,7 @@ async def build_chart(forecastHourly):
         windspeed = forecastHourly["periods"][i]["windSpeed"].split()
         windspeed[0] = float(windspeed[0])
         if float(forecastHourly["periods"][i]["temperature"]) < 50 and windspeed[0] > 3:
+            is_chilly = 1
             forecastHourly["periods"][i]["windChill"] = (
                 35.74
                 + 0.6215 * forecastHourly["periods"][i]["temperature"]
@@ -96,6 +98,16 @@ async def build_chart(forecastHourly):
         else:
             forecastHourly["periods"][i]["windChill"] = ""
             # TODO - Heat Index
+
+    if is_chilly == 1:
+        chilly = f"""{{
+                    label: 'Wind Chill',
+                    data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
+                    borderColor: '#0000CC',
+                    backgroundColor: '#0000CC',
+                }},"""
+    else:
+        chilly = ""
 
     return f"""
         <div class="container">
@@ -117,12 +129,8 @@ async def build_chart(forecastHourly):
                     borderColor: '#FA0000',
                     backgroundColor: '#FA0000',
                 }},
-                {{
-                    label: 'Wind Chill',
-                    data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
-                    borderColor: '#0000CC',
-                    backgroundColor: '#0000CC',
-                }}]
+                {chilly}
+                ]
             }},
             options: {{
                 scales: {{
