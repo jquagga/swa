@@ -106,15 +106,15 @@ async def build_chart(forecastHourly):
                 datasets: [{{
                     label: 'Temperature',
                     data: [{forecastHourly["periods"][0]["temperature"]}, {forecastHourly["periods"][1]["temperature"]}, {forecastHourly["periods"][2]["temperature"]}, {forecastHourly["periods"][3]["temperature"]}, {forecastHourly["periods"][4]["temperature"]}, {forecastHourly["periods"][5]["temperature"]}, {forecastHourly["periods"][6]["temperature"]}, {forecastHourly["periods"][7]["temperature"]}],
-                    borderColor: '#FA0000',
-                    backgroundColor: '#FA0000',
+                    borderColor: '#FF0000',
+                    backgroundColor: '#FF0000',
                     showLine: false
                 }},
                 {{
                     label: 'Apparent Temperature',
                     data: [{forecastHourly["periods"][0]["appTemp"]}, {forecastHourly["periods"][1]["appTemp"]}, {forecastHourly["periods"][2]["appTemp"]}, {forecastHourly["periods"][3]["appTemp"]}, {forecastHourly["periods"][4]["appTemp"]}, {forecastHourly["periods"][5]["appTemp"]}, {forecastHourly["periods"][6]["appTemp"]}, {forecastHourly["periods"][7]["appTemp"]}],
-                    borderColor: '#ffa500',
-                    backgroundColor: '#ffa500',
+                    borderColor: '#a40000',
+                    backgroundColor: '#a40000',
                     showLine: false
                 }}
                 ]
