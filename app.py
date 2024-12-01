@@ -38,44 +38,30 @@ async def fetch_weather(latitude, longitude):
 
 
 async def alert_processing(alerts):
-    alert_string = ""
-    # Pop the @graphs up a level in the dict since everything we want is in there.
-    alerts = alerts["@graph"]
+    # Mapping of severity levels to Bootstrap alert classes
+    severity_classes = {
+        "Extreme": "danger",
+        "Severe": "warning",
+        "default": "info",  # Fallback for other severity levels
+    }
 
-    # Loop through all of the alerts and append to the alert_string
-    # We use some simple if's to determine Severity level and set alert
-    # level accordingly
-    for alert in alerts:
-        # This is the "core" of the alert message.  We're going to change the first line based
-        # on alert Severity level, but the rest of the "core" is the same for all alerts.
-        alert_core_message = f"""
-          <h4 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse{alert['id']}">
+    alert_string = ""
+    for alert in alerts["@graph"]:
+        alert_class = severity_classes.get(
+            alert["severity"], severity_classes["default"]
+        )
+        alert_string += f"""
+        <div class="alert alert-{alert_class}" role="alert">
+            <h4 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse{alert['id']}">
             {alert['event']}</a></h4>
-          <div class="collapse" id="collapse{alert['id']}">
-          <hr>
-          <p>{alert['headline']}</p>
-          <p>{alert['description']}</p>
-          <p>{alert['instruction']}</p>
-          </div>
-          </div>
-      """
-        # And these if's set the top line / color of the div based on
-        # alert severity
-        if alert["severity"] == "Extreme":  # Extreme gets danger/red
-            alert_string = f"""{alert_string}
-          <div class="alert alert-danger" role="alert">
-          {alert_core_message}
-          """
-        elif alert["severity"] == "Severe":  # Severe gets warning/yellow
-            alert_string = f"""{alert_string}
-          <div class="alert alert-warning" role="alert">
-          {alert_core_message}
-          """
-        else:  # Everything else gets info/green
-            alert_string = f"""{alert_string}
-          <div class="alert alert-info" role="alert">
-          {alert_core_message}
-          """
+            <div class="collapse" id="collapse{alert['id']}">
+            <hr>
+            <p>{alert['headline']}</p>
+            <p>{alert['description']}</p>
+            <p>{alert['instruction']}</p>
+            </div>
+        </div>
+        """
     return alert_string
 
 
