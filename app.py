@@ -147,6 +147,9 @@ async def build_chart(forecastHourly):
                 display: true,
                 position: 'bottom',
                 align: 'start',
+                labels: {{
+                  usePointStyle: true,
+                }},
               }},
             }},
             }}
