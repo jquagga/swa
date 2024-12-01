@@ -141,7 +141,7 @@ async def build_chart(forecastHourly):
                 }},
                 formatter: Math.round,
                 padding: 4,
-                visiblity: 'auto'
+                display: 'auto'
               }},
               legend: {{
                 display: true,
