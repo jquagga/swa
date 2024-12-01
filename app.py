@@ -99,7 +99,7 @@ async def build_chart(forecastHourly):
             forecastHourly["periods"][i]["windChill"] = ""
             # TODO - Heat Index
 
-    if is_chilly == 1:
+    if is_chilly:
         chilly = f"""{{
                     label: 'Wind Chill',
                     data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
