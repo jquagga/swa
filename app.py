@@ -127,7 +127,7 @@ async def build_chart(forecastHourly):
                     yAxisID: 'y',
                 }},
                 {{
-                    label: 'Chance of Preciptition',
+                    label: 'Chance of Precipitation',
                     data: [{forecastHourly["periods"][0]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][1]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][2]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][3]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][4]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][5]["probabilityOfPrecipitation"]["value"]}, {forecastHourly["periods"][6]["probabilityOfPrecipitation"]["value"]},{forecastHourly["periods"][7]["probabilityOfPrecipitation"]["value"]}],
                     borderColor: '#add8e6',
                     backgroundColor: '#add8e6',
