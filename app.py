@@ -263,10 +263,6 @@ async def display_page(point, forecast, chart, alerts, latitude, longitude):
           <td><b>{forecast["periods"][5]["name"]}</b></td>
           <td>{forecast["periods"][5]["detailedForecast"]}</td>
         </tr>
-        <tr>
-          <td><b>{forecast["periods"][6]["name"]}</b></td>
-          <td>{forecast["periods"][6]["detailedForecast"]}</td>
-        </tr>
       </tbody>
     </table>
     </div>
