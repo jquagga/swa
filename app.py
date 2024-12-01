@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import math
+
 from pyscript import HTML, display, fetch, window
 from pyscript.ffi import create_proxy
 
@@ -59,7 +61,6 @@ async def alert_processing(alerts):
 async def build_chart(forecastHourly):
     # Let's tweak 8 periods (what we display in the chart) out
     # of the 168 or so.
-    is_chilly = False  # We'll used this to determine if we have windchill.
     for i in range(8):
         # Micropython doesn't really play nicely with datetime so
         # we substr out the hour from the iso8601 date string and
@@ -76,39 +77,18 @@ async def build_chart(forecastHourly):
             hour = f"{int(hour)} AM"
         forecastHourly["periods"][i]["startTime"] = hour
         #################################################
-        # Ok, now on to computing Wind Chill for these 8 periods
-        # Yes, the full grid json includes Wind Chill, but that
-        # doesn't stay to hourly period (they vary) so that's a pain
-        # without datetime.  So we will use the data we have from
-        # forecastHourly to build the Wind Chill if it exists
-        # Formula etc: https://www.weather.gov/epz/wxcalc_windchill
+        # Apparent temperature
         # First, windSpeed has mph in the string so let's strip it out to a number
         windspeed = forecastHourly["periods"][i]["windSpeed"].split()
-        windspeed[0] = float(windspeed[0])
-        if float(forecastHourly["periods"][i]["temperature"]) < 50 and windspeed[0] > 3:
-            is_chilly = True
-            forecastHourly["periods"][i]["windChill"] = (
-                35.74
-                + 0.6215 * forecastHourly["periods"][i]["temperature"]
-                - 35.75 * (windspeed[0] ** 0.16)
-                + 0.4275
-                * forecastHourly["periods"][i]["temperature"]
-                * (windspeed[0] ** 0.16)
-            )
-        else:
-            forecastHourly["periods"][i]["windChill"] = ""
-            # TODO - Heat Index
+        forecastHourly["periods"][i]["windSpeed"] = float(windspeed[0])
+        # Now we send temp, humidity and windspeed to the apptempF function from weewx
+        forecastHourly["periods"][i]["appTemp"] = apptempF(
+            float(forecastHourly["periods"][i]["temperature"]),
+            float(forecastHourly["periods"][i]["relativeHumidity"]["value"]),
+            forecastHourly["periods"][i]["windSpeed"],
+        )
 
-    if is_chilly:
-        chilly = f"""{{
-                    label: 'Wind Chill',
-                    data: [{forecastHourly["periods"][0]["windChill"]}, {forecastHourly["periods"][1]["windChill"]}, {forecastHourly["periods"][2]["windChill"]}, {forecastHourly["periods"][3]["windChill"]}, {forecastHourly["periods"][4]["windChill"]}, {forecastHourly["periods"][5]["windChill"]}, {forecastHourly["periods"][6]["windChill"]}, {forecastHourly["periods"][7]["windChill"]}],
-                    borderColor: '#0000CC',
-                    backgroundColor: '#0000CC',
-                }},"""
-    else:
-        chilly = ""
-
+    # And this builds the chart section and returns it to be included.
     return f"""
         <div class="container">
         <canvas id="myChart"></canvas>
@@ -128,11 +108,19 @@ async def build_chart(forecastHourly):
                     data: [{forecastHourly["periods"][0]["temperature"]}, {forecastHourly["periods"][1]["temperature"]}, {forecastHourly["periods"][2]["temperature"]}, {forecastHourly["periods"][3]["temperature"]}, {forecastHourly["periods"][4]["temperature"]}, {forecastHourly["periods"][5]["temperature"]}, {forecastHourly["periods"][6]["temperature"]}, {forecastHourly["periods"][7]["temperature"]}],
                     borderColor: '#FA0000',
                     backgroundColor: '#FA0000',
+                    showLine: false
                 }},
-                {chilly}
+                {{
+                    label: 'Apparent Temperature',
+                    data: [{forecastHourly["periods"][0]["appTemp"]}, {forecastHourly["periods"][1]["appTemp"]}, {forecastHourly["periods"][2]["appTemp"]}, {forecastHourly["periods"][3]["appTemp"]}, {forecastHourly["periods"][4]["appTemp"]}, {forecastHourly["periods"][5]["appTemp"]}, {forecastHourly["periods"][6]["appTemp"]}, {forecastHourly["periods"][7]["appTemp"]}],
+                    borderColor: '#ffa500',
+                    backgroundColor: '#ffa500',
+                    showLine: false
+                }}
                 ]
             }},
             options: {{
+                animation: false,
                 scales: {{
                     y: {{
                         type: 'linear',
@@ -145,13 +133,15 @@ async def build_chart(forecastHourly):
                 backgroundColor: function(context) {{
                   return context.dataset.backgroundColor;
                 }},
-                borderRadius: 2,
+                borderRadius: 25,
+                borderWidth: 2,
                 color: 'white',
                 font: {{
                   weight: 'bold'
                 }},
                 formatter: Math.round,
-                padding: 2
+                padding: 4,
+                visiblity: 'auto'
               }},
               legend: {{
                 display: true,
@@ -163,6 +153,33 @@ async def build_chart(forecastHourly):
         }});
     </script>
     """
+
+
+# These 4 functions come directly from weewx to generate apparent temperature
+# for the hourly chart. This essentially replaces Wind Chill and Heat Index
+# and that's not what NWS presents, but it's my preference. (It's also easier to have 1 value)
+# This is essentially "Feels Like Temperature"
+# https://github.com/weewx/weewx/blob/master/src/weewx/wxformulas.py
+
+
+def FtoC(x):
+    return (x - 32.0) / 1.8
+
+
+def CtoF(x):
+    return x * 1.8 + 32.0
+
+
+def apptempF(t_F, rh, ws_mph):
+    t_C = FtoC(t_F)
+    ws_mps = ws_mph * 1609.34 / 3600.0
+    at_C = apptempC(t_C, rh, ws_mps)
+    return CtoF(at_C) if at_C is not None else ""
+
+
+def apptempC(t_C, rh, ws_mps):
+    e = (rh / 100.0) * 6.105 * math.exp(17.27 * t_C / (237.7 + t_C))
+    return t_C + 0.33 * e - 0.7 * ws_mps - 4.0
 
 
 async def display_page(point, forecast, chart, alerts):
