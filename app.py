@@ -34,27 +34,34 @@ async def fetch_weather(latitude, longitude):
 
     alerts = await alert_processing(alerts)
     chart = await build_chart(forecastHourly)
-    await display_page(point, forecast, chart, alerts)
+    await display_page(point, forecast, chart, alerts, latitude, longitude)
 
 
 async def alert_processing(alerts):
+    # Mapping of severity levels to Bootstrap alert classes
+    severity_classes = {
+        "Extreme": "danger",
+        "Severe": "warning",
+        "default": "info",  # Fallback for other severity levels
+    }
+
     alert_string = ""
-    # Pop the @graphs up a level in the dict since everything we want is in there.
-    alerts = alerts["@graph"]
-    # Loop through all of the alerts and append to the alert_string
-    for alert in alerts:
-        alert_string = f"""{alert_string}
-          <div class="alert alert-primary" role="alert">
-          <h4 class="alert-heading"><a data-bs-toggle="collapse" href="#collapse{alert['id']}">
+    for alert in alerts["@graph"]:
+        alert_class = severity_classes.get(
+            alert["severity"], severity_classes["default"]
+        )
+        alert_string += f"""
+        <div class="alert alert-{alert_class}" role="alert">
+            <h4 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse{alert['id']}">
             {alert['event']}</a></h4>
-          <div class="collapse" id="collapse{alert['id']}">
-          <hr>
-          <p>{alert['headline']}</p>
-          <p>{alert['description']}</p>
-          <p>{alert['instruction']}</p>
-          </div>
-          </div>
-          """
+            <div class="collapse" id="collapse{alert['id']}">
+            <hr>
+            <p>{alert['headline']}</p>
+            <p>{alert['description']}</p>
+            <p>{alert['instruction']}</p>
+            </div>
+        </div>
+        """
     return alert_string
 
 
@@ -185,7 +192,7 @@ def apptempC(t_C, rh, ws_mps):
     return t_C + 0.33 * e - 0.7 * ws_mps - 4.0
 
 
-async def display_page(point, forecast, chart, alerts):
+async def display_page(point, forecast, chart, alerts, latitude, longitude):
     # Build the html which will go into the page.
     display(
         HTML(
@@ -235,6 +242,12 @@ async def display_page(point, forecast, chart, alerts):
         </tr>
       </tbody>
     </table>
+    </div>
+
+    <div class="container">
+    <p class="text-center"><button type="button" class="btn btn-outline-primary"><a href=https://forecast.weather.gov/MapClick.php?lat={latitude}&lon={longitude} class="link-primary">Weather.gov forecast</a></button></p>
+    <p class="text-center">This forecast is generated from the U.S. Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
+    using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>
     </div>
     """
         )
