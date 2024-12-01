@@ -34,18 +34,22 @@ async def fetch_weather(latitude, longitude):
 
     alerts = await alert_processing(alerts)
     chart = await build_chart(forecastHourly)
-    await display_page(point, forecast, chart, alerts)
+    await display_page(point, forecast, chart, alerts, latitude, longitude)
 
 
 async def alert_processing(alerts):
     alert_string = ""
     # Pop the @graphs up a level in the dict since everything we want is in there.
     alerts = alerts["@graph"]
+
     # Loop through all of the alerts and append to the alert_string
+    # We use some simple if's to determine Severity level and set alert
+    # level accordingly
     for alert in alerts:
-        alert_string = f"""{alert_string}
-          <div class="alert alert-primary" role="alert">
-          <h4 class="alert-heading"><a data-bs-toggle="collapse" href="#collapse{alert['id']}">
+        # This is the "core" of the alert message.  We're going to change the first line based
+        # on alert Severity level, but the rest of the "core" is the same for all alerts.
+        alert_core_message = f"""
+          <h4 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse{alert['id']}">
             {alert['event']}</a></h4>
           <div class="collapse" id="collapse{alert['id']}">
           <hr>
@@ -54,6 +58,23 @@ async def alert_processing(alerts):
           <p>{alert['instruction']}</p>
           </div>
           </div>
+      """
+        # And these if's set the top line / color of the div based on
+        # alert severity
+        if alert["severity"] == "Extreme":  # Extreme gets danger/red
+            alert_string = f"""{alert_string}
+          <div class="alert alert-danger" role="alert">
+          {alert_core_message}
+          """
+        elif alert["severity"] == "Severe":  # Severe gets warning/yellow
+            alert_string = f"""{alert_string}
+          <div class="alert alert-warning" role="alert">
+          {alert_core_message}
+          """
+        else:  # Everything else gets info/green
+            alert_string = f"""{alert_string}
+          <div class="alert alert-info" role="alert">
+          {alert_core_message}
           """
     return alert_string
 
@@ -185,7 +206,7 @@ def apptempC(t_C, rh, ws_mps):
     return t_C + 0.33 * e - 0.7 * ws_mps - 4.0
 
 
-async def display_page(point, forecast, chart, alerts):
+async def display_page(point, forecast, chart, alerts, latitude, longitude):
     # Build the html which will go into the page.
     display(
         HTML(
@@ -235,6 +256,12 @@ async def display_page(point, forecast, chart, alerts):
         </tr>
       </tbody>
     </table>
+    </div>
+
+    <div class="container">
+    <p class="text-center"><button type="button" class="btn btn-outline-primary"><a href=https://forecast.weather.gov/MapClick.php?lat={latitude}&lon={longitude} class="link-primary">Weather.gov forecast</a></button></p>
+    <p class="text-center">This forecast is generated from the U.S. Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
+    using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>
     </div>
     """
         )
