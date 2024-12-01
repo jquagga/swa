@@ -59,7 +59,7 @@ async def alert_processing(alerts):
 async def build_chart(forecastHourly):
     # Let's tweak 8 periods (what we display in the chart) out
     # of the 168 or so.
-    is_chilly = false  # We'll used this to determine if we have windchill.
+    is_chilly = False  # We'll used this to determine if we have windchill.
     for i in range(8):
         # Micropython doesn't really play nicely with datetime so
         # we substr out the hour from the iso8601 date string and
@@ -86,7 +86,7 @@ async def build_chart(forecastHourly):
         windspeed = forecastHourly["periods"][i]["windSpeed"].split()
         windspeed[0] = float(windspeed[0])
         if float(forecastHourly["periods"][i]["temperature"]) < 50 and windspeed[0] > 3:
-            is_chilly = true
+            is_chilly = True
             forecastHourly["periods"][i]["windChill"] = (
                 35.74
                 + 0.6215 * forecastHourly["periods"][i]["temperature"]
