@@ -269,7 +269,7 @@ async def display_page(point, forecast, chart, alerts, latitude, longitude):
 
     <div class="container">
     <p class="text-center"><button type="button" class="btn btn-outline-primary"><a href=https://forecast.weather.gov/MapClick.php?lat={latitude}&lon={longitude} class="link-primary">Weather.gov forecast</a></button></p>
-    <p class="text-center">This forecast is generated from the U.S. Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
+    <p class="text-center">This forecast is generated from the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>
     </div>
     """
