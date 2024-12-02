@@ -284,7 +284,10 @@ options = {"enableHighAccuracy": True, "timeout": 6000, "maximumAge": 3600}
 
 
 async def success(pos):
-    await fetch_weather(pos.coords.latitude, pos.coords.longitude)
+    # Apparently the NWS api throws a 301 error with lat/long over 4 decimals
+    # That 301 still has the data we'd want, but we end up downloading it twice
+    # So let's round the lat/lon to 4 decimals up front and save a fetch.
+    await fetch_weather(round(pos.coords.latitude, 4), round(pos.coords.longitude, 4))
 
 
 async def error(err):
@@ -299,7 +302,7 @@ async def error(err):
     )
     # Until we can sort out geolocation api fun, let's use a fake location
     # for building purposes (Hawaii)
-    await fetch_weather(21.306944, -157.858333)
+    await fetch_weather(21.3069, -157.8583)
 
 
 window.navigator.geolocation.getCurrentPosition(
