@@ -286,7 +286,7 @@ async def display_page(point, forecast, chart, alerts, latitude, longitude):
     </table>
     </div>
     <div class="container">
-    <div id="map" style="min-width: 100vh; min-height: 100vh"></div>
+    <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
     <script>
       map = L.map("map").setView([{latitude}, {longitude}], 8);
 
