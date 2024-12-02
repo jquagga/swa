@@ -2,9 +2,9 @@
   "name": "Simple Weather",
   "short_name": "Simple Weather",
   "start_url": "/",
-  "display": "standalone",
+  "display": "minimal-ui",
   "description": "A simple webpage to display the local weather forecast from NWS",
-  "categories": "weather",
+  "categories": ["utilities", "weather"],
   "lang": "en",
   "theme_color": "#000000",
   "background_color": "#000000",
@@ -13,7 +13,11 @@
       "src": "icon_512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
-  ]
+  ],
+  "id": "swa",
+  "dir": "ltr",
+  "display_override": ["browser", "window-controls-overlay"],
+  "prefer_related_applications": false
 }
