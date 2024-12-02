@@ -296,6 +296,8 @@ async def display_page(point, forecast, chart, alerts, latitude, longitude):
         maxZoom: 20
       }}).addTo(map);
 
+      L.marker([{latitude}, {longitude}]).addTo(map);
+
       L.tileLayer
         .wms("https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?", {{
           layers: "1",
