@@ -1,20 +1,39 @@
 #!/usr/bin/env python
 
 import math
+import sys
 
 from pyscript import HTML, display, fetch, window
 from pyscript.ffi import create_proxy
 
 
-async def fetch_weather(latitude, longitude):
+async def main(latitude, longitude):
+    # sourcery skip: use-contextlib-suppress
     headers = {
         "accept": "application/ld+json",
         "user-agent": "https://github.com/jquagga/swa",
     }
-    point = await fetch(
+
+    # Let's test and make sure we get an ok response for this lat/long
+    # NWS responds with a 404 for points it doesn't cover so that serves
+    # as an error check.
+    response = await fetch(
         f"https://api.weather.gov/points/{latitude},{longitude}",
         headers=headers,
-    ).json()
+    )
+    if response.ok:
+        point = await response.json()
+    else:
+        display(
+            HTML(
+                f"""<div class="alert alert-primary" role="alert">
+        <p>We didn't receive a good response from the NWS API. It may be down, or you may be feeding it a location ({latitude},{longitude})
+        not covered by the US National Weather Service.  As an alternative, may I suggest trying <a href="https://merrysky.net/">MerrySky</a>.
+        </p>
+        </div>"""
+            )
+        )
+        sys.exit("Exiting")
 
     alerts = await fetch(
         f"https://api.weather.gov/alerts?active=true&status=actual&message_type=alert,update&point={latitude},{longitude}&limit=50",
@@ -266,6 +285,27 @@ async def display_page(point, forecast, chart, alerts, latitude, longitude):
       </tbody>
     </table>
     </div>
+    <div class="container">
+    <div id="map" style="min-width: 100vh; min-height: 100vh"></div>
+    <script>
+      map = L.map("map").setView([{latitude}, {longitude}], 8);
+
+      L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }}).addTo(map);
+
+      L.tileLayer
+        .wms("https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?", {{
+          layers: "1",
+          format: "image/png",
+          transparent: true,
+          attribution: "National Weather Service",
+        }})
+        .addTo(map);
+      </script>
+    </div>
 
     <div class="container">
     <p class="text-center"><button type="button" class="btn btn-outline-primary"><a href=https://forecast.weather.gov/MapClick.php?lat={latitude}&lon={longitude} class="link-primary">Weather.gov forecast</a></button></p>
@@ -287,7 +327,7 @@ async def success(pos):
     # Apparently the NWS api throws a 301 error with lat/long over 4 decimals
     # That 301 still has the data we'd want, but we end up downloading it twice
     # So let's round the lat/lon to 4 decimals up front and save a fetch.
-    await fetch_weather(round(pos.coords.latitude, 4), round(pos.coords.longitude, 4))
+    await main(round(pos.coords.latitude, 4), round(pos.coords.longitude, 4))
 
 
 async def error(err):
@@ -302,7 +342,7 @@ async def error(err):
     )
     # Until we can sort out geolocation api fun, let's use a fake location
     # for building purposes (Hawaii)
-    await fetch_weather(21.3069, -157.8583)
+    await main(21.3069, -157.8583)
 
 
 window.navigator.geolocation.getCurrentPosition(
