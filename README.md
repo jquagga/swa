@@ -9,7 +9,7 @@
 
 ## Install
 
-Clone the repository to a directory and serve with a https capable webserver. (or you can just bookmark [partlycloudy.org(https://www.partlycloudy.org/)] above)
+Clone the repository to a directory and serve with a https capable webserver. (or you can just bookmark [partlycloudy.org](https://www.partlycloudy.org/) above)
 
 ## Usage
 
