@@ -1,0 +1,19 @@
+{
+  "name": "Simple Weather",
+  "short_name": "Simple Weather",
+  "start_url": "/",
+  "display": "standalone",
+  "description": "A simple webpage to display the local weather forecast from NWS",
+  "categories": "weather",
+  "lang": "en",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-template.html
-chart.html
+*.html
+!index.html
 *.json
 !renovate.json
+!manifest.json
