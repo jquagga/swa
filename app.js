@@ -312,7 +312,7 @@ function apptempC(t_C, rh, ws_mps) {
   return t_C + 0.33 * e - 0.7 * ws_mps - 4.0;
 }
 
-const options = { enableHighAccuracy: true, timeout: 6000, maximumAge: 3600 };
+const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 3600 };
 
 async function success(pos) {
   await main(
