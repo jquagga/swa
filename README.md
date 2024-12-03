@@ -28,8 +28,9 @@ The goal was to provide the upstream data as similarly as possible. All data sho
 
 ## Acknowledgements
 
-- NWS Weather.gov API
-- pyscript
+- [National Weather Service Weather.gov API](https://www.weather.gov/documentation/services-web-api)
+- [pyscript](https://pyscript.net/) (Initial Versions of the app were in pyscript before moving to javascript)
 - bootstrap
 - chart.js
+- leaflet
 - WeeWX
