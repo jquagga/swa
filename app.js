@@ -46,7 +46,7 @@ async function main(latitude, longitude, headertxt) {
   await build_chart(forecastHourly);
   await build_map(latitude, longitude);
   document.getElementById("footer").innerHTML =
-    `<p class="text-center"><button type="button" class="btn btn-outline-primary"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary">Weather.gov forecast</a></button></p>
+    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary"><button type="button" class="btn btn-outline-primary">Weather.gov forecast</button></a></div>
     <p class="text-center">This forecast is generated from the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
@@ -76,7 +76,7 @@ async function alert_processing(alerts) {
       severity_classes[alert.severity] || severity_classes["default"];
     alert_string += `
         <div class="alert alert-${alert_class}" role="alert">
-            <h4 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse${alert.id}">
+            <h2 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse${alert.id}">
             ${alert.event}</a></h4>
             <div class="collapse" id="collapse${alert.id}">
             <hr>
