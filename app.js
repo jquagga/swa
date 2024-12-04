@@ -77,7 +77,7 @@ async function alert_processing(alerts) {
     alert_string += `
         <div class="alert alert-${alert_class}" role="alert">
             <h2 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse${alert.id}">
-            ${alert.event}</a></h4>
+            ${alert.event}</a></h2>
             <div class="collapse" id="collapse${alert.id}">
             <hr>
             <p>${alert.headline}</p>
