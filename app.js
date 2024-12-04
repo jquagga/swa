@@ -292,24 +292,40 @@ async function build_map(latitude, longitude) {
     .addTo(map);
 }
 
-function FtoC(x) {
-  return (x - 32.0) / 1.8;
-}
+/* In this case Apparent Temperature uses the NOAA WindChill calculation
+  if it's below 50F and Heat Index if it's over 80.  That approximates
+  what the weather.gov site displays.
+*/
+function apptempF(T_F, rh, ws_mph) {
+  // T_F, rh, ws_mph
+  if (T_F <= 50.0 && ws_mph >= 3.0) {
+    return (
+      35.74 + 0.6215 * T_F + (-35.75 + 0.4275 * T_F) * Math.pow(ws_mph, 0.16)
+    );
+  } else if (T_F > 80) {
+    let hi_F =
+      -42.379 +
+      2.04901523 * T_F +
+      10.14333127 * rh -
+      0.22475541 * T_F * rh -
+      6.83783e-3 * Math.pow(T_F, 2) -
+      5.481717e-2 * Math.pow(rh, 2) +
+      1.22874e-3 * Math.pow(T_F, 2) * rh +
+      8.5282e-4 * T_F * Math.pow(rh, 2) -
+      1.99e-6 * Math.pow(T_F, 2) * Math.pow(rh, 2);
 
-function CtoF(x) {
-  return x * 1.8 + 32.0;
-}
-
-function apptempF(t_F, rh, ws_mph) {
-  const t_C = FtoC(t_F);
-  const ws_mps = (ws_mph * 1609.34) / 3600.0;
-  const at_C = apptempC(t_C, rh, ws_mps);
-  return at_C !== null ? CtoF(at_C) : "";
-}
-
-function apptempC(t_C, rh, ws_mps) {
-  const e = (rh / 100.0) * 6.105 * Math.exp((17.27 * t_C) / (237.7 + t_C));
-  return t_C + 0.33 * e - 0.7 * ws_mps - 4.0;
+    // Apply an adjustment for low humidities
+    if (rh < 13 && T_F > 80 && T_F < 112) {
+      let adjustment =
+        ((13 - rh) / 4.0) * Math.sqrt((17 - Math.abs(T_F - 95.0)) / 17.0);
+      hi_F -= adjustment;
+      // Apply an adjustment for high humidities
+    } else if (rh > 85 && T_F >= 80 && T_F < 87) {
+      let adjustment = ((rh - 85) / 10.0) * ((87 - T_F) / 5.0);
+      hi_F += adjustment;
+    }
+    return hi_F;
+  }
 }
 
 const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 3600 };
