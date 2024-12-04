@@ -22,7 +22,7 @@ The app utilizes the javascript geolocation API to query location and returns th
 
 The app polls the NWS alerts, forecast and forecastHourly. Alerts are displayed if there are any for the location. The weekly forecast (forecast) shows the next 6 periods (3 day/night combinations). And forecastHourly presently displays the temperature, apparent temperature and probability of precipitation.
 
-The goal was to provide the upstream data as similarly as possible. All data should come NWS EXCEPT for apparent temperature (similar to a "Feels Like") which is calculated in the same manner as the excellent WeeWX software.[^appTemp]
+The goal was to provide the upstream data as similarly as possible. All data should come NWS EXCEPT for apparent temperature (similar to a "Feels Like") which is calculated in browser with the same equations NWS uses for Wind Chill (if less than 50F) or Heat Index (if over 80F).[^appTemp]
 
 [^appTemp]: While not presently displayed on the weather.gov page, NWS does provide apparent temperature data in their raw forecastGrid. I've opted for generating the temperature as forecastGrid has varying time durations; calculating was a simpler implementation.
 
