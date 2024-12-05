@@ -8,10 +8,7 @@ async function main(latitude, longitude, headertxt) {
     `https://api.weather.gov/points/${latitude},${longitude}`,
     { headers: headers },
   );
-  if (response.ok) {
-    // sourcery skip: avoid-using-var
-    var point = await response.json();
-  } else {
+  if (!response.ok) {
     const errorContainer =
       document.getElementById("error-container") ||
       document.createElement("div");
@@ -21,6 +18,8 @@ async function main(latitude, longitude, headertxt) {
     document.body.appendChild(errorContainer);
     throw new Error("Exiting");
   }
+
+  const point = await response.json();
 
   const alerts = await (
     await fetch(
@@ -265,7 +264,7 @@ async function build_grid(forecast) {
 }
 
 async function build_map(latitude, longitude) {
-  var map = L.map("map").setView([latitude, longitude], 8);
+  let map = L.map("map").setView([latitude, longitude], 8);
 
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
@@ -339,7 +338,7 @@ async function success(pos) {
 }
 
 async function error(err) {
-  headertxt = `<div class="alert alert-primary" role="alert">
+  let headertxt = `<div class="alert alert-primary" role="alert">
             <b>Hello!</b>
             This site utilizes the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov</a> API to generate a local forecast from your geolocated position.
              You may have answered "no" to the request for location, or your browser wasn't able to find your location so we're going to show the
