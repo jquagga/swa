@@ -8,10 +8,7 @@ async function main(latitude, longitude, headertxt) {
     `https://api.weather.gov/points/${latitude},${longitude}`,
     { headers: headers },
   );
-  if (response.ok) {
-    // sourcery skip: avoid-using-var
-    var point = await response.json();
-  } else {
+  if (!response.ok) {
     const errorContainer =
       document.getElementById("error-container") ||
       document.createElement("div");
@@ -21,6 +18,8 @@ async function main(latitude, longitude, headertxt) {
     document.body.appendChild(errorContainer);
     throw new Error("Exiting");
   }
+
+  const point = await response.json();
 
   const alerts = await (
     await fetch(
@@ -46,7 +45,7 @@ async function main(latitude, longitude, headertxt) {
   await build_chart(forecastHourly);
   await build_map(latitude, longitude);
   document.getElementById("footer").innerHTML =
-    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary"><button type="button" class="btn btn-outline-primary">Weather.gov forecast</button></a></div>
+    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary"><button type="button" class="btn btn-primary">Weather.gov forecast</button></a></div>
     <p class="text-center">This forecast is generated from the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
@@ -92,20 +91,10 @@ async function alert_processing(alerts) {
 
 async function build_chart(forecastHourly) {
   for (let i = 0; i < 8; i++) {
-    let hour = forecastHourly.periods[i].startTime.substring(11, 13);
-    if (parseInt(hour) === 0) {
-      hour = "12 AM";
-    } else if (parseInt(hour) === 12) {
-      hour = "12 PM";
-    } else if (parseInt(hour) > 12) {
-      hour = (parseInt(hour) - 12).toString() + " PM";
-    } else {
-      hour = parseInt(hour).toString() + " AM";
-    }
-    forecastHourly.periods[i].startTime = hour;
-
+    // We have to chop "mph" off of the windspeed to make it just a number
     const windspeed = forecastHourly.periods[i].windSpeed.split(" ");
     forecastHourly.periods[i].windSpeed = parseFloat(windspeed[0]);
+    // Now we send the period off to apptemp to create apptemp!
     forecastHourly.periods[i].appTemp = apptempF(
       parseFloat(forecastHourly.periods[i].temperature),
       parseFloat(forecastHourly.periods[i].relativeHumidity.value),
@@ -190,6 +179,9 @@ async function build_chart(forecastHourly) {
     options: {
       animation: false,
       scales: {
+        x: {
+          type: "timeseries",
+        },
         y: {
           type: "linear",
           beginAtZero: false,
@@ -265,7 +257,7 @@ async function build_grid(forecast) {
 }
 
 async function build_map(latitude, longitude) {
-  var map = L.map("map").setView([latitude, longitude], 8);
+  let map = L.map("map").setView([latitude, longitude], 8);
 
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
@@ -339,7 +331,7 @@ async function success(pos) {
 }
 
 async function error(err) {
-  headertxt = `<div class="alert alert-primary" role="alert">
+  let headertxt = `<div class="alert alert-primary" role="alert">
             <b>Hello!</b>
             This site utilizes the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov</a> API to generate a local forecast from your geolocated position.
              You may have answered "no" to the request for location, or your browser wasn't able to find your location so we're going to show the
