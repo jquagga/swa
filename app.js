@@ -91,20 +91,10 @@ async function alert_processing(alerts) {
 
 async function build_chart(forecastHourly) {
   for (let i = 0; i < 8; i++) {
-    let hour = forecastHourly.periods[i].startTime.substring(11, 13);
-    if (parseInt(hour) === 0) {
-      hour = "12 AM";
-    } else if (parseInt(hour) === 12) {
-      hour = "12 PM";
-    } else if (parseInt(hour) > 12) {
-      hour = (parseInt(hour) - 12).toString() + " PM";
-    } else {
-      hour = parseInt(hour).toString() + " AM";
-    }
-    forecastHourly.periods[i].startTime = hour;
-
+    // We have to chop "mph" off of the windspeed to make it just a number
     const windspeed = forecastHourly.periods[i].windSpeed.split(" ");
     forecastHourly.periods[i].windSpeed = parseFloat(windspeed[0]);
+    // Now we send the period off to apptemp to create apptemp!
     forecastHourly.periods[i].appTemp = apptempF(
       parseFloat(forecastHourly.periods[i].temperature),
       parseFloat(forecastHourly.periods[i].relativeHumidity.value),
@@ -189,6 +179,9 @@ async function build_chart(forecastHourly) {
     options: {
       animation: false,
       scales: {
+        x: {
+          type: "timeseries",
+        },
         y: {
           type: "linear",
           beginAtZero: false,
