@@ -45,7 +45,7 @@ async function main(latitude, longitude, headertxt) {
   await build_chart(forecastHourly);
   await build_map(latitude, longitude);
   document.getElementById("footer").innerHTML =
-    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary"><button type="button" class="btn btn-outline-primary">Weather.gov forecast</button></a></div>
+    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude} class="link-primary"><button type="button" class="btn btn-primary">Weather.gov forecast</button></a></div>
     <p class="text-center">This forecast is generated from the U.S. National Weather Service's <a href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
