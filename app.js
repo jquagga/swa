@@ -290,11 +290,11 @@ async function build_map(latitude, longitude) {
 */
 function apptempF(T_F, rh, ws_mph) {
   // T_F, rh, ws_mph
-  if (T_F <= 50.0 && ws_mph >= 3.0) {
+  if (T_F <= 51 && ws_mph >= 3.0) {
     return (
       35.74 + 0.6215 * T_F + (-35.75 + 0.4275 * T_F) * Math.pow(ws_mph, 0.16)
     );
-  } else if (T_F > 80) {
+  } else if (T_F > 79) {
     let hi_F =
       -42.379 +
       2.04901523 * T_F +
