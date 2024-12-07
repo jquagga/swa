@@ -2,7 +2,7 @@
   "name": "Simple Weather",
   "short_name": "Simple Weather",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "description": "A simple webpage to display the local weather forecast from NWS",
   "categories": ["utilities", "weather"],
   "lang": "en",
