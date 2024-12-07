@@ -55,10 +55,14 @@
     // so this attempts to add it back
     if (navigator.userAgent.match(/(iPhone|iPod|iPad)/i)) {
       PullToRefresh.init({
-        onRefresh() {
-          location.reload();
-        },
-      })
+        mainElement: '#header', // above which element?
+        onRefresh(done) {
+          setTimeout(() => {
+            done(); // end pull to refresh
+            alert('refresh');
+          }, 1500);
+        }
+      });
     }
   </script>
 
