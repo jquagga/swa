@@ -14,14 +14,13 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon_512.png">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
 <body>
   <div class="container" id="header">
-    <p>Simple Weather App is a javascript web app which queries the US National Weather Service API to provide a
+    <p>Simple Weather App is a Javascript web app which queries the US National Weather Service to provide a
       responsive weather forecast. Please allow location access (only sent to the National Weather Service) and this
-      page will build a forecast webpage.</p>
+      page will display a forecast.</p>
   </div>
   <div class="container" id="alerts"></div>
   <div class="container">
@@ -51,6 +50,26 @@
       .addEventListener("change", updateTheme);
   </script>
 
+
+
+  <script>
+    // iOS disables pull to refresh on standalone
+    // so this attempts to add it back
+    function p2() {
+      if (navigator.userAgent.match(/(iPhone|iPod|iPad)/i) && window.navigator.standalone) {
+        PullToRefresh.init({
+          mainElement: '#header', // above which element?
+          onRefresh(done) {
+            setTimeout(() => {
+              done(); // end pull to refresh
+              //alert('Refreshed');
+            }, 1500);
+          }
+        });
+      }
+    }
+  </script>
+
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
     crossorigin="anonymous"></script>
@@ -62,7 +81,9 @@
   <script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"
     integrity="sha256-qk+I9RaF57Ium9VLcn0ZYWjuhbjOXOCCwBl+xnaXa1s=" crossorigin="anonymous"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-  <script defer type="module" src="./app.js"></script>
+  <script defer type="module" src="./swa.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/pulltorefreshjs@0.1.22/dist/index.umd.min.js"
+    integrity="sha256-F/hso+i1IhzXiDli1f5wrVpTUCXaM2CnPYoXgQgFbKc=" crossorigin="anonymous" onload="p2()""></script>
 </body>
 
 </html>
