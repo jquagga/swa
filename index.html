@@ -53,17 +53,17 @@
   <script>
     // iOS disables pull to refresh on standalone
     // so this attempts to add it back
-    if (navigator.userAgent.match(/(iPhone|iPod|iPad)/i) && window.navigator.standalone) {
-      PullToRefresh.init({
-        mainElement: '#header', // above which element?
-        onRefresh(done) {
-          setTimeout(() => {
-            done(); // end pull to refresh
-            alert('refresh');
-          }, 1500);
-        }
-      });
-    }
+
+    PullToRefresh.init({
+      mainElement: '#header', // above which element?
+      onRefresh(done) {
+        setTimeout(() => {
+          done(); // end pull to refresh
+          alert('refresh');
+        }, 1500);
+      }
+    });
+
   </script>
 
   <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
