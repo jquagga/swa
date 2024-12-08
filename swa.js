@@ -79,7 +79,7 @@ async function alert_processing(alerts) {
             ${alert.event}</a></h2>
             <div class="collapse" id="collapse${alert.id}">
             <hr>
-            <p>${alert.headline}</p>
+            <p>${alert.NWSheadline}</p>
             <p>${alert.description}</p>
             <p>${alert.instruction}</p>
             </div>
