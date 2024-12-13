@@ -3,8 +3,8 @@ import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "chartjs-adapter-luxon";
 
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 async function main(latitude, longitude) {
   const headers = {
@@ -14,13 +14,13 @@ async function main(latitude, longitude) {
 
   const point_response = await fetch(
     `https://api.weather.gov/points/${latitude},${longitude}`,
-    { headers },
+    { headers }
   );
   const point = await point_response.json();
 
   const alerts_response = await fetch(
     `https://api.weather.gov/alerts?active=true&status=actual&message_type=alert,update&point=${latitude},${longitude}&limit=50`,
-    { headers },
+    { headers }
   );
   const alerts = await alerts_response.json();
 
@@ -37,8 +37,9 @@ async function main(latitude, longitude) {
   document.querySelector("#grid").innerHTML = await build_grid(forecast);
   await build_chart(forecastHourly);
   await build_map(latitude, longitude);
-  document.querySelector("#footer").innerHTML =
-    `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}
+  document.querySelector(
+    "#footer"
+  ).innerHTML = `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}
         class="link-primary"><button type="button" class="btn btn-primary">Weather.gov forecast</button></a></div>
 <p class="text-center">This forecast is generated from the U.S. National Weather Service's <a
         href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
@@ -94,7 +95,7 @@ async function build_chart(forecastHourly) {
     forecastHourly.periods[i].appTemp = apptempF(
       Number.parseFloat(forecastHourly.periods[i].temperature),
       Number.parseFloat(forecastHourly.periods[i].relativeHumidity.value),
-      forecastHourly.periods[i].windSpeed,
+      forecastHourly.periods[i].windSpeed
     );
   }
 
@@ -264,7 +265,7 @@ async function build_map(latitude, longitude) {
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains: "abcd",
       maxZoom: 20,
-    },
+    }
   ).addTo(map);
 
   L.marker([latitude, longitude]).addTo(map);
@@ -277,7 +278,7 @@ async function build_map(latitude, longitude) {
         format: "image/png",
         transparent: true,
         attribution: "National Weather Service",
-      },
+      }
     )
     .addTo(map);
 }
