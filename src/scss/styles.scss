@@ -1,0 +1,11 @@
+/* import the necessary Bootstrap files */
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/mixins";
+
+$color-mode-type: media-query;
+$enable-gradients: true;
+$enable-shadows: true;
+
+// Import all of Bootstrap's CSS
+@import "bootstrap/scss/bootstrap";
