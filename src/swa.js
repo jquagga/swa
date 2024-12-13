@@ -314,26 +314,16 @@ function apptempF(T_F, rh, ws_mph) {
 
     let HeatIndexValue = A + B + C + D + E + F + G + H + I;
 
-    // make the adjustments for low humidity
-    const rhLessThan13 = rh < 13.0;
-    const T80to112 = T_F >= 80 && T_F <= 112;
-    const downMask = rhLessThan13 && T80to112;
-
-    // make array that is T_F where conditions are true and 100, otherwise
-    const adjustT = downMask ? T_F : 80.0;
-    HeatIndexValue[downMask] =
-      HeatIndexValue[downMask] -
-      ((13.0 - rh[downMask]) / 4.0) *
-        Math.sqrt((17.0 - Math.abs(adjustT[downMask] - 95.0)) / 17);
-
-    // make the adjustments for high humidity
-    const rhGreater85 = rh > 85.0;
-    const T80to87 = T_F >= 80.0 && T_F <= 87.0;
-    const upMask = rhGreater85 && T80to87;
-    HeatIndexValue[upMask] =
-      HeatIndexValue[upMask] +
-      ((rh[upMask] - 85.0) / 10.0) * ((87 - T_F[upMask]) / 5.0);
-
+    // Apply an adjustment for low humidities
+    if (rh < 13 && T_F > 80 && T_F < 112) {
+      let adjustment =
+        ((13 - rh) / 4.0) * Math.sqrt((17 - Math.abs(T_F - 95.0)) / 17.0);
+      HeatIndexValue -= adjustment;
+      // Apply an adjustment for high humidities
+    } else if (rh > 85 && T_F >= 80 && T_F < 87) {
+      let adjustment = ((rh - 85) / 10.0) * ((87 - T_F) / 5.0);
+      HeatIndexValue += adjustment;
+    }
     return HeatIndexValue;
   }
 }
