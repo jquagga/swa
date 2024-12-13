@@ -4,8 +4,14 @@ import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "chartjs-adapter-luxon";
 
-//import "leaflet/dist/leaflet.css";
-//import L from "leaflet";
+// Pull to refresh as ios breaks it for PWA
+import PullToRefresh from "pulltorefreshjs";
+const ptr = PullToRefresh.init({
+  mainElement: "body",
+  onRefresh() {
+    window.location.reload();
+  },
+});
 
 async function main(latitude, longitude) {
   const headers = {
