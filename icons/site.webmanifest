@@ -1,6 +1,6 @@
 {
   "name": "Simple Weather",
-  "short_name": "SimpleWeather",
+  "short_name": "Simple Weather",
   "icons": [
     {
       "src": "/icons/web-app-manifest-192x192.png",
