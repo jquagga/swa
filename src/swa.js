@@ -1,10 +1,11 @@
+/* eslint-disable no-undef */
 // Chart.js support libraries
 import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "chartjs-adapter-luxon";
 
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+//import "leaflet/dist/leaflet.css";
+//import L from "leaflet";
 
 async function main(latitude, longitude) {
   const headers = {
