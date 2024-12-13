@@ -263,7 +263,12 @@ async function build_grid(forecast) {
 }
 
 async function build_map(latitude, longitude) {
-  const map = L.map("map").setView([latitude, longitude], 8);
+  const map = L.map("map", {
+    center: [latitude, longitude],
+    zoom: 8,
+    zoomControl: false,
+    dragging: false,
+  });
 
   L.tileLayer(
     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
