@@ -1,11 +1,11 @@
-// Import all of Bootstrap's CSS
-@import "bootstrap/scss/bootstrap";
+/* import the necessary Bootstrap files */
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/mixins";
 
 $color-mode-type: media-query;
+$enable-gradients: true;
+$enable-shadows: true;
 
-@include color-mode(dark) {
-  .element {
-    color: var(--bs-primary-text-emphasis);
-    background-color: var(--bs-primary-bg-subtle);
-  }
-}
+// Import all of Bootstrap's CSS
+@import "bootstrap/scss/bootstrap";
