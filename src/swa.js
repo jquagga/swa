@@ -291,39 +291,49 @@ async function build_map(latitude, longitude) {
 function apptempF(T_F, rh, ws_mph) {
   // Taken right from NWS CAVE and converted to JS:
   // cave/com.raytheon.viz.gfe/localization/gfe/userPython/smartTools/ApparentTemperature.py
-  // prettier-ignore
   if (T_F <= 51) {
     const mag = ws_mph * 1.15;
-    const WindChillValue = mag <= 3 ? T_F : 35.74 + (0.6215 * T_F) - (35.75 * (mag ** 0.16)) + (0.4275 * T_F * (mag ** 0.16));
+    const WindChillValue =
+      mag <= 3
+        ? T_F
+        : 35.74 +
+          0.6215 * T_F -
+          35.75 * mag ** 0.16 +
+          0.4275 * T_F * mag ** 0.16;
     return WindChillValue;
   } else if (T_F > 79) {
     const A = -42.379;
     const B = 2.04901523 * T_F;
     const C = 10.14333127 * rh;
     const D = -0.22475541 * T_F * rh;
-    const E = -0.00683783 * (T_F ** 2);
-    const F = -0.05481717 * (rh ** 2);
-    const G = 0.00122874 * (T_F ** 2) * rh;
-    const H = 0.00085282 * T_F * (rh ** 2);
-    const I = -0.00000199 * (T_F ** 2) * (rh ** 2);
-    
+    const E = -0.00683783 * T_F ** 2;
+    const F = -0.05481717 * rh ** 2;
+    const G = 0.00122874 * T_F ** 2 * rh;
+    const H = 0.00085282 * T_F * rh ** 2;
+    const I = -0.00000199 * T_F ** 2 * rh ** 2;
+
     let HeatIndexValue = A + B + C + D + E + F + G + H + I;
-    
+
     // make the adjustments for low humidity
     const rhLessThan13 = rh < 13.0;
     const T80to112 = T_F >= 80 && T_F <= 112;
     const downMask = rhLessThan13 && T80to112;
-    
+
     // make array that is T_F where conditions are true and 100, otherwise
     const adjustT = downMask ? T_F : 80.0;
-    HeatIndexValue[downMask] = HeatIndexValue[downMask] - (((13.0 - rh[downMask]) / 4.0) * Math.sqrt((17.0 - Math.abs(adjustT[downMask] - 95.0)) / 17));
-    
+    HeatIndexValue[downMask] =
+      HeatIndexValue[downMask] -
+      ((13.0 - rh[downMask]) / 4.0) *
+        Math.sqrt((17.0 - Math.abs(adjustT[downMask] - 95.0)) / 17);
+
     // make the adjustments for high humidity
     const rhGreater85 = rh > 85.0;
     const T80to87 = T_F >= 80.0 && T_F <= 87.0;
     const upMask = rhGreater85 && T80to87;
-    HeatIndexValue[upMask] = HeatIndexValue[upMask] + (((rh[upMask] - 85.0) / 10.0) * ((87 - T_F[upMask]) / 5.0));
-    
+    HeatIndexValue[upMask] =
+      HeatIndexValue[upMask] +
+      ((rh[upMask] - 85.0) / 10.0) * ((87 - T_F[upMask]) / 5.0);
+
     return HeatIndexValue;
   }
 }
