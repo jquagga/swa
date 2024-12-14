@@ -12,10 +12,13 @@
       "src": "/icons/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ],
-  "theme_color": "#ffffff",
+  "theme_color": "#87cefa",
   "background_color": "#ffffff",
-  "display": "standalone"
+  "display": "standalone",
+  "id": "swa",
+  "description": "Simple Weather App is a small webpage which provides weather from the US National Weather Service.",
+  "start_url": "/"
 }
