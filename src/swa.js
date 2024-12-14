@@ -1,8 +1,11 @@
-/* eslint-disable no-undef */
+/* eslint-disable no-unused-vars */
 // Chart.js support libraries
 import Chart from "chart.js/auto";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import "chartjs-adapter-luxon";
+
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 // Pull to refresh as ios breaks it for PWA
 import PullToRefresh from "pulltorefreshjs";
@@ -263,36 +266,37 @@ async function build_grid(forecast) {
 }
 
 async function build_map(latitude, longitude) {
-  const map = L.map("map", {
-    center: [latitude, longitude],
-    zoom: 8,
-    zoomControl: false,
-    dragging: false,
+  const map = new maplibregl.Map({
+    container: "map",
+    style: "https://tiles.openfreemap.org/styles/positron",
+    center: [longitude, latitude],
+    zoom: 7,
+    // causes pan & zoom handlers not to be applied, similar to
+    // .dragging.disable() and other handler .disable() functions in Leaflet.
+    interactive: false,
   });
 
-  L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }
-  ).addTo(map);
-
-  L.marker([latitude, longitude]).addTo(map);
-
-  L.tileLayer
-    .wms(
-      "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?",
-      {
-        layers: "1",
-        format: "image/png",
-        transparent: true,
-        attribution: "National Weather Service",
-      }
-    )
+  const marker = new maplibregl.Marker()
+    .setLngLat([longitude, latitude])
     .addTo(map);
+
+  map.on("load", () => {
+    map.addSource("nws_radar", {
+      type: "raster",
+      // use the tiles option to specify a WMS tile source URL
+      // https://maplibre.org/maplibre-style-spec/sources/
+      tiles: [
+        "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+      ],
+      tileSize: 256,
+    });
+    map.addLayer({
+      id: "nws_radar",
+      type: "raster",
+      source: "nws_radar",
+      paint: {},
+    });
+  });
 }
 
 /* In this case Apparent Temperature uses the NOAA WindChill calculation
@@ -345,7 +349,6 @@ async function success(pos) {
   await main(pos.coords.latitude.toFixed(4), pos.coords.longitude.toFixed(4));
 }
 
-// eslint-disable-next-line no-unused-vars
 async function error(error) {
   throw new Error("Exiting");
 }
