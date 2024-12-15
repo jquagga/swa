@@ -5,7 +5,7 @@ export default defineConfig({
 		rollupOptions: {
 			output: {
 				manualChunks: {
-					// So really, it's just maplibre that is gianmous and doesn't support tree shaking yet.
+					// So really, it's just maplibre that is gianormous and doesn't support tree shaking yet.
 					maps: ['maplibre-gl'],
 					chart: ['chart.js'],
 				},
