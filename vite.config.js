@@ -1,0 +1,15 @@
+import {defineConfig} from 'vite';
+
+export default defineConfig({
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// So really, it's just maplibre that is gianmous and doesn't support tree shaking yet.
+					maps: ['maplibre-gl'],
+					chart: ['chart.js'],
+				},
+			},
+		},
+	},
+});
