@@ -8,7 +8,7 @@ $enable-shadows: true;
 @import "bootstrap/scss/variables-dark";
 @import "bootstrap/scss/maps";
 @import "bootstrap/scss/mixins";
-//@import "bootstrap/scss/utilities";
+@import "bootstrap/scss/utilities";
 
 // Layout & components
 @import "bootstrap/scss/root";
@@ -44,7 +44,7 @@ $enable-shadows: true;
 @import "bootstrap/scss/placeholders";
 
 // Helpers
-//@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/helpers";
 
 // Utilities
-//@import "bootstrap/scss/utilities/api";
+@import "bootstrap/scss/utilities/api";
