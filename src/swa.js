@@ -8,6 +8,7 @@ import "chartjs-adapter-luxon"; // eslint-disable-line import/no-unassigned-impo
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import PullToRefresh from "pulltorefreshjs";
+import './scss/main.scss';
 
 // Pull to refresh as ios breaks it for PWA
 const ptr = PullToRefresh.init({ // eslint-disable-line no-unused-vars
@@ -49,9 +50,9 @@ async function main(latitude, longitude) {
 	await build_chart(forecastHourly);
 	await build_map(latitude, longitude);
 	document.querySelector("#footer").innerHTML
-    = `<div class="text-center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}
-        class="link-primary"><button type="button" class="btn btn-primary">Weather.gov forecast</button></a></div>
-<p class="text-center">This forecast is generated from the U.S. National Weather Service's <a
+    = `<div align="center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}
+        ><button type="button">Weather.gov forecast</button></a></div>
+<p align="center">This forecast is generated from the U.S. National Weather Service's <a
         href="https://www.weather.gov/documentation/services-web-api">weather.gov API</a>
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
@@ -70,9 +71,9 @@ async function build_header(point) {
 
 async function alert_processing(alerts) {
 	const severity_classes = {
-		Extreme: "danger",
-		Severe: "warning",
-		default: "info",
+		Extreme: "pico-background-red-500",
+		Severe: "pico-background-yellow-100",
+		default: "",
 	};
 
 	let alert_string = "";
@@ -80,16 +81,11 @@ async function alert_processing(alerts) {
 		const alert_class
       = severity_classes[alert.severity] || severity_classes.default;
 		alert_string += `
-        <div class="alert alert-${alert_class}" role="alert">
-            <h2 class="alert-heading"><a class="alert-link" data-bs-toggle="collapse" href="#collapse${alert.id}">
-            ${alert.event}</a></h2>
-            <div class="collapse" id="collapse${alert.id}">
-            <hr>
-            <p>${alert.parameters.NWSheadline}</p>
-            <p>${alert.description}</p>
-            <p>${alert.instruction}</p>
-            </div>
-        </div>
+<details>
+    <summary role="button" class="${alert_class}">${alert.parameters.NWSheadline}</summary>
+    <p>${alert.description}</p>
+    <p>${alert.instruction}</p>
+</details>
         `;
 	}
 
@@ -235,7 +231,7 @@ async function build_chart(forecastHourly) {
 
 async function build_grid(forecast) {
 	return `
- <table class="table table-striped">
+ <table class="striped"">
     <tbody>
         <tr>
             <td><b>${forecast.periods[0].name}</b></td>
