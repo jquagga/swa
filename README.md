@@ -26,11 +26,11 @@ The goal was to provide the upstream data as similarly as possible. All data sho
 
 [^appTemp]: While not presently displayed on the weather.gov page, NWS does provide apparent temperature data in their raw forecastGrid. I've opted for generating the temperature as forecastGrid has varying time durations; calculating was a simpler implementation.
 
-## Acknowledgements
+## Acknowledgements \ Tech Stack
 
 - [National Weather Service Weather.gov API](https://www.weather.gov/documentation/services-web-api)
-- [pyscript](https://pyscript.net/) (Initial Versions of the app were in pyscript before moving to javascript)
-- bootstrap
+- PicoCSS
 - chart.js
-- leaflet
+- Maplibre-gl JS with [OpenFreeMap](https://openfreemap.org/)
+- Icon comes from [Meteocons](https://github.com/basmilius/weather-icons)
 - WeeWX
