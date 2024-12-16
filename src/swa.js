@@ -58,15 +58,14 @@ async function main(latitude, longitude) {
 }
 
 async function build_header(point) {
-	const headertxt = `
-    <div class="container">
-      <h1>
-        Weather for ${point.relativeLocation.city},
-        ${point.relativeLocation.state}
-      </h1>
-    </div>
-    `;
-	return headertxt;
+	return `
+     <div class="container">
+       <h1>
+         Weather for ${point.relativeLocation.city},
+         ${point.relativeLocation.state}
+       </h1>
+     </div>
+     `;
 }
 
 async function alert_processing(alerts) {
@@ -304,14 +303,12 @@ function apptempF(T_F, rh, ws_mph) {
 	// cave/com.raytheon.viz.gfe/localization/gfe/userPython/smartTools/ApparentTemperature.py
 	if (T_F <= 51) {
 		const mag = ws_mph * 1.15;
-		const WindChillValue
-      = mag <= 3
-      	? T_F // eslint-disable-line no-mixed-spaces-and-tabs
-      	: 35.74 // eslint-disable-line no-mixed-spaces-and-tabs
-          + (0.6215 * T_F)
-          - (35.75 * (mag ** 0.16))
-          + (0.4275 * T_F * (mag ** 0.16));
-		return WindChillValue;
+		return mag <= 3
+        	? T_F // eslint-disable-line no-mixed-spaces-and-tabs
+        	: 35.74 // eslint-disable-line no-mixed-spaces-and-tabs
+            + (0.6215 * T_F)
+            - (35.75 * (mag ** 0.16))
+            + (0.4275 * T_F * (mag ** 0.16));
 	}
 
 	if (T_F > 79) {
