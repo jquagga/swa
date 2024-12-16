@@ -12,6 +12,12 @@
   <link rel="shortcut icon" href="/icons/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-title" content="Simple Weather" />
+  <meta property="og:title" content="Simple Weather App">
+  <meta property="og:description"
+    content="A website which pulls the US NWS weather forecast for your location in a mobile friendly format.">
+  <meta property="og:url" content="https://www.partlycloudy.org/">
+  <meta property="og:type" content="website">
+  <meta name="format-detection" content="telephone=no">
   <link rel="manifest" href="/icons/site.webmanifest" />
   <meta name="theme-color" content="#87cefa" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
@@ -34,6 +40,7 @@
   <div class="container">
     <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
   </div>
+  <br />
   <div class="container" id="footer"></div>
   <script defer type="module" src="/src/swa.js"></script>
 </body>

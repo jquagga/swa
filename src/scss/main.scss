@@ -1,2 +1,32 @@
-@use "@picocss/pico/scss/pico";
-@use "@picocss/pico/scss/colors/utilities";
+@use "@picocss/pico/scss/pico" with (
+  $theme-color: "azure",
+  $modules: (
+    "content/code": false,
+    "forms/basics": false,
+    "forms/checkbox-radio-switch": false,
+    "forms/input-color": false,
+    "forms/input-date": false,
+    "forms/input-file": false,
+    "forms/input-range": false,
+    "forms/input-search": false,
+    "components/card": false,
+    "components/dropdown": false,
+    "components/loading": false,
+    "components/modal": false,
+    "components/nav": false,
+    "components/progress": false,
+    "components/tooltip": false,
+  )
+);
+
+@use "@picocss/pico/scss/colors/utilities" with (
+  $palette: (
+    "color-families": (
+      red,
+      yellow,
+    ),
+  ),
+  $utilities: (
+    "background-colors": true,
+  )
+);
