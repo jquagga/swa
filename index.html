@@ -24,24 +24,15 @@
 </head>
 
 <body>
-  <div class="container" id="header">
+  <div class="container" id="main">
+    <h1 style="text-align: center">Simple Weather</h1>
     <p>
-      Simple Weather App is a Javascript web app which queries the US National
-      Weather Service to provide a responsive weather forecast. Please allow
-      location access (only sent to the National Weather Service) and this
-      page will display a forecast.
+      Simple Weather App is a Javascript web app which queries the US National Weather Service to provide a responsive
+      weather forecast. Pressing the button below will ask location permission and if you're in the United States,
+      should provide a 3 day forecast from NWS.
     </p>
+    <div style="text-align: center"><button id="geolocate">Geolocate</button></div>
   </div>
-  <div class="container" id="alerts"></div>
-  <div class="container">
-    <canvas id="myChart"></canvas>
-  </div>
-  <div class="container" id="grid"></div>
-  <div class="container">
-    <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
-  </div>
-  <br />
-  <div class="container" id="footer"></div>
   <script defer type="module" src="/src/swa.ts"></script>
 </body>
 

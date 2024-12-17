@@ -27,6 +27,20 @@ async function fetch_point(latitude: number, longitude: number) {
   );
   const point: unknown = await point_response.json();
 
+  document.querySelector("#main").innerHTML = `
+  <div class="container" id="header"></div>
+    <div class="container" id="alerts"></div>
+    <div class="container">
+      <canvas id="myChart"></canvas>
+    </div>
+    <div class="container" id="grid"></div>
+    <div class="container">
+      <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
+    </div>
+    <br />
+    <div class="container" id="footer"></div> 
+  `;
+
   fetch_weather(point, latitude, longitude);
 }
 
@@ -56,8 +70,8 @@ async function fetch_weather(
 
   document.querySelector("#header").innerHTML = await build_header(point);
   document.querySelector("#alerts").innerHTML = await alert_processing(alerts);
-  document.querySelector("#grid").innerHTML = await build_grid(forecast);
   await build_chart(forecastHourly);
+  document.querySelector("#grid").innerHTML = await build_grid(forecast);
   await build_map(latitude, longitude);
   document.querySelector(
     "#footer"
@@ -104,10 +118,10 @@ async function alert_processing(alerts: Record<string, any>) {
   return alert_string;
 }
 
-async function build_chart(forecastHourly: string[]) {
+async function build_chart(forecastHourly: unknown) {
   for (let i = 0; i < 8; i++) {
     // We have to chop "mph" off of the windspeed to make it just a number
-    const windspeed: string[] = forecastHourly.periods[i].windSpeed.split(" ");
+    const windspeed: unknown = forecastHourly.periods[i].windSpeed.split(" ");
     forecastHourly.periods[i].windSpeed = Number.parseFloat(windspeed[0]);
     // Now we send the period off to apptemp to create apptemp!
     forecastHourly.periods[i].appTemp = apptempF(
@@ -371,7 +385,8 @@ async function geolocate_me() {
   globalThis.navigator.geolocation.getCurrentPosition(success, error, options);
 }
 
-geolocate_me();
+// Push button to start the pinball machine
+document.getElementById("geolocate").addEventListener("click", geolocate_me);
 
 /*
 
