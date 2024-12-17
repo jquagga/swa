@@ -15,10 +15,7 @@ const ptr = PullToRefresh.init({
   },
 });
 
-async function fetch_point(
-  latitude: string | number,
-  longitude: string | number
-) {
+async function fetch_point(latitude: number, longitude: number) {
   const headers = {
     accept: "application/ld+json",
     "user-agent": "https://github.com/jquagga/swa",
@@ -34,7 +31,7 @@ async function fetch_point(
 }
 
 async function fetch_weather(
-  point: string[],
+  point: unknown,
   latitude: number,
   longitude: number
 ) {
