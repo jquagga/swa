@@ -1,18 +1,16 @@
-/* eslint-disable no-undef */
-/* eslint-disable quotes */
-/* eslint-disable camelcase */
+/* eslint-disable @typescript-eslint/naming-convention */
 // Chart.js support libraries
-import Chart from "chart.js/auto";
-import ChartDataLabels from "chartjs-plugin-datalabels";
-import "chartjs-adapter-luxon"; // eslint-disable-line import/no-unassigned-import
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-import PullToRefresh from "pulltorefreshjs";
+import Chart from 'chart.js/auto';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import 'chartjs-adapter-luxon'; // eslint-disable-line import/no-unassigned-import
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import PullToRefresh from 'pulltorefreshjs';
 import './scss/main.scss';
 
 // Pull to refresh as ios breaks it for PWA
-const ptr = PullToRefresh.init({ // eslint-disable-line no-unused-vars
-	mainElement: "body",
+const ptr = PullToRefresh.init({
+	mainElement: 'body',
 	onRefresh() {
 		globalThis.location.reload();
 	},
@@ -20,8 +18,8 @@ const ptr = PullToRefresh.init({ // eslint-disable-line no-unused-vars
 
 async function main(latitude, longitude) {
 	const headers = {
-		accept: "application/ld+json",
-		"user-agent": "https://github.com/jquagga/swa",
+		accept: 'application/ld+json',
+		'user-agent': 'https://github.com/jquagga/swa',
 	};
 
 	const point_response = await fetch(
@@ -44,12 +42,12 @@ async function main(latitude, longitude) {
 	});
 	const forecastHourly = await forecastHourly_response.json();
 
-	document.querySelector("#header").innerHTML = await build_header(point);
-	document.querySelector("#alerts").innerHTML = await alert_processing(alerts);
-	document.querySelector("#grid").innerHTML = await build_grid(forecast);
+	document.querySelector('#header').innerHTML = await build_header(point);
+	document.querySelector('#alerts').innerHTML = await alert_processing(alerts);
+	document.querySelector('#grid').innerHTML = await build_grid(forecast);
 	await build_chart(forecastHourly);
 	await build_map(latitude, longitude);
-	document.querySelector("#footer").innerHTML
+	document.querySelector('#footer').innerHTML
     = `<div align="center"><a href=https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}
         ><button type="button">Weather.gov forecast</button></a></div>
 <p align="center">This forecast is generated from the U.S. National Weather Service's <a
@@ -70,13 +68,13 @@ async function build_header(point) {
 
 async function alert_processing(alerts) {
 	const severity_classes = {
-		Extreme: "pico-background-red-500",
-		Severe: "pico-background-yellow-100",
-		default: "",
+		Extreme: 'pico-background-red-500',
+		Severe: 'pico-background-yellow-100',
+		default: '',
 	};
 
-	let alert_string = "";
-	for (const alert of alerts["@graph"]) {
+	let alert_string = '';
+	for (const alert of alerts['@graph']) {
 		const alert_class
       = severity_classes[alert.severity] || severity_classes.default;
 		alert_string += `
@@ -94,7 +92,7 @@ async function alert_processing(alerts) {
 async function build_chart(forecastHourly) {
 	for (let i = 0; i < 8; i++) {
 		// We have to chop "mph" off of the windspeed to make it just a number
-		const windspeed = forecastHourly.periods[i].windSpeed.split(" ");
+		const windspeed = forecastHourly.periods[i].windSpeed.split(' ');
 		forecastHourly.periods[i].windSpeed = Number.parseFloat(windspeed[0]);
 		// Now we send the period off to apptemp to create apptemp!
 		forecastHourly.periods[i].appTemp = apptempF(
@@ -105,9 +103,9 @@ async function build_chart(forecastHourly) {
 	}
 
 	Chart.register(ChartDataLabels);
-	const context = document.querySelector("#myChart");
-	const weather_chart = new Chart(context, { // eslint-disable-line no-unused-vars
-		type: "line",
+	const context = document.querySelector('#myChart');
+	const weather_chart = new Chart(context, {
+		type: 'line',
 		data: {
 			labels: [
 				forecastHourly.periods[0].startTime,
@@ -121,7 +119,7 @@ async function build_chart(forecastHourly) {
 			],
 			datasets: [
 				{
-					label: "Temperature",
+					label: 'Temperature',
 					data: [
 						forecastHourly.periods[0].temperature,
 						forecastHourly.periods[1].temperature,
@@ -132,13 +130,13 @@ async function build_chart(forecastHourly) {
 						forecastHourly.periods[6].temperature,
 						forecastHourly.periods[7].temperature,
 					],
-					borderColor: "#FF0000",
-					backgroundColor: "#FF0000",
+					borderColor: '#FF0000',
+					backgroundColor: '#FF0000',
 					showLine: false,
-					yAxisID: "y",
+					yAxisID: 'y',
 				},
 				{
-					label: "Apparent Temperature",
+					label: 'Apparent Temperature',
 					data: [
 						forecastHourly.periods[0].appTemp,
 						forecastHourly.periods[1].appTemp,
@@ -149,13 +147,13 @@ async function build_chart(forecastHourly) {
 						forecastHourly.periods[6].appTemp,
 						forecastHourly.periods[7].appTemp,
 					],
-					borderColor: "#a40000",
-					backgroundColor: "#a40000",
+					borderColor: '#a40000',
+					backgroundColor: '#a40000',
 					showLine: false,
-					yAxisID: "y",
+					yAxisID: 'y',
 				},
 				{
-					label: "Chance of Precipitation",
+					label: 'Chance of Precipitation',
 					data: [
 						forecastHourly.periods[0].probabilityOfPrecipitation.value,
 						forecastHourly.periods[1].probabilityOfPrecipitation.value,
@@ -166,11 +164,11 @@ async function build_chart(forecastHourly) {
 						forecastHourly.periods[6].probabilityOfPrecipitation.value,
 						forecastHourly.periods[7].probabilityOfPrecipitation.value,
 					],
-					borderColor: "#add8e6",
-					backgroundColor: "#add8e6",
+					borderColor: '#add8e6',
+					backgroundColor: '#add8e6',
 					showLine: true,
 					fill: true,
-					yAxisID: "y1",
+					yAxisID: 'y1',
 					pointRadius: 0,
 					datalabels: {
 						display: false,
@@ -182,17 +180,17 @@ async function build_chart(forecastHourly) {
 			animation: false,
 			scales: {
 				x: {
-					type: "timeseries",
+					type: 'timeseries',
 				},
 				y: {
-					type: "linear",
+					type: 'linear',
 					beginAtZero: false,
-					grace: "5%",
+					grace: '5%',
 				},
 				y1: {
-					type: "linear",
+					type: 'linear',
 					display: false,
-					position: "right",
+					position: 'right',
 					min: 0,
 					max: 100,
 					grid: {
@@ -207,18 +205,18 @@ async function build_chart(forecastHourly) {
 					},
 					borderRadius: 25,
 					borderWidth: 2,
-					color: "white",
+					color: 'white',
 					font: {
-						weight: "bold",
+						weight: 'bold',
 					},
 					formatter: Math.round,
 					padding: 2,
-					display: "auto",
+					display: 'auto',
 				},
 				legend: {
 					display: true,
-					position: "bottom",
-					align: "start",
+					position: 'bottom',
+					align: 'start',
 					labels: {
 						usePointStyle: true,
 					},
@@ -262,8 +260,8 @@ async function build_grid(forecast) {
 
 async function build_map(latitude, longitude) {
 	const map = new maplibregl.Map({
-		container: "map",
-		style: "https://tiles.openfreemap.org/styles/positron",
+		container: 'map',
+		style: 'https://tiles.openfreemap.org/styles/positron',
 		center: [longitude, latitude],
 		zoom: 7,
 		// Causes pan & zoom handlers not to be applied, similar to
@@ -271,24 +269,24 @@ async function build_map(latitude, longitude) {
 		interactive: false,
 	});
 
-	const marker = new maplibregl.Marker() // eslint-disable-line no-unused-vars
+	const marker = new maplibregl.Marker()
 		.setLngLat([longitude, latitude])
 		.addTo(map);
 
-	map.on("load", () => {
-		map.addSource("nws_radar", {
-			type: "raster",
+	map.on('load', () => {
+		map.addSource('nws_radar', {
+			type: 'raster',
 			// Use the tiles option to specify a WMS tile source URL
 			// https://maplibre.org/maplibre-style-spec/sources/
 			tiles: [
-				"https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+				'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1',
 			],
 			tileSize: 256,
 		});
 		map.addLayer({
-			id: "nws_radar",
-			type: "raster",
-			source: "nws_radar",
+			id: 'nws_radar',
+			type: 'raster',
+			source: 'nws_radar',
 			paint: {},
 		});
 	});
@@ -304,11 +302,8 @@ function apptempF(T_F, rh, ws_mph) {
 	if (T_F <= 51) {
 		const mag = ws_mph * 1.15;
 		return mag <= 3
-        	? T_F // eslint-disable-line no-mixed-spaces-and-tabs
-        	: 35.74 // eslint-disable-line no-mixed-spaces-and-tabs
-            + (0.6215 * T_F)
-            - (35.75 * (mag ** 0.16))
-            + (0.4275 * T_F * (mag ** 0.16));
+			? T_F
+			: 35.74 + 0.6215 * T_F - 35.75 * mag ** 0.16 + 0.4275 * T_F * mag ** 0.16;
 	}
 
 	if (T_F > 79) {
@@ -316,11 +311,11 @@ function apptempF(T_F, rh, ws_mph) {
 		const B = 2.049_015_23 * T_F;
 		const C = 10.143_331_27 * rh;
 		const D = -0.224_755_41 * T_F * rh;
-		const E = -0.006_837_83 * (T_F ** 2);
-		const F = -0.054_817_17 * (rh ** 2);
-		const G = 0.001_228_74 * (T_F ** 2) * rh;
-		const H = 0.000_852_82 * T_F * (rh ** 2);
-		const I = -0.000_001_99 * (T_F ** 2) * (rh ** 2);
+		const E = -0.006_837_83 * T_F ** 2;
+		const F = -0.054_817_17 * rh ** 2;
+		const G = 0.001_228_74 * T_F ** 2 * rh;
+		const H = 0.000_852_82 * T_F * rh ** 2;
+		const I = -0.000_001_99 * T_F ** 2 * rh ** 2;
 
 		let HeatIndexValue = A + B + C + D + E + F + G + H + I;
 
@@ -346,7 +341,7 @@ async function success(pos) {
 }
 
 async function error(_error) {
-	throw new Error("Exiting");
+	throw new Error('Exiting');
 }
 
 globalThis.navigator.geolocation.getCurrentPosition(success, error, options); // eslint-disable-line n/no-unsupported-features/node-builtins
