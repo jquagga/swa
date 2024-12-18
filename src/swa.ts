@@ -163,7 +163,8 @@ async function build_chart(forecastHourly: unknown) {
           ],
           borderColor: "#FF0000",
           backgroundColor: "#FF0000",
-          showLine: false,
+          //showLine: false,
+          tension: 0.2,
           yAxisID: "y",
         },
         {
@@ -180,7 +181,8 @@ async function build_chart(forecastHourly: unknown) {
           ],
           borderColor: "#a40000",
           backgroundColor: "#a40000",
-          showLine: false,
+          //showLine: false,
+          tension: 0.2,
           yAxisID: "y",
         },
         {
@@ -199,6 +201,7 @@ async function build_chart(forecastHourly: unknown) {
           backgroundColor: "#add8e6",
           showLine: true,
           fill: true,
+          tension: 0.4,
           yAxisID: "y1",
           pointRadius: 0,
           datalabels: {
