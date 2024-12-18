@@ -38,7 +38,7 @@ async function fetch_point(latitude: number, longitude: number) {
       <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
     </div>
     <br />
-    <divid="footer"></div> 
+    <div id="footer"></div> 
   `;
 
   //set pointStore to hold value of Point (so we don't have to geolocate every time)
