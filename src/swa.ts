@@ -28,17 +28,17 @@ async function fetch_point(latitude: number, longitude: number) {
   const point: unknown = await point_response.json();
 
   document.querySelector("#main").innerHTML = `
-  <div class="container" id="header"></div>
-    <div class="container" id="alerts"></div>
-    <div class="container">
+  <div id="header"></div>
+    <div id="alerts"></div>
+    <div>
       <canvas id="myChart"></canvas>
     </div>
-    <div class="container" id="grid"></div>
-    <div class="container">
+    <div id="grid"></div>
+    <div>
       <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
     </div>
     <br />
-    <div class="container" id="footer"></div> 
+    <divid="footer"></div> 
   `;
 
   //set pointStore to hold value of Point (so we don't have to geolocate every time)
