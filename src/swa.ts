@@ -11,13 +11,13 @@ import "./scss/main.scss";
 const ptr = PullToRefresh.init({
   mainElement: "body",
   onRefresh() {
-    globalThis.location.reload();
+    fetch_weather();
   },
 });
 
 async function fetch_point(latitude: number, longitude: number) {
   const headers = {
-    accept: "application/ld+json",
+    accept: "application/geo+json",
     "user-agent": "https://github.com/jquagga/swa",
   };
 
@@ -41,14 +41,19 @@ async function fetch_point(latitude: number, longitude: number) {
     <div class="container" id="footer"></div> 
   `;
 
-  fetch_weather(point, latitude, longitude);
+  //set pointStore to hold value of Point (so we don't have to geolocate every time)
+  localStorage.setItem("point_store", JSON.stringify(point));
+
+  fetch_weather();
 }
 
-async function fetch_weather(
-  point: unknown,
-  latitude: number,
-  longitude: number
-) {
+async function fetch_weather() {
+  //get pointStore out of the attic
+  const point = JSON.parse(localStorage.getItem("point_store"));
+
+  const longitude = point.geometry.coordinates[0];
+  const latitude = point.geometry.coordinates[1];
+
   const headers = {
     accept: "application/ld+json",
     "user-agent": "https://github.com/jquagga/swa",
@@ -60,10 +65,10 @@ async function fetch_weather(
   );
   const alerts = await alerts_response.json();
 
-  const forecast_response = await fetch(point.forecast, { headers });
+  const forecast_response = await fetch(point.properties.forecast, { headers });
   const forecast = await forecast_response.json();
 
-  const forecastHourly_response = await fetch(point.forecastHourly, {
+  const forecastHourly_response = await fetch(point.properties.forecastHourly, {
     headers,
   });
   const forecastHourly = await forecastHourly_response.json();
@@ -82,16 +87,14 @@ async function fetch_weather(
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
 
-async function build_header(point: {
-  relativeLocation: { city: any; state: any };
-}) {
+async function build_header(point: unknown) {
   return `
      <div class="container">
        <h1>
-         Weather for ${point.relativeLocation.city},
-         ${point.relativeLocation.state}
+         Weather for ${point.properties.relativeLocation.properties.city},
+         ${point.properties.relativeLocation.properties.state}
        </h1>
-     </div>
+      </div>
      `;
 }
 
@@ -372,7 +375,7 @@ async function success(pos: {
   );
 }
 
-async function error(_error: any) {
+async function error(_error: unknown) {
   throw new Error("Exiting");
 }
 
