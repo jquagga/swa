@@ -11,13 +11,13 @@ import "./scss/main.scss";
 const ptr = PullToRefresh.init({
   mainElement: "body",
   onRefresh() {
-    globalThis.location.reload();
+    fetch_weather();
   },
 });
 
 async function fetch_point(latitude: number, longitude: number) {
   const headers = {
-    accept: "application/ld+json",
+    accept: "application/geo+json",
     "user-agent": "https://github.com/jquagga/swa",
   };
 
@@ -27,14 +27,33 @@ async function fetch_point(latitude: number, longitude: number) {
   );
   const point: unknown = await point_response.json();
 
-  fetch_weather(point, latitude, longitude);
+  document.querySelector("#main").innerHTML = `
+  <div id="header"></div>
+    <div id="alerts"></div>
+    <div>
+      <canvas id="myChart"></canvas>
+    </div>
+    <div id="grid"></div>
+    <div>
+      <div id="map" style="min-width: 100%; min-height: 50vh; position: relative"></div>
+    </div>
+    <br />
+    <div id="footer"></div> 
+  `;
+
+  //set pointStore to hold value of Point (so we don't have to geolocate every time)
+  localStorage.setItem("point_store", JSON.stringify(point));
+
+  fetch_weather();
 }
 
-async function fetch_weather(
-  point: unknown,
-  latitude: number,
-  longitude: number
-) {
+async function fetch_weather() {
+  //get pointStore out of the attic
+  const point = JSON.parse(localStorage.getItem("point_store"));
+
+  const longitude = point.geometry.coordinates[0];
+  const latitude = point.geometry.coordinates[1];
+
   const headers = {
     accept: "application/ld+json",
     "user-agent": "https://github.com/jquagga/swa",
@@ -46,18 +65,18 @@ async function fetch_weather(
   );
   const alerts = await alerts_response.json();
 
-  const forecast_response = await fetch(point.forecast, { headers });
+  const forecast_response = await fetch(point.properties.forecast, { headers });
   const forecast = await forecast_response.json();
 
-  const forecastHourly_response = await fetch(point.forecastHourly, {
+  const forecastHourly_response = await fetch(point.properties.forecastHourly, {
     headers,
   });
   const forecastHourly = await forecastHourly_response.json();
 
   document.querySelector("#header").innerHTML = await build_header(point);
   document.querySelector("#alerts").innerHTML = await alert_processing(alerts);
-  document.querySelector("#grid").innerHTML = await build_grid(forecast);
   await build_chart(forecastHourly);
+  document.querySelector("#grid").innerHTML = await build_grid(forecast);
   await build_map(latitude, longitude);
   document.querySelector(
     "#footer"
@@ -68,16 +87,13 @@ async function fetch_weather(
     using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.</p>`;
 }
 
-async function build_header(point: {
-  relativeLocation: { city: any; state: any };
-}) {
+async function build_header(point: unknown) {
   return `
      <div class="container">
        <h1>
-         Weather for ${point.relativeLocation.city},
-         ${point.relativeLocation.state}
-       </h1>
-     </div>
+         Weather for ${point.properties.relativeLocation.properties.city},
+         ${point.properties.relativeLocation.properties.state} <small><a href="javascript:window.location.reload(true)">(change)</a></small></h1>
+      </div>
      `;
 }
 
@@ -104,10 +120,10 @@ async function alert_processing(alerts: Record<string, any>) {
   return alert_string;
 }
 
-async function build_chart(forecastHourly: string[]) {
+async function build_chart(forecastHourly: unknown) {
   for (let i = 0; i < 8; i++) {
     // We have to chop "mph" off of the windspeed to make it just a number
-    const windspeed: string[] = forecastHourly.periods[i].windSpeed.split(" ");
+    const windspeed: unknown = forecastHourly.periods[i].windSpeed.split(" ");
     forecastHourly.periods[i].windSpeed = Number.parseFloat(windspeed[0]);
     // Now we send the period off to apptemp to create apptemp!
     forecastHourly.periods[i].appTemp = apptempF(
@@ -358,7 +374,7 @@ async function success(pos: {
   );
 }
 
-async function error(_error: any) {
+async function error(_error: unknown) {
   throw new Error("Exiting");
 }
 
@@ -371,7 +387,8 @@ async function geolocate_me() {
   globalThis.navigator.geolocation.getCurrentPosition(success, error, options);
 }
 
-geolocate_me();
+// Push button to start the pinball machine
+document.getElementById("geolocate").addEventListener("click", geolocate_me);
 
 /*
 
