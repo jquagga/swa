@@ -11,7 +11,7 @@ import "./scss/main.scss";
 const ptr = PullToRefresh.init({
   mainElement: "body",
   onRefresh() {
-    fetch_weather();
+    globalThis.location.reload();
   },
 });
 
@@ -92,7 +92,7 @@ async function build_header(point: unknown) {
      <div class="container">
        <h1>
          Weather for ${point.properties.relativeLocation.properties.city},
-         ${point.properties.relativeLocation.properties.state} <small><a href="javascript:window.location.reload(true)">(change)</a></small></h1>
+         ${point.properties.relativeLocation.properties.state}</h1>
       </div>
      `;
 }
