@@ -90,8 +90,7 @@ async function fetch_weather() {
 async function build_header(point: unknown) {
   return `
      <div class="container">
-       <h1>
-         ${point.properties.relativeLocation.properties.city},
+       <h1>${point.properties.relativeLocation.properties.city},
          ${point.properties.relativeLocation.properties.state}</h1>
       </div>
      `;
