@@ -228,6 +228,8 @@
           </tbody>
         </table>
       </div>
+    {:else}
+      <span aria-busy="true">Fetching Weather Data...</span>
     {/if}
   </div>
 
