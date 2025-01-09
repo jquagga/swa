@@ -14,7 +14,7 @@
 		"@picocss/pico": "2.0.6",
 		"@sveltejs/adapter-auto": "3.3.1",
 		"@sveltejs/kit": "2.15.2",
-		"@sveltejs/vite-plugin-svelte": "4.0.4",
+		"@sveltejs/vite-plugin-svelte": "5.0.3",
 		"sass-embedded": "1.83.1",
 		"svelte": "5.17.2",
 		"svelte-check": "4.1.3",
