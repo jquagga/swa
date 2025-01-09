@@ -4,7 +4,6 @@
   import "maplibre-gl/dist/maplibre-gl.css";
   import Chart from "chart.js/auto";
   import "chartjs-adapter-luxon";
-  import PullToRefresh from "pulltorefreshjs";
 
   let point: any = [];
   let alerts: any = [];
@@ -12,17 +11,6 @@
   let forecastHourly: any = [];
   let NWSURL: string = "";
   let map: any;
-
-  const standalone =
-    navigator.standalone ||
-    window.matchMedia("(display-mode: standalone)").matches;
-  if (standalone) {
-    PullToRefresh.init({
-      onRefresh() {
-        window.location.reload();
-      },
-    });
-  }
 
   onMount(() => {
     const options = {
