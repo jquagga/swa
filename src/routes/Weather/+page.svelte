@@ -5,12 +5,12 @@
   import Chart from "chart.js/auto";
   import "chartjs-adapter-luxon";
 
-  let point: any = [];
-  let alerts: any = [];
-  let forecast: any = [];
-  let forecastHourly: any = [];
-  let NWSURL: string = "";
-  let map: any;
+  let point: any = $state([]);
+  let alerts: any = $state([]);
+  let forecast: any = $state([]);
+  let forecastHourly: any = $state([]);
+  let NWSURL: string = $state("");
+  let map: any = $state("");
 
   onMount(() => {
     const options = {
