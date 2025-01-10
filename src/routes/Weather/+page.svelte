@@ -52,12 +52,6 @@
     );
     point = await point_response.json();
 
-    const alerts_response = await fetch(
-      `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}&limit=50`,
-      { headers }
-    );
-    alerts = await alerts_response.json();
-
     // TODO - add a for loop to switch out Extreme and Severe to these picocss classes to make red / yellow
     //{#if alert.properties.severity == "Extreme"}pico-background-red-500"{:else if alert.properties.severity == "Severe"}"pico-background-yellow-100"{:else}"primary"{/if}
 
@@ -186,6 +180,12 @@
         paint: {},
       });
     });
+
+    const alerts_response = await fetch(
+      `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}&limit=50`,
+      { headers }
+    );
+    alerts = await alerts_response.json();
   }
 </script>
 
