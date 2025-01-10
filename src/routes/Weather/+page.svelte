@@ -11,6 +11,7 @@
   let forecastHourly: any = $state([]);
   let NWSURL: string = $state("");
   let map: any = "";
+  let geolocationError: string | null = $state(null);
 
   // On mount, let's get our geolocation so we can get the weather.
   onMount(() => {
@@ -31,10 +32,18 @@
     );
   }
 
-  async function error(_error: unknown) {
-    throw new Error(
-      "Geolocation failed so we weren't able to find your forecast."
-    );
+  async function error(error: GeolocationPositionError) {
+    const errorMessages = {
+      PERMISSION_DENIED:
+        "Please enable location access to see your local forecast.",
+      POSITION_UNAVAILABLE:
+        "Unable to determine your location. Please try again.",
+      TIMEOUT: "Location request timed out. Please try again.",
+    };
+
+    geolocationError =
+      errorMessages[error.code] ||
+      "Unable to get your location. Please try again.";
   }
 
   async function process_weather(latitude: number, longitude: number) {
@@ -200,6 +209,12 @@
 </script>
 
 <div class="container">
+  {#if geolocationError}
+    <div class="error-message" role="alert">
+      {geolocationError}
+    </div>
+  {/if}
+
   <h1 style="text-align: center;">
     {#if point.hasOwnProperty("properties")}
       {point.properties.relativeLocation.properties.city}, {point.properties
@@ -209,16 +224,16 @@
 
   <div id="alerts">
     {#if alerts.hasOwnProperty("features") && alerts["features"].length}
-      <details>
-        {#each alerts.features as alert}
+      {#each alerts.features as alert}
+        <details>
           <!-- svelte-ignore a11y_no_redundant_roles -->
           <summary role="button" class={alert.properties.severity}>
             {alert.properties.parameters.NWSheadline}</summary
           >
           <p>{alert.properties.description}</p>
           <p>{alert.properties.instruction}</p>
-        {/each}
-      </details>
+        </details>
+      {/each}
     {/if}
   </div>
 
