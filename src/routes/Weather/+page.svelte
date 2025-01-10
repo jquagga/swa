@@ -117,7 +117,7 @@
         ],
       },
       options: {
-        responsive: true,
+        animation: false,
         scales: {
           x: {
             type: "timeseries",
