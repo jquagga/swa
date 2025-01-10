@@ -10,19 +10,17 @@
   let forecast: any = $state([]);
   let forecastHourly: any = $state([]);
   let NWSURL: string = $state("");
-  let map: any = $state("");
+  let map: any = "";
+  let geolocationError: string | null = $state(null);
 
+  // On mount, let's get our geolocation so we can get the weather.
   onMount(() => {
     const options = {
       enableHighAccuracy: true,
       timeout: 15_000,
       maximumAge: 3600,
     };
-    globalThis.navigator.geolocation.getCurrentPosition(
-      success,
-      error,
-      options
-    );
+    navigator.geolocation.getCurrentPosition(success, error, options);
   });
 
   async function success(pos: {
@@ -34,8 +32,18 @@
     );
   }
 
-  async function error(_error: unknown) {
-    throw new Error("Exiting");
+  async function error(error: GeolocationPositionError) {
+    const errorMessages = {
+      PERMISSION_DENIED:
+        "Please enable location access to see your local forecast.",
+      POSITION_UNAVAILABLE:
+        "Unable to determine your location. Please try again.",
+      TIMEOUT: "Location request timed out. Please try again.",
+    };
+
+    geolocationError =
+      errorMessages[error.code] ||
+      "Unable to get your location. Please try again.";
   }
 
   async function process_weather(latitude: number, longitude: number) {
@@ -58,8 +66,18 @@
     );
     alerts = await alerts_response.json();
 
-    // TODO - add a for loop to switch out Extreme and Severe to these picocss classes to make red / yellow
-    //{#if alert.properties.severity == "Extreme"}pico-background-red-500"{:else if alert.properties.severity == "Severe"}"pico-background-yellow-100"{:else}"primary"{/if}
+    // This for loop switches the severity of an alert to the associated picocss
+    // class.  Severe is yellow and Extreme is red.  Otherwise primary.
+    for (let i = 0; i < alerts.features.length; i++) {
+      //console.log(alerts.features[i].properties.severity);
+      if (alerts.features[i].properties.severity == "Severe") {
+        alerts.features[i].properties.severity = "pico-background-yellow-100";
+      } else if (alerts.features[i].properties.severity == "Extreme") {
+        alerts.features[i].properties.severity = "pico-background-red-500";
+      } else {
+        alerts.features[i].properties.severity = "primary";
+      }
+    }
 
     const forecastHourly_response = await fetch(
       point.properties.forecastHourly,
@@ -78,8 +96,9 @@
     let labels = [];
     let temp_values = [];
     let pop_values = [];
-    //let length = forecastHourly.properties.periods.length;
-    for (let i = 0; i < 25; i++) {
+    //const GRAPH_HOURS = forecastHourly.properties.periods.length;
+    const GRAPH_HOURS = 25;
+    for (let i = 0; i < GRAPH_HOURS; i++) {
       labels.push(forecastHourly.properties.periods[i].startTime);
       temp_values.push(forecastHourly.properties.periods[i].temperature);
       pop_values.push(
@@ -190,6 +209,12 @@
 </script>
 
 <div class="container">
+  {#if geolocationError}
+    <div class="error-message" role="alert">
+      {geolocationError}
+    </div>
+  {/if}
+
   <h1 style="text-align: center;">
     {#if point.hasOwnProperty("properties")}
       {point.properties.relativeLocation.properties.city}, {point.properties
@@ -199,16 +224,16 @@
 
   <div id="alerts">
     {#if alerts.hasOwnProperty("features") && alerts["features"].length}
-      <details>
-        {#each alerts.features as alert}
+      {#each alerts.features as alert}
+        <details>
           <!-- svelte-ignore a11y_no_redundant_roles -->
-          <summary role="button" class="primary">
+          <summary role="button" class={alert.properties.severity}>
             {alert.properties.parameters.NWSheadline}</summary
           >
           <p>{alert.properties.description}</p>
           <p>{alert.properties.instruction}</p>
-        {/each}
-      </details>
+        </details>
+      {/each}
     {/if}
   </div>
 
