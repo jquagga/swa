@@ -9,7 +9,7 @@
 
 ## Install
 
-Clone the repository to a directory and serve with a https capable webserver. (or you can just bookmark [partlycloudy.org](https://www.partlycloudy.org/) above)
+Clone the repository and `npm run build` should put it all together. Serve with https (or you can just bookmark [partlycloudy.org](https://www.partlycloudy.org/).
 
 ## Usage
 
@@ -20,17 +20,15 @@ The app utilizes the javascript geolocation API to query location and returns th
 
 ## Implementation Details
 
-The app polls the NWS alerts, forecast and forecastHourly. Alerts are displayed if there are any for the location. The weekly forecast (forecast) shows the next 6 periods (3 day/night combinations). And forecastHourly presently displays the temperature, apparent temperature and probability of precipitation.
+The app polls the NWS alerts, forecast and forecastHourly. Alerts are displayed if there are any for the location. The graph at near the top of the screen is temperature and chance of precipitation over the next 24 hours. The normal text forecast follows in a table and the radar is displayed towards the bottom.
 
-The goal was to provide the upstream data as similarly as possible. All data should come NWS EXCEPT for apparent temperature (similar to a "Feels Like") which is calculated in browser with the same equations NWS uses for Wind Chill (if less than 50F) or Heat Index (if over 80F).[^appTemp]
-
-[^appTemp]: While not presently displayed on the weather.gov page, NWS does provide apparent temperature data in their raw forecastGrid. I've opted for generating the temperature as forecastGrid has varying time durations; calculating was a simpler implementation.
+The goal was to provide the upstream data as similarly as possible; just in a more mobile friendly format.
 
 ## Acknowledgements \ Tech Stack
 
 - [National Weather Service Weather.gov API](https://www.weather.gov/documentation/services-web-api)
+- Svelte
 - PicoCSS
 - chart.js
 - Maplibre-gl JS with [OpenFreeMap](https://openfreemap.org/)
 - Icon comes from [Meteocons](https://github.com/basmilius/weather-icons)
-- WeeWX
