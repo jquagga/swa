@@ -115,8 +115,8 @@
           {
             label: "Temperature",
             data: temp_values,
-            borderColor: "#FF0000",
-            backgroundColor: "#FF0000",
+            borderColor: "#D93526",
+            backgroundColor: "#D93526",
             //showLine: false,
             tension: 0.4,
             yAxisID: "y",
@@ -125,8 +125,8 @@
           {
             label: "Chance of Precipitation",
             data: pop_values,
-            borderColor: "#add8e6",
-            backgroundColor: "#add8e6",
+            borderColor: "#017FC0",
+            backgroundColor: "#017FC0",
             showLine: true,
             fill: true,
             tension: 0.4,
@@ -216,9 +216,13 @@
   {/if}
 
   <h1 style="text-align: center;">
-    {#if point.hasOwnProperty("properties")}
+    {#if geolocationError}
+      {geolocationError}
+    {:else if point.hasOwnProperty("properties")}
       {point.properties.relativeLocation.properties.city}, {point.properties
         .relativeLocation.properties.state}
+    {:else}
+      <span aria-busy="true">Fetching Weather Data...</span>
     {/if}
   </h1>
 
@@ -253,8 +257,6 @@
           </tbody>
         </table>
       </div>
-    {:else}
-      <span aria-busy="true">Fetching Weather Data...</span>
     {/if}
   </div>
 
