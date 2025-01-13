@@ -209,12 +209,6 @@
 </script>
 
 <div class="container">
-  {#if geolocationError}
-    <div class="error-message" role="alert">
-      {geolocationError}
-    </div>
-  {/if}
-
   <h1 style="text-align: center;">
     {#if geolocationError}
       {geolocationError}
