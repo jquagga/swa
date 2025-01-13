@@ -216,7 +216,7 @@
       {point.properties.relativeLocation.properties.city}, {point.properties
         .relativeLocation.properties.state}
     {:else}
-      <span aria-busy="true">Fetching Weather Data...</span>
+      <span aria-busy="true">Geolocating...</span>
     {/if}
   </h1>
 
@@ -251,6 +251,8 @@
           </tbody>
         </table>
       </div>
+    {:else if point.hasOwnProperty("properties")}
+      <span aria-busy="true">Fetching weather data...</span>
     {/if}
   </div>
 
