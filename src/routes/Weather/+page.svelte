@@ -95,6 +95,7 @@
     // Start of hourly chart - for loop to build data arrays for chart
     let labels = [];
     let temp_values = [];
+    let apptemp_values = [];
     let pop_values = [];
     //const GRAPH_HOURS = forecastHourly.properties.periods.length;
     const GRAPH_HOURS = 25;
@@ -104,6 +105,22 @@
       pop_values.push(
         forecastHourly.properties.periods[i].probabilityOfPrecipitation.value
       );
+
+      // We have to chop "mph" off of the windspeed to make it just a number
+      const windspeed: unknown =
+        forecastHourly.properties.periods[i].windSpeed.split(" ");
+      forecastHourly.properties.periods[i].windSpeed = Number.parseFloat(
+        windspeed[0] // windspeed is always 0 here; 1 is the "mph"
+      );
+      // Now we send the period off to apptemp to create apptemp!
+      forecastHourly.properties.periods[i].appTemp = apptempF(
+        Number.parseFloat(forecastHourly.properties.periods[i].temperature),
+        Number.parseFloat(
+          forecastHourly.properties.periods[i].relativeHumidity.value
+        ),
+        forecastHourly.properties.periods[i].windSpeed
+      );
+      apptemp_values.push(forecastHourly.properties.periods[i].appTemp);
     }
 
     const context = document.querySelector("#myChart");
@@ -121,6 +138,17 @@
             tension: 0.4,
             yAxisID: "y",
             pointRadius: 0,
+          },
+          {
+            label: "Apparent Temperature",
+            data: apptemp_values,
+            borderColor: "#D93526",
+            backgroundColor: "#D93526",
+            //showLine: false,
+            tension: 0.4,
+            yAxisID: "y",
+            pointRadius: 0,
+            borderDash: [5, 5],
           },
           {
             label: "Chance of Precipitation",
@@ -205,6 +233,47 @@
         paint: {},
       });
     });
+  }
+
+  function apptempF(T_F: number, rh: number, ws_mph: number) {
+    // Taken right from NWS CAVE and converted to JS:
+    // cave/com.raytheon.viz.gfe/localization/gfe/userPython/smartTools/ApparentTemperature.py
+    if (T_F <= 51) {
+      const mag = ws_mph * 1.15;
+      return mag <= 3
+        ? T_F
+        : 35.74 +
+            0.6215 * T_F -
+            35.75 * mag ** 0.16 +
+            0.4275 * T_F * mag ** 0.16;
+    }
+
+    if (T_F > 79) {
+      const A = -42.379;
+      const B = 2.049_015_23 * T_F;
+      const C = 10.143_331_27 * rh;
+      const D = -0.224_755_41 * T_F * rh;
+      const E = -0.006_837_83 * T_F ** 2;
+      const F = -0.054_817_17 * rh ** 2;
+      const G = 0.001_228_74 * T_F ** 2 * rh;
+      const H = 0.000_852_82 * T_F * rh ** 2;
+      const I = -0.000_001_99 * T_F ** 2 * rh ** 2;
+
+      let HeatIndexValue = A + B + C + D + E + F + G + H + I;
+
+      // Apply an adjustment for low humidities
+      if (rh < 13 && T_F > 80 && T_F < 112) {
+        const adjustment =
+          ((13 - rh) / 4) * Math.sqrt((17 - Math.abs(T_F - 95)) / 17);
+        HeatIndexValue -= adjustment;
+        // Apply an adjustment for high humidities
+      } else if (rh > 85 && T_F >= 80 && T_F < 87) {
+        const adjustment = ((rh - 85) / 10) * ((87 - T_F) / 5);
+        HeatIndexValue += adjustment;
+      }
+
+      return HeatIndexValue;
+    }
   }
 </script>
 
