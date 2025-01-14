@@ -142,8 +142,8 @@
           {
             label: "Apparent Temperature",
             data: apptemp_values,
-            borderColor: "#D93526",
-            backgroundColor: "#D93526",
+            borderColor: "#FF9500",
+            backgroundColor: "#FF9500",
             //showLine: false,
             tension: 0.4,
             yAxisID: "y",
