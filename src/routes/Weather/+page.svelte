@@ -273,7 +273,7 @@
       }
 
       return HeatIndexValue;
-    }
+    } else return T_F;
   }
 </script>
 
