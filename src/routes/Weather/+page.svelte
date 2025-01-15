@@ -27,8 +27,8 @@
     coords: { latitude: number; longitude: number };
   }) {
     await process_weather(
-      pos.coords.latitude.toFixed(4),
-      pos.coords.longitude.toFixed(4)
+      Math.round(pos.coords.latitude * 10000) / 10000,
+      Math.round(pos.coords.longitude * 10000) / 10000
     );
   }
 
@@ -107,7 +107,7 @@
       );
 
       // We have to chop "mph" off of the windspeed to make it just a number
-      const windspeed: unknown =
+      const windspeed: any =
         forecastHourly.properties.periods[i].windSpeed.split(" ");
       forecastHourly.properties.periods[i].windSpeed = Number.parseFloat(
         windspeed[0] // windspeed is always 0 here; 1 is the "mph"
@@ -120,7 +120,9 @@
         ),
         forecastHourly.properties.periods[i].windSpeed
       );
-      apptemp_values.push(forecastHourly.properties.periods[i].appTemp);
+      apptemp_values.push(
+        Math.round(forecastHourly.properties.periods[i].appTemp) // Round to whole degrees
+      );
     }
 
     const context = document.querySelector("#myChart");
