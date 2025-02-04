@@ -283,6 +283,8 @@
   <h1 style="text-align: center;">
     {#if geolocationError}
       {geolocationError}
+    {:else if point.hasOwnProperty("detail")}
+      The weather.gov API has returned an error: <br />{point.detail}
     {:else if point.hasOwnProperty("properties")}
       {point.properties.relativeLocation.properties.city}, {point.properties
         .relativeLocation.properties.state}
