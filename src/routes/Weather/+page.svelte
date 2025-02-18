@@ -322,7 +322,7 @@
   </div>
 
   <div id="currently">
-    {#if forecastHourly.hasOwnProperty("properties")}
+    {#if forecastHourly.hasOwnProperty("properties") && forecastHourly.properties.periods && forecastHourly.properties.periods.length > 0}
       <h4 style="text-align: center;">
         {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
           .properties.periods[0].temperature}
