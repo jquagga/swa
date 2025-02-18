@@ -4,6 +4,7 @@
   import "maplibre-gl/dist/maplibre-gl.css";
   import Chart from "chart.js/auto";
   import "chartjs-adapter-luxon";
+  import { DateTime } from "luxon";
 
   let point: any = $state([]);
   let alerts: any = $state([]);
@@ -97,9 +98,21 @@
     let temp_values = [];
     let apptemp_values = [];
     let pop_values = [];
-    //const GRAPH_HOURS = forecastHourly.properties.periods.length;
     const GRAPH_HOURS = 25;
     for (let i = 0; i < GRAPH_HOURS; i++) {
+      // This if block checks to see if the end of the periods is in the past
+      // The forecast updates every 2 hours or so, so if we're past the first hour,
+      // let's snip it out and start at the current hour.
+      if (
+        DateTime.now() >
+        DateTime.fromISO(forecastHourly.properties.periods[i].endTime)
+      ) {
+        forecastHourly.properties.periods =
+          forecastHourly.properties.periods.slice(1);
+        i--; // Reset the loop counter since we snipped this period out
+        continue;
+      }
+
       labels.push(forecastHourly.properties.periods[i].startTime);
       temp_values.push(forecastHourly.properties.periods[i].temperature);
       pop_values.push(
@@ -305,6 +318,19 @@
           <p>{alert.properties.instruction}</p>
         </details>
       {/each}
+    {/if}
+  </div>
+
+  <div id="currently">
+    {#if forecastHourly.hasOwnProperty("properties")}
+      <h4 style="text-align: center;">
+        {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
+          .properties.periods[0].temperature}
+        {forecastHourly.properties.periods[0].temperatureUnit}, Feels Like: {Math.round(
+          forecastHourly.properties.periods[0].appTemp
+        )}
+        {forecastHourly.properties.periods[0].temperatureUnit}
+      </h4>
     {/if}
   </div>
 
