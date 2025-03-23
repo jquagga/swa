@@ -13,10 +13,10 @@
   "devDependencies": {
     "@picocss/pico": "2.1.1",
     "@sveltejs/adapter-cloudflare": "5.1.0",
-    "@sveltejs/kit": "2.20.1",
+    "@sveltejs/kit": "2.20.2",
     "@sveltejs/vite-plugin-svelte": "5.0.3",
     "sass-embedded": "1.86.0",
-    "svelte": "5.23.2",
+    "svelte": "5.25.3",
     "svelte-check": "4.1.5",
     "typescript": "5.8.2",
     "vite": "6.2.2"
