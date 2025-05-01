@@ -12,8 +12,8 @@
   },
   "devDependencies": {
     "@picocss/pico": "2.1.1",
-    "@sveltejs/adapter-cloudflare": "7.0.1",
-    "@sveltejs/kit": "2.20.7",
+    "@sveltejs/adapter-cloudflare": "7.0.2",
+    "@sveltejs/kit": "2.20.8",
     "@sveltejs/vite-plugin-svelte": "5.0.3",
     "sass-embedded": "1.87.0",
     "svelte": "5.28.2",
