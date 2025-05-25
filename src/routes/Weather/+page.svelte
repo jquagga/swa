@@ -68,6 +68,9 @@
             headers,
           }
         );
+        if (!point_response.ok) {
+          throw new Error(`HTTP error! status: ${point_response.status}`);
+        }
         break;
       } catch (error) {
         retryCount++;
@@ -93,6 +96,9 @@
           `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
           { headers }
         );
+        if (!alerts_response.ok) {
+          throw new Error(`HTTP error! status: ${alerts_response.status}`);
+        }
         break;
       } catch (error) {
         retryCount++;
@@ -133,6 +139,11 @@
         forecastHourly_response = await fetch(point.properties.forecastHourly, {
           headers,
         });
+        if (!forecastHourly_response.ok) {
+          throw new Error(
+            `HTTP error! status: ${forecastHourly_response.status}`
+          );
+        }
         break;
       } catch (error) {
         retryCount++;
@@ -160,6 +171,9 @@
         forecast_response = await fetch(point.properties.forecast, {
           headers,
         });
+        if (!forecast_response.ok) {
+          throw new Error(`HTTP error! status: ${forecast_response.status}`);
+        }
         break;
       } catch (error) {
         retryCount++;
