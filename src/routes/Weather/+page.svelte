@@ -62,7 +62,7 @@
     point = await point_response.json();
 
     const alerts_response = await fetch(
-      `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}&limit=50`,
+      `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
       { headers }
     );
     alerts = await alerts_response.json();
