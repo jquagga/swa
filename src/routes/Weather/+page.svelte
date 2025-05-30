@@ -411,8 +411,12 @@
       {#each alerts.features as alert}
         <details>
           <!-- svelte-ignore a11y_no_redundant_roles -->
-          <summary role="button" class={alert.properties.severity}>
-            {alert.properties.parameters.NWSheadline}</summary
+          <summary
+            role="button"
+            style="text-align: center;"
+            class={alert.properties.severity}
+          >
+            {alert.properties.event}</summary
           >
           <p>{alert.properties.description}</p>
           <p>{alert.properties.instruction}</p>
