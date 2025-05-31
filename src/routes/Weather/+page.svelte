@@ -47,76 +47,40 @@
       "Unable to get your location. Please try again.";
   }
 
-  async function process_weather(latitude: number, longitude: number) {
+  async function fetchData(url: string): Promise<any> {
     const headers = {
       accept: "application/geo+json",
       "user-agent": "https://github.com/jquagga/swa",
     };
 
-    /* Yeah, so the fetching needs to be a function as this is the same thing
-    over and over 4 times or so */
-
-    let point_response;
     const maxRetries = 3;
     let retryCount = 0;
 
     while (retryCount < maxRetries) {
       try {
-        point_response = await fetch(
-          `https://api.weather.gov/points/${latitude},${longitude}`,
-          {
-            headers,
-          }
-        );
-        if (!point_response.ok) {
-          throw new Error(`HTTP error! status: ${point_response.status}`);
-        }
-        break;
+        const response = await fetch(url, { headers });
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
       } catch (error) {
         retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error("Failed to fetch point after multiple retries:", error);
-          // Optionally handle the failure case, e.g., set alerts to an empty array or show an error message
-          point = [];
-          return;
-        }
+        if (retryCount >= maxRetries) throw error;
       }
     }
+  }
 
-    if (point_response) {
-      point = await point_response.json();
-    }
+  async function process_weather(latitude: number, longitude: number) {
+    /* Yeah, so the fetching needs to be a function as this is the same thing
+    over and over 4 times or so */
 
-    let alerts_response;
-    retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        alerts_response = await fetch(
-          `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
-          { headers }
-        );
-        if (!alerts_response.ok) {
-          throw new Error(`HTTP error! status: ${alerts_response.status}`);
-        }
-        break;
-      } catch (error) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error(
-            "Failed to fetch alerts after multiple retries:",
-            error
-          );
-          // Optionally handle the failure case, e.g., set alerts to an empty array or show an error message
-          alerts = [];
-          return;
-        }
-      }
-    }
-
-    if (alerts_response) {
-      alerts = await alerts_response.json();
-    }
+    point = await fetchData(
+      `https://api.weather.gov/points/${latitude},${longitude}`
+    );
+    alerts = await fetchData(
+      `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
+    );
+    forecastHourly = await fetchData(point.properties.forecastHourly);
+    forecast = await fetchData(point.properties.forecast);
 
     // This for loop switches the severity of an alert to the associated picocss
     // class.  Severe is yellow and Extreme is red.  Otherwise primary.
@@ -129,68 +93,6 @@
       } else {
         alerts.features[i].properties.severity = "primary";
       }
-    }
-
-    let forecastHourly_response;
-    retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        forecastHourly_response = await fetch(point.properties.forecastHourly, {
-          headers,
-        });
-        if (!forecastHourly_response.ok) {
-          throw new Error(
-            `HTTP error! status: ${forecastHourly_response.status}`
-          );
-        }
-        break;
-      } catch (error) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error(
-            "Failed to fetch hourly forecast after multiple retries:",
-            error
-          );
-          // Optionally handle the failure case, e.g., set alerts to an empty array or show an error message
-          forecastHourly = [];
-          return;
-        }
-      }
-    }
-
-    if (forecastHourly_response) {
-      forecastHourly = await forecastHourly_response.json();
-    }
-
-    let forecast_response;
-    retryCount = 0;
-
-    while (retryCount < maxRetries) {
-      try {
-        forecast_response = await fetch(point.properties.forecast, {
-          headers,
-        });
-        if (!forecast_response.ok) {
-          throw new Error(`HTTP error! status: ${forecast_response.status}`);
-        }
-        break;
-      } catch (error) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          console.error(
-            "Failed to fetch daily forecast after multiple retries:",
-            error
-          );
-          // Optionally handle the failure case, e.g., set alerts to an empty array or show an error message
-          forecast = [];
-          return;
-        }
-      }
-    }
-
-    if (forecast_response) {
-      forecast = await forecast_response.json();
     }
 
     // Start of hourly chart - for loop to build data arrays for chart
