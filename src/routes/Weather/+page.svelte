@@ -195,6 +195,7 @@
             type: "linear",
             display: false,
             position: "right",
+            beginAtZero: true,
             min: 0,
             max: 100,
             grid: {
