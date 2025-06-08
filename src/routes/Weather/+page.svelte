@@ -219,9 +219,19 @@
     NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
 
     // And this builds the radar map for bottom of the page
+    // First, are we in dark mode? If so, lets use a dark basemap
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      var map_style = "https://tiles.openfreemap.org/styles/dark";
+    } else {
+      var map_style = "https://tiles.openfreemap.org/styles/positron";
+    }
+
     map = new maplibregl.Map({
       container: "map",
-      style: "https://tiles.openfreemap.org/styles/positron",
+      style: map_style,
       center: [longitude, latitude],
       zoom: 7,
       // Causes pan & zoom handlers not to be applied, similar to
