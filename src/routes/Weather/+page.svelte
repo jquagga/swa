@@ -70,17 +70,15 @@
   }
 
   async function process_weather(latitude: number, longitude: number) {
-    /* Yeah, so the fetching needs to be a function as this is the same thing
-    over and over 4 times or so */
-
+    // First we get point which has the URLs for the forecasts
     point = await fetchData(
       `https://api.weather.gov/points/${latitude},${longitude}`
     );
+
+    // Next fetch alerts as they are based on lat/long
     alerts = await fetchData(
       `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
     );
-    forecastHourly = await fetchData(point.properties.forecastHourly);
-    forecast = await fetchData(point.properties.forecast);
 
     // This for loop switches the severity of an alert to the associated picocss
     // class.  Severe is yellow and Extreme is red.  Otherwise primary.
@@ -94,6 +92,9 @@
         alerts.features[i].properties.severity = "primary";
       }
     }
+
+    // This fetches the hourly forecast
+    forecastHourly = await fetchData(point.properties.forecastHourly);
 
     // Start of hourly chart - for loop to build data arrays for chart
     let labels = [];
@@ -215,8 +216,8 @@
       },
     });
 
-    // Builds URL variable for footer
-    NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
+    // Fetches the weekly forecast
+    forecast = await fetchData(point.properties.forecast);
 
     // And this builds the radar map for bottom of the page
     // First, are we in dark mode? If so, lets use a dark basemap
@@ -260,6 +261,9 @@
         paint: {},
       });
     });
+
+    // Builds URL variable for footer
+    NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
   }
 
   function apptempF(T_F: number, rh: number, ws_mph: number) {
