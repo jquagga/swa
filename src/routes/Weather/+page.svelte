@@ -342,7 +342,8 @@
       <h4 style="text-align: center;">
         <!-- If Temp and Feels like are the same, don't print Feels like -->
         {#if forecastHourly.properties.periods[0].temperature != Math.round(forecastHourly.properties.periods[0].appTemp)}
-          , Feels Like: {Math.round(
+          {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
+            .properties.periods[0].temperature}, Feels Like: {Math.round(
             forecastHourly.properties.periods[0].appTemp
           )}
           {forecastHourly.properties.periods[0].temperatureUnit}
