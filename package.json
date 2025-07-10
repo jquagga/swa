@@ -19,7 +19,7 @@
     "svelte": "5.35.4",
     "svelte-check": "4.2.2",
     "typescript": "5.8.3",
-    "vite": "6.3.5"
+    "vite": "7.0.2"
   },
   "dependencies": {
     "chart.js": "^4.4.7",
