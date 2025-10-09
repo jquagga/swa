@@ -1,3 +1,12 @@
 {
-  "extends": ["github>jquagga/renovate-config", ":pinAllExceptPeerDependencies"]
+  "extends": [
+    "github>jquagga/renovate-config",
+    ":pinAllExceptPeerDependencies"
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": ["node"],
+      "minimumReleaseAge": "3 days"
+    }
+  ]
 }
