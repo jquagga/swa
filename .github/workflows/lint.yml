@@ -66,8 +66,13 @@ jobs:
           FIX_SHELL_SHFMT: true
           FIX_YAML_PRETTIER: true
           FIX_MARKDOWN_PRETTIER: true
+          FIX_JAVASCRIPT_PRETTIER: true
+          FIX_TYPESCRIPT_PRETTIER: true
+          FIX_JSON_PRETTIER: true
           FIX_PYTHON_RUFF: true
+          VALIDATE_BIOME_FORMAT: false # We will fix lint, but not format
           FIX_BIOME_LINT: true
+          FIX_NATURAL_LANGUAGE: true
           RENOVATE_SHAREABLE_CONFIG_PRESET_FILE_NAMES: default.json
           # To reuse the same Super-linter configuration that you use in the
           # lint job without duplicating it, see
