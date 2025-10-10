@@ -37,6 +37,7 @@ concurrency:
 
 jobs:
   megalinter:
+    environment: megalinter
     name: MegaLinter
     runs-on: ubuntu-latest
 
