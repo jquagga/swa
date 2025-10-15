@@ -239,11 +239,11 @@
       // .dragging.disable() and other handler .disable() functions in Leaflet.
       interactive: false,
     });
-
+/*
     const marker = new maplibregl.Marker()
       .setLngLat([longitude, latitude])
       .addTo(map);
-
+*/
     map.on("load", () => {
       map.addSource("nws_radar", {
         type: "raster",
