@@ -34,12 +34,10 @@
   }
 
   async function error(error: GeolocationPositionError) {
-    const errorMessages = {
-      PERMISSION_DENIED:
-        "Please enable location access to see your local forecast.",
-      POSITION_UNAVAILABLE:
-        "Unable to determine your location. Please try again.",
-      TIMEOUT: "Location request timed out. Please try again.",
+    const errorMessages: Record<number, string> = {
+      1: "Please enable location access to see your local forecast.",
+      2: "Unable to determine your location. Please try again.",
+      3: "Location request timed out. Please try again.",
     };
 
     geolocationError =
@@ -141,80 +139,88 @@
       );
     }
 
-    const context = document.querySelector("#myChart");
-    new Chart(context, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: "Temperature",
-            data: temp_values,
-            borderColor: "#D93526",
-            backgroundColor: "#D93526",
-            //showLine: false,
-            tension: 0.4,
-            yAxisID: "y",
-            pointRadius: 0,
+    const context = document.querySelector(
+      "#myChart"
+    ) as HTMLCanvasElement | null;
+    if (context) {
+      new Chart(context, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Temperature",
+              data: temp_values,
+              borderColor: "#D93526",
+              backgroundColor: "#D93526",
+              //showLine: false,
+              tension: 0.4,
+              yAxisID: "y",
+              pointRadius: 0,
+            },
+            {
+              label: "Apparent Temperature",
+              data: apptemp_values,
+              borderColor: "#FF9500",
+              backgroundColor: "#FF9500",
+              //showLine: false,
+              tension: 0.4,
+              yAxisID: "y",
+              pointRadius: 0,
+              borderDash: [5, 5],
+            },
+            {
+              label: "Chance of Precipitation",
+              data: pop_values,
+              borderColor: "#017FC0",
+              backgroundColor: "#017FC0",
+              showLine: true,
+              fill: true,
+              tension: 0.4,
+              yAxisID: "y1",
+              pointRadius: 0,
+            },
+          ],
+        },
+        options: {
+          animation: false,
+          scales: {
+            x: {
+              type: "timeseries",
+            },
+            y: {
+              type: "linear",
+              beginAtZero: false,
+              grace: "5%",
+            },
+            y1: {
+              type: "linear",
+              display: false,
+              position: "right",
+              min: 0,
+              max: 100,
+              grid: {
+                drawOnChartArea: false,
+              },
+            },
           },
-          {
-            label: "Apparent Temperature",
-            data: apptemp_values,
-            borderColor: "#FF9500",
-            backgroundColor: "#FF9500",
-            //showLine: false,
-            tension: 0.4,
-            yAxisID: "y",
-            pointRadius: 0,
-            borderDash: [5, 5],
-          },
-          {
-            label: "Chance of Precipitation",
-            data: pop_values,
-            borderColor: "#017FC0",
-            backgroundColor: "#017FC0",
-            showLine: true,
-            fill: true,
-            tension: 0.4,
-            yAxisID: "y1",
-            pointRadius: 0,
-          },
-        ],
-      },
-      options: {
-        animation: false,
-        scales: {
-          x: {
-            type: "timeseries",
-          },
-          y: {
-            type: "linear",
-            beginAtZero: false,
-            grace: "5%",
-          },
-          y1: {
-            type: "linear",
-            display: false,
-            position: "right",
-            min: 0,
-            max: 100,
-            grid: {
-              drawOnChartArea: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: "bottom",
+              align: "start",
+              labels: {
+                usePointStyle: true,
+              },
             },
           },
         },
-        plugins: {
-          legend: {
-            display: true,
-            position: "bottom",
-            align: "start",
-            labels: {
-              usePointStyle: true,
-            },
-          },
-        },
-      },
-    });
+      });
+    } else {
+      console.warn(
+        "Chart element '#myChart' not found; skipping chart initialization."
+      );
+    }
 
     // Fetches the weekly forecast
     forecast = await fetchData(point.properties.forecast);
