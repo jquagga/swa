@@ -39,10 +39,10 @@ Quality gates for AI edits
 Small, concrete examples (copy or adapt these patterns)
 - Fetch with headers + retry (from `src/routes/Weather/+page.svelte`):
 
-  const headers = { accept: "application/geo+json", "user-agent": "https://github.com/jquagga/swa" }
+  const headers = { accept: "application/geo+json", "user-agent": "<https://github.com/jquagga/swa>" }
   // fetch loop with maxRetries = 3 — preserve when porting requests.
 
-- Service worker cache naming: `const CACHE = `cache-${version}`` (uses `$service-worker` exports). Use `$service-worker` variables when referring to build/file lists in SW.
+- Service worker cache naming: `const CACHE =`cache-${version}`` (uses `$service-worker` exports). Use `$service-worker` variables when referring to build/file lists in SW.
 
 When unsure
 - If a change touches deployment (Cloudflare adapter) or the service worker, run a full local build and preview and validate offline behavior in the browser.
