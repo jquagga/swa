@@ -81,13 +81,15 @@
     // This for loop switches the severity of an alert to the associated picocss
     // class.  Severe is yellow and Extreme is red.  Otherwise primary.
     for (let i = 0; i < alerts.features.length; i++) {
-      //console.log(alerts.features[i].properties.severity);
-      if (alerts.features[i].properties.severity == "Severe") {
-        alerts.features[i].properties.severity = "pico-background-yellow-100";
-      } else if (alerts.features[i].properties.severity == "Extreme") {
-        alerts.features[i].properties.severity = "pico-background-red-500";
-      } else {
-        alerts.features[i].properties.severity = "primary";
+      switch (alerts.features[i].properties.severity) {
+        case "Severe":
+          alerts.features[i].properties.severity = "pico-background-yellow-100";
+          break;
+        case "Extreme":
+          alerts.features[i].properties.severity = "pico-background-red-500";
+          break;
+        default:
+          alerts.features[i].properties.severity = "primary";
       }
     }
 
@@ -225,6 +227,95 @@
     // Fetches the weekly forecast
     forecast = await fetchData(point.properties.forecast);
 
+    // This loop attempts map shortForecast to an emoji.
+    // It's not the best way of doing this since shortForecast can have
+    // dozens of options but if we are using daily forecast, it's what we have.
+    for (let i = 0; i < forecast.properties.periods.length; i++) {
+      // Snow
+      if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("snow")
+      ) {
+        forecast.properties.periods[i].shortForecast = "❄️";
+      }
+      // Thunderstorm
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("thunder")
+      ) {
+        forecast.properties.periods[i].shortForecast = "⛈️";
+      }
+      // Rain
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("rain")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌧️";
+      }
+      // Partly & Mostly Cloudy
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("partly cloudy")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌥️";
+      } else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("mostly cloudy")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌥️";
+      }
+      // Partly & Mostly Sunny
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("partly sunny")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌤️";
+      } else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("mostly sunny")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌤️";
+      }
+      // Sunny & Cloudy
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("sunny")
+      ) {
+        forecast.properties.periods[i].shortForecast = "☀️";
+      } else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("cloudy")
+      ) {
+        forecast.properties.periods[i].shortForecast = "☁️";
+      }
+      // Fog
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("fog")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌫️";
+      }
+      // Clear (Moony?  - Clear Night Sky)
+      // Fog
+      else if (
+        forecast.properties.periods[i].shortForecast
+          .toLowerCase()
+          .includes("clear")
+      ) {
+        forecast.properties.periods[i].shortForecast = "🌕";
+      }
+    }
+
     // And this builds the radar map for bottom of the page
     // First, are we in dark mode? If so, lets use a dark basemap
     if (
@@ -249,7 +340,7 @@
     const marker = new maplibregl.Marker()
       .setLngLat([longitude, latitude])
       .addTo(map);
-*/
+    */
     map.on("load", () => {
       map.addSource("nws_radar", {
         type: "raster",
@@ -373,7 +464,10 @@
           <tbody>
             {#each forecast.properties.periods as period}
               <tr>
-                <td><b>{period.name}</b></td>
+                <td
+                  ><b>{period.name}</b><br />{period.shortForecast}
+                  {period.temperature}</td
+                >
                 <td>{period.detailedForecast}</td>
               </tr>
             {/each}
