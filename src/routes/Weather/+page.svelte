@@ -466,7 +466,14 @@
               <tr>
                 <td
                   ><b>{period.name}</b><br />{period.shortForecast}
-                  {period.temperature}</td
+                  <!-- Daytime = Red/Hi, Night = Blue/Low -->
+                  {#if period.isDaytime}
+                    <span class="pico-color-red-500">{period.temperature}</span>
+                  {:else}
+                    <span class="pico-color-azure-500"
+                      >{period.temperature}</span
+                    >
+                  {/if}</td
                 >
                 <td>{period.detailedForecast}</td>
               </tr>
