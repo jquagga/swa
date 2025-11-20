@@ -19,7 +19,7 @@
     "@types/luxon": "3.7.1",
     "picomatch": "4.0.3",
     "sass-embedded": "1.93.3",
-    "svelte": "5.43.7",
+    "svelte": "5.43.8",
     "svelte-check": "4.3.4",
     "typescript": "5.9.3",
     "vite": "npm:rolldown-vite@latest"
