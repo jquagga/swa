@@ -459,28 +459,24 @@
 
   <div id="grid">
     {#if forecast.hasOwnProperty("properties")}
-      <div class="container">
-        <table class="striped">
-          <tbody>
-            {#each forecast.properties.periods as period}
-              <tr>
-                <td
-                  ><b>{period.name}</b><br />{period.shortForecast}
-                  <!-- Daytime = Red/Hi, Night = Blue/Low -->
-                  {#if period.isDaytime}
-                    <span class="pico-color-red-500">{period.temperature}</span>
-                  {:else}
-                    <span class="pico-color-azure-500"
-                      >{period.temperature}</span
-                    >
-                  {/if}</td
-                >
-                <td>{period.detailedForecast}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+      <table class="striped">
+        <tbody>
+          {#each forecast.properties.periods as period}
+            <tr>
+              <td
+                ><b>{period.name}</b><br />{period.shortForecast}
+                <!-- Daytime = Red/Hi, Night = Blue/Low -->
+                {#if period.isDaytime}
+                  <span class="pico-color-red-500">{period.temperature}</span>
+                {:else}
+                  <span class="pico-color-azure-500">{period.temperature}</span>
+                {/if}</td
+              >
+              <td>{period.detailedForecast}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     {:else if point.hasOwnProperty("properties")}
       <span aria-busy="true">Fetching weather data...</span>
     {/if}
