@@ -119,7 +119,23 @@
       );
     } catch (error) {
       console.error("Error processing weather data:", error);
-      geolocationError = "Failed to process weather data. Please try again.";
+      // Provide more specific error messages based on the error type
+      if (error instanceof Error) {
+        if (error.message.includes("HTTP error")) {
+          geolocationError =
+            "Unable to fetch weather data. The service may be temporarily unavailable.";
+        } else if (
+          error.message.includes("NetworkError") ||
+          error.message.includes("Failed to fetch")
+        ) {
+          geolocationError =
+            "Network error. Please check your internet connection and try again.";
+        } else {
+          geolocationError = `Error: ${error.message}`;
+        }
+      } else {
+        geolocationError = "Failed to process weather data. Please try again.";
+      }
     } finally {
       isLoading = false;
     }
@@ -138,29 +154,69 @@
       "Unable to get your location. Please try again.";
   }
 
-  async function fetchData(url: string): Promise<any> {
+  // Simple cache implementation for API responses
+  const apiCache = new Map<string, { data: any; timestamp: number }>();
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  async function fetchData(url: string, useCache = true): Promise<any> {
+    // Check cache first if enabled
+    if (useCache) {
+      const cached = apiCache.get(url);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+    }
+
     const headers = {
       accept: "application/geo+json",
       "user-agent": USER_AGENT,
     };
 
     let retryCount = 0;
+    let lastError: Error | null = null;
 
     while (retryCount < MAX_RETRIES) {
       try {
-        const response = await fetch(url, { headers });
-        if (!response.ok)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(url, {
+          headers,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
-        return await response.json();
+        }
+
+        const data = await response.json();
+
+        // Cache the response
+        if (useCache) {
+          apiCache.set(url, { data, timestamp: Date.now() });
+        }
+
+        return data;
       } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
         retryCount++;
-        if (retryCount >= MAX_RETRIES) throw error;
-        // Exponential backoff
-        await new Promise<void>((resolve) =>
-          setTimeout(resolve, 1000 * Math.pow(2, retryCount))
-        );
+
+        if (retryCount >= MAX_RETRIES) {
+          break;
+        }
+
+        // Exponential backoff with jitter
+        const baseDelay = 1000 * Math.pow(2, retryCount);
+        const jitter = Math.random() * 0.3 * baseDelay; // Add up to 30% jitter
+        const delay = baseDelay + jitter;
+
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
       }
     }
+
+    throw lastError || new Error("Unknown error occurred during fetch");
   }
 
   // Process alert severity with cleaner code
@@ -441,7 +497,7 @@
     longitude: number
   ): Promise<void> {
     try {
-      // Get location data
+      // Get location data first (required for other calls)
       point = await fetchData(
         `https://api.weather.gov/points/${latitude},${longitude}`
       );
@@ -450,16 +506,22 @@
         throw new Error("Invalid location data received");
       }
 
-      // Get alerts
-      alerts = await fetchData(
-        `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
-      );
+      // Parallel fetch independent data
+      const [alertsData, hourlyForecastData, weeklyForecastData] =
+        await Promise.all([
+          fetchData(
+            `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
+          ),
+          fetchData(point.properties.forecastHourly || ""),
+          fetchData(point.properties.forecast || ""),
+        ]);
 
-      // Process alert severity
+      // Process the fetched data
+      alerts = alertsData;
       processAlertSeverity(alerts);
 
-      // Get hourly forecast
-      forecastHourly = await fetchData(point.properties.forecastHourly || "");
+      forecastHourly = hourlyForecastData;
+      forecast = weeklyForecastData;
 
       // Process hourly data for chart
       const chartData = processHourlyForecast(forecastHourly);
@@ -472,9 +534,6 @@
       if (canvasElement) {
         createChart(canvasElement, chartData);
       }
-
-      // Get weekly forecast
-      forecast = await fetchData(point.properties.forecast || "");
 
       // Process forecast emojis
       processForecastEmojis(forecast);
