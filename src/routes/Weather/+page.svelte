@@ -67,6 +67,7 @@
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let chartInstance: Chart | null = null;
+  let currentConditionsProcessed = $state(false);
 
   // Constants
   const MAX_RETRIES = 3;
@@ -523,17 +524,11 @@
       forecastHourly = hourlyForecastData;
       forecast = weeklyForecastData;
 
-      // Process hourly data for chart
+      // Process hourly data for chart (this also calculates appTemp needed for current conditions)
       const chartData = processHourlyForecast(forecastHourly);
 
-      // Create chart after DOM is ready
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      const canvasElement = document.querySelector(
-        "#myChart"
-      ) as HTMLCanvasElement;
-      if (canvasElement) {
-        createChart(canvasElement, chartData);
-      }
+      // Mark that current conditions have been processed
+      currentConditionsProcessed = true;
 
       // Process forecast emojis
       processForecastEmojis(forecast);
@@ -543,6 +538,15 @@
 
       // Build NWS URL
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
+
+      // Create chart after DOM is ready and all data is processed
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      const canvasElement = document.querySelector(
+        "#myChart"
+      ) as HTMLCanvasElement;
+      if (canvasElement) {
+        createChart(canvasElement, chartData);
+      }
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error; // Re-throw to be caught by the caller
@@ -586,7 +590,7 @@
   </div>
 
   <div id="currently">
-    {#if forecastHourly.properties?.periods?.[0]?.appTemp}
+    {#if currentConditionsProcessed && forecastHourly.properties?.periods?.[0]?.appTemp}
       <h4 style="text-align: center;">
         {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
           .properties.periods[0].temperature}
