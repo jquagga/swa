@@ -507,20 +507,13 @@
         throw new Error("Invalid location data received");
       }
 
-      // Parallel fetch independent data
-      const [alertsData, hourlyForecastData, weeklyForecastData] =
-        await Promise.all([
-          fetchData(
-            `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
-          ),
-          fetchData(point.properties.forecastHourly || ""),
-          fetchData(point.properties.forecast || ""),
-        ]);
+      // Parallel fetch weather data (excluding alerts)
+      const [hourlyForecastData, weeklyForecastData] = await Promise.all([
+        fetchData(point.properties.forecastHourly || ""),
+        fetchData(point.properties.forecast || ""),
+      ]);
 
-      // Process the fetched data
-      alerts = alertsData;
-      processAlertSeverity(alerts);
-
+      // Process the fetched weather data
       forecastHourly = hourlyForecastData;
       forecast = weeklyForecastData;
 
@@ -547,9 +540,30 @@
       if (canvasElement) {
         createChart(canvasElement, chartData);
       }
+
+      // Fetch alerts after the main weather data has been processed and rendered
+      // This prevents the slow alerts API from delaying the initial page render
+      fetchAlertsAsync(latitude, longitude);
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error; // Re-throw to be caught by the caller
+    }
+  }
+
+  // Separate function to fetch alerts asynchronously after main weather data is loaded
+  async function fetchAlertsAsync(
+    latitude: number,
+    longitude: number
+  ): Promise<void> {
+    try {
+      const alertsData = await fetchData(
+        `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
+      );
+      alerts = alertsData;
+      processAlertSeverity(alerts);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      // Don't throw here
     }
   }
 </script>
