@@ -115,10 +115,8 @@
     isLoading = true;
     try {
       await processWeather(
-        44.513333,
-        -88.015833
-        //Math.round(pos.coords.latitude * 10000) / 10000,
-        //Math.round(pos.coords.longitude * 10000) / 10000
+        Math.round(pos.coords.latitude * 10000) / 10000,
+        Math.round(pos.coords.longitude * 10000) / 10000
       );
     } catch (error) {
       console.error("Error processing weather data:", error);
