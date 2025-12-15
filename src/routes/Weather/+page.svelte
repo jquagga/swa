@@ -154,19 +154,7 @@
       "Unable to get your location. Please try again.";
   }
 
-  // Simple cache implementation for API responses
-  const apiCache = new Map<string, { data: any; timestamp: number }>();
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-  async function fetchData(url: string, useCache = true): Promise<any> {
-    // Check cache first if enabled
-    if (useCache) {
-      const cached = apiCache.get(url);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        return cached.data;
-      }
-    }
-
+  async function fetchData(url: string): Promise<any> {
     const headers = {
       accept: "application/geo+json",
       "user-agent": USER_AGENT,
@@ -192,11 +180,6 @@
         }
 
         const data = await response.json();
-
-        // Cache the response
-        if (useCache) {
-          apiCache.set(url, { data, timestamp: Date.now() });
-        }
 
         return data;
       } catch (error) {
