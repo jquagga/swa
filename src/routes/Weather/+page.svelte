@@ -600,7 +600,7 @@
   </div>
 
   <div id="currently">
-    {#if forecastHourly.properties?.periods?.[0]}
+    {#if forecastHourly?.properties?.periods?.[0]}
       <h4 style="text-align: center;">
         {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
           .properties.periods[0].temperature}
@@ -612,7 +612,7 @@
           {forecastHourly.properties.periods[0].temperatureUnit}
         {/if}
       </h4>
-    {:else if !isLoading && point.properties}
+    {:else if isLoading && point.properties}
       <h4 style="text-align: center;">Loading current conditions...</h4>
     {/if}
   </div>
