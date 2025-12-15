@@ -588,14 +588,14 @@
         {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
           .properties.periods[0].temperature}
         {forecastHourly.properties.periods[0].temperatureUnit}
-        {#if forecastHourly.properties.periods[0].appTemp && forecastHourly.properties.periods[0].temperature !== Math.round(forecastHourly.properties.periods[0].appTemp)}
+        {#if forecastHourly.properties.periods[0].appTemp != null && forecastHourly.properties.periods[0].temperature !== Math.round(forecastHourly.properties.periods[0].appTemp)}
           <br />Feels Like: {Math.round(
             forecastHourly.properties.periods[0].appTemp
           )}
           {forecastHourly.properties.periods[0].temperatureUnit}
         {/if}
       </h4>
-    {:else if isLoading && point.properties}
+    {:else if isLoading && point?.properties}
       <h4 style="text-align: center;">Loading current conditions...</h4>
     {/if}
   </div>
