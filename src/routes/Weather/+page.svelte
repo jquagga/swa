@@ -67,6 +67,7 @@
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let chartInstance: Chart | null = null;
+  let currentConditionsProcessed = $state(false);
 
   // Constants
   const MAX_RETRIES = 3;
@@ -519,6 +520,9 @@
       // Process hourly data for chart (this also calculates appTemp needed for current conditions)
       const chartData = processHourlyForecast(forecastHourly);
 
+      // Mark that current conditions have been processed
+      currentConditionsProcessed = true;
+
       // Process forecast emojis
       processForecastEmojis(forecast);
 
@@ -600,7 +604,7 @@
   </div>
 
   <div id="currently">
-    {#if forecastHourly.hasOwnProperty("properties") && forecastHourly.properties.periods && forecastHourly.properties.periods[0]?.appTemp}
+    {#if currentConditionsProcessed && forecastHourly.properties?.periods?.[0]?.appTemp}
       <h4 style="text-align: center;">
         {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
           .properties.periods[0].temperature}
@@ -613,6 +617,8 @@
           {forecastHourly.properties.periods[0].temperatureUnit}
         {/if}
       </h4>
+    {:else if !isLoading && point.properties}
+      <h4 style="text-align: center;">Loading current conditions...</h4>
     {/if}
   </div>
 
