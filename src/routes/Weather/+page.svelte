@@ -406,15 +406,25 @@
             type: "linear",
             beginAtZero: false,
             grace: "5%",
+            ticks: {
+              callback: function (value) {
+                return value + " °F";
+              },
+            },
           },
           y1: {
             type: "linear",
-            display: false,
             position: "right",
             min: 0,
             max: 100,
             grid: {
               drawOnChartArea: false,
+            },
+            ticks: {
+              callback: function (value) {
+                return value + " %";
+              },
+              color: "#017FC0",
             },
           },
         },
