@@ -329,7 +329,7 @@
 
       // Calculate apparent temperature
       const apparentTemp = calculateApparentTemperature(
-        parseFloat(period.temperature),
+        period.temperature,
         period.relativeHumidity.value,
         windSpeedValue
       );
