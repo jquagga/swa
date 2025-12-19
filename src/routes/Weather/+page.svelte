@@ -79,22 +79,21 @@
     TEMPERATURE: {
       unit: "°F",
       defaultPointRadius: 3,
-      denseDataPointRadius: 2,
     },
     APPARENT_TEMPERATURE: {
       unit: "°F",
       defaultPointRadius: 3,
-      denseDataPointRadius: 2,
     },
     PRECIPITATION: {
       unit: "%",
       defaultPointRadius: 2,
-      denseDataPoint: 1,
     },
   };
 
   // Helper functions for tooltip formatting
-  function formatTooltipTitle(context: any[]): string {
+  function formatTooltipTitle(
+    context: import("chart.js").TooltipItem<any>[]
+  ): string {
     try {
       // Safety check for empty context
       if (!context || context.length === 0) {
@@ -128,7 +127,9 @@
     }
   }
 
-  function formatTooltipLabel(context: any): string {
+  function formatTooltipLabel(
+    context: import("chart.js").TooltipItem<any>
+  ): string {
     try {
       let label = context.dataset.label || "";
       if (label) {
@@ -437,7 +438,6 @@
     }
 
     // Determine point radius based on data density
-    const isDenseData = chartData.labels.length > 20;
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length
