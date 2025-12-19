@@ -550,7 +550,7 @@
               color: "rgba(0, 0, 0, 0.05)",
             },
             title: {
-              display: true,
+              display: false,
               text: "Temperature (°F)",
               font: {
                 size: 12,
@@ -560,6 +560,7 @@
           y1: {
             type: "linear",
             position: "right",
+            display: false,
             min: 0,
             max: 100,
             grid: {
