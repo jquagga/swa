@@ -484,7 +484,7 @@
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
-            borderDash: [5, 5],
+            //borderDash: [5, 5],
             unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
           },
           {
