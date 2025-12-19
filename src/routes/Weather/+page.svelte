@@ -366,41 +366,77 @@
             label: "Temperature",
             data: chartData.tempValues,
             borderColor: "#D93526",
-            backgroundColor: "#D93526",
+            backgroundColor: "rgba(217, 53, 38, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 0,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "#D93526",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
           },
           {
             label: "Apparent Temperature",
             data: chartData.apparentTempValues,
             borderColor: "#FF9500",
-            backgroundColor: "#FF9500",
+            backgroundColor: "rgba(255, 149, 0, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 0,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "#FF9500",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
             borderDash: [5, 5],
           },
           {
             label: "Chance of Precipitation",
             data: chartData.popValues,
             borderColor: "#017FC0",
-            backgroundColor: "#017FC0",
+            backgroundColor: "rgba(1, 127, 192, 0.2)",
             showLine: true,
             fill: true,
             tension: 0.4,
             yAxisID: "y1",
-            pointRadius: 0,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: "#017FC0",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
+        animation: {
+          duration: 750,
+          easing: "easeInOutQuart",
+        },
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
         scales: {
           x: {
             type: "timeseries",
+            time: {
+              displayFormats: {
+                hour: "ha",
+                day: "EEE MMM d",
+              },
+            },
+            grid: {
+              display: true,
+              color: "rgba(0, 0, 0, 0.05)",
+            },
+            ticks: {
+              maxRotation: 0,
+              autoSkipPadding: 10,
+            },
           },
           y: {
             type: "linear",
@@ -408,7 +444,19 @@
             grace: "5%",
             ticks: {
               callback: function (value) {
-                return value + " °F";
+                return value + "°";
+              },
+              padding: 8,
+            },
+            grid: {
+              display: true,
+              color: "rgba(0, 0, 0, 0.05)",
+            },
+            title: {
+              display: true,
+              text: "Temperature (°F)",
+              font: {
+                size: 12,
               },
             },
           },
@@ -421,10 +469,7 @@
               drawOnChartArea: false,
             },
             ticks: {
-              callback: function (value) {
-                return value + " %";
-              },
-              color: "#017FC0",
+              display: false,
             },
           },
         },
@@ -432,10 +477,51 @@
           legend: {
             display: true,
             position: "bottom",
-            align: "start",
+            align: "center",
             labels: {
               usePointStyle: true,
+              padding: 20,
+              boxWidth: 8,
             },
+          },
+          tooltip: {
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            titleColor: "#fff",
+            bodyColor: "#fff",
+            padding: 12,
+            displayColors: true,
+            callbacks: {
+              title: function (context) {
+                try {
+                  const date = DateTime.fromISO(context[0].label);
+                  if (date.isValid) {
+                    return date.toFormat("EEE, MMM d, h:mm a");
+                  }
+                  // Fallback to regular date parsing if Luxon fails
+                  return new Date(context[0].label).toLocaleString();
+                } catch (e) {
+                  // Final fallback to a simple label
+                  return context[0].label;
+                }
+              },
+              label: function (context) {
+                let label = context.dataset.label || "";
+                if (label) {
+                  label += ": ";
+                }
+                if (context.datasetIndex < 2) {
+                  label += context.parsed.y + "°F";
+                } else {
+                  label += context.parsed.y + "%";
+                }
+                return label;
+              },
+            },
+          },
+        },
+        elements: {
+          line: {
+            borderJoinStyle: "round",
           },
         },
       },
