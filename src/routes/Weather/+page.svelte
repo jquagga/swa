@@ -74,6 +74,86 @@
   const GRAPH_HOURS = 25;
   const USER_AGENT = "https://github.com/jquagga/swa";
 
+  // Dataset configuration with centralized units
+  const DATASET_CONFIG = {
+    TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+    },
+    APPARENT_TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+    },
+    PRECIPITATION: {
+      unit: "%",
+      defaultPointRadius: 2,
+    },
+  };
+
+  // Helper functions for tooltip formatting
+  function formatTooltipTitle(
+    context: import("chart.js").TooltipItem<any>[]
+  ): string {
+    try {
+      // Safety check for empty context
+      if (!context || context.length === 0) {
+        return "No data available";
+      }
+
+      // Use parsed x value instead of label for more reliable date parsing
+      const xValue = context[0].parsed.x;
+      const date = DateTime.fromMillis(xValue);
+
+      if (date.isValid) {
+        return date.toFormat("EEE, MMM d, h:mm a");
+      }
+
+      // Fallback to label if parsed x value is invalid
+      if (context[0].label) {
+        const fallbackDate = DateTime.fromISO(context[0].label);
+        if (fallbackDate.isValid) {
+          return fallbackDate.toFormat("EEE, MMM d, h:mm a");
+        }
+        // Final fallback to regular date parsing
+        return new Date(context[0].label).toLocaleString();
+      }
+
+      return "Invalid date";
+    } catch (e) {
+      // Final fallback to a simple label if available
+      return context && context[0] && context[0].label
+        ? context[0].label
+        : "Date error";
+    }
+  }
+
+  function formatTooltipLabel(
+    context: import("chart.js").TooltipItem<any>
+  ): string {
+    try {
+      let label = context.dataset.label || "";
+      if (label) {
+        label += ": ";
+      }
+
+      // Use unit property from dataset instead of hard-coding indices
+      const unit = context.dataset.unit || "";
+      label += context.parsed.y + unit;
+      return label;
+    } catch (e) {
+      return "Data error";
+    }
+  }
+
+  // Helper function to determine point radius based on data density
+  function getPointRadius(baseRadius: number, dataLength: number): number {
+    // Reduce point radius for dense data to improve performance
+    if (dataLength > 20) {
+      return Math.max(1, baseRadius - 1);
+    }
+    return baseRadius;
+  }
+
   // Weather emoji mapping for cleaner code
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
@@ -357,6 +437,20 @@
       chartInstance.destroy();
     }
 
+    // Determine point radius based on data density
+    const tempPointRadius = getPointRadius(
+      DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
+      chartData.labels.length
+    );
+    const apparentTempPointRadius = getPointRadius(
+      DATASET_CONFIG.APPARENT_TEMPERATURE.defaultPointRadius,
+      chartData.labels.length
+    );
+    const precipPointRadius = getPointRadius(
+      DATASET_CONFIG.PRECIPITATION.defaultPointRadius,
+      chartData.labels.length
+    );
+
     chartInstance = new Chart(canvasElement, {
       type: "line",
       data: {
@@ -366,41 +460,80 @@
             label: "Temperature",
             data: chartData.tempValues,
             borderColor: "#D93526",
-            backgroundColor: "#D93526",
+            backgroundColor: "rgba(217, 53, 38, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 0,
+            pointRadius: tempPointRadius,
+            pointHoverRadius: tempPointRadius + 3,
+            pointBackgroundColor: "#D93526",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
+            unit: DATASET_CONFIG.TEMPERATURE.unit,
           },
           {
             label: "Apparent Temperature",
             data: chartData.apparentTempValues,
             borderColor: "#FF9500",
-            backgroundColor: "#FF9500",
+            backgroundColor: "rgba(255, 149, 0, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 0,
+            pointRadius: apparentTempPointRadius,
+            pointHoverRadius: apparentTempPointRadius + 3,
+            pointBackgroundColor: "#FF9500",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
             borderDash: [5, 5],
+            unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
           },
           {
             label: "Chance of Precipitation",
             data: chartData.popValues,
             borderColor: "#017FC0",
-            backgroundColor: "#017FC0",
+            backgroundColor: "rgba(1, 127, 192, 0.2)",
             showLine: true,
             fill: true,
             tension: 0.4,
             yAxisID: "y1",
-            pointRadius: 0,
+            pointRadius: precipPointRadius,
+            pointHoverRadius: precipPointRadius + 3,
+            pointBackgroundColor: "#017FC0",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 1,
+            borderWidth: 2,
+            unit: DATASET_CONFIG.PRECIPITATION.unit,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        animation: false,
+        animation: {
+          duration: 750,
+          easing: "easeInOutQuart",
+        },
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
         scales: {
           x: {
             type: "timeseries",
+            time: {
+              displayFormats: {
+                hour: "ha",
+                day: "EEE MMM d",
+              },
+            },
+            grid: {
+              display: true,
+              color: "rgba(0, 0, 0, 0.05)",
+            },
+            ticks: {
+              maxRotation: 0,
+              autoSkipPadding: 10,
+            },
           },
           y: {
             type: "linear",
@@ -408,7 +541,19 @@
             grace: "5%",
             ticks: {
               callback: function (value) {
-                return value + " °F";
+                return value + "°";
+              },
+              padding: 8,
+            },
+            grid: {
+              display: true,
+              color: "rgba(0, 0, 0, 0.05)",
+            },
+            title: {
+              display: true,
+              text: "Temperature (°F)",
+              font: {
+                size: 12,
               },
             },
           },
@@ -421,10 +566,7 @@
               drawOnChartArea: false,
             },
             ticks: {
-              callback: function (value) {
-                return value + " %";
-              },
-              color: "#017FC0",
+              display: false,
             },
           },
         },
@@ -432,10 +574,28 @@
           legend: {
             display: true,
             position: "bottom",
-            align: "start",
+            align: "center",
             labels: {
               usePointStyle: true,
+              padding: 20,
+              boxWidth: 8,
             },
+          },
+          tooltip: {
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            titleColor: "#fff",
+            bodyColor: "#fff",
+            padding: 12,
+            displayColors: true,
+            callbacks: {
+              title: formatTooltipTitle,
+              label: formatTooltipLabel,
+            },
+          },
+        },
+        elements: {
+          line: {
+            borderJoinStyle: "round",
           },
         },
       },
@@ -591,24 +751,6 @@
           <p>{alert.properties.instruction}</p>
         </details>
       {/each}
-    {/if}
-  </div>
-
-  <div id="currently">
-    {#if hourlyForecastProcessed && forecastHourly?.properties?.periods?.[0]}
-      <h4 style="text-align: center;">
-        {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
-          .properties.periods[0].temperature}
-        {forecastHourly.properties.periods[0].temperatureUnit}
-        {#if forecastHourly.properties.periods[0].appTemp != null}
-          <br />Feels Like: {Math.round(
-            forecastHourly.properties.periods[0].appTemp
-          )}
-          {forecastHourly.properties.periods[0].temperatureUnit}
-        {/if}
-      </h4>
-    {:else if isLoading && point?.properties}
-      <h4 style="text-align: center;">Loading current conditions...</h4>
     {/if}
   </div>
 
