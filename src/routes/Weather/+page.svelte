@@ -551,24 +551,13 @@
             },
             title: {
               display: false,
-              text: "Temperature (°F)",
-              font: {
-                size: 12,
-              },
             },
           },
           y1: {
             type: "linear",
-            position: "right",
             display: false,
             min: 0,
             max: 100,
-            grid: {
-              drawOnChartArea: false,
-            },
-            ticks: {
-              display: false,
-            },
           },
         },
         plugins: {
