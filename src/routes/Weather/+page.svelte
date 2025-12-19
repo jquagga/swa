@@ -375,6 +375,7 @@
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
+            unit: "°F",
           },
           {
             label: "Apparent Temperature",
@@ -390,6 +391,7 @@
             pointBorderWidth: 1,
             borderWidth: 2,
             borderDash: [5, 5],
+            unit: "°F",
           },
           {
             label: "Chance of Precipitation",
@@ -406,6 +408,7 @@
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
+            unit: "%",
           },
         ],
       },
@@ -493,28 +496,51 @@
             callbacks: {
               title: function (context) {
                 try {
-                  const date = DateTime.fromISO(context[0].label);
+                  // Safety check for empty context
+                  if (!context || context.length === 0) {
+                    return "No data available";
+                  }
+
+                  // Use parsed x value instead of label for more reliable date parsing
+                  const xValue = context[0].parsed.x;
+                  const date = DateTime.fromMillis(xValue);
+
                   if (date.isValid) {
                     return date.toFormat("EEE, MMM d, h:mm a");
                   }
-                  // Fallback to regular date parsing if Luxon fails
-                  return new Date(context[0].label).toLocaleString();
+
+                  // Fallback to label if parsed x value is invalid
+                  if (context[0].label) {
+                    const fallbackDate = DateTime.fromISO(context[0].label);
+                    if (fallbackDate.isValid) {
+                      return fallbackDate.toFormat("EEE, MMM d, h:mm a");
+                    }
+                    // Final fallback to regular date parsing
+                    return new Date(context[0].label).toLocaleString();
+                  }
+
+                  return "Invalid date";
                 } catch (e) {
-                  // Final fallback to a simple label
-                  return context[0].label;
+                  // Final fallback to a simple label if available
+                  return context && context[0] && context[0].label
+                    ? context[0].label
+                    : "Date error";
                 }
               },
               label: function (context) {
-                let label = context.dataset.label || "";
-                if (label) {
-                  label += ": ";
+                try {
+                  let label = context.dataset.label || "";
+                  if (label) {
+                    label += ": ";
+                  }
+
+                  // Use unit property from dataset instead of hard-coding indices
+                  const unit = context.dataset.unit || "";
+                  label += context.parsed.y + unit;
+                  return label;
+                } catch (e) {
+                  return "Data error";
                 }
-                if (context.datasetIndex < 2) {
-                  label += context.parsed.y + "°F";
-                } else {
-                  label += context.parsed.y + "%";
-                }
-                return label;
               },
             },
           },
@@ -677,24 +703,6 @@
           <p>{alert.properties.instruction}</p>
         </details>
       {/each}
-    {/if}
-  </div>
-
-  <div id="currently">
-    {#if hourlyForecastProcessed && forecastHourly?.properties?.periods?.[0]}
-      <h4 style="text-align: center;">
-        {forecastHourly.properties.periods[0].shortForecast}, {forecastHourly
-          .properties.periods[0].temperature}
-        {forecastHourly.properties.periods[0].temperatureUnit}
-        {#if forecastHourly.properties.periods[0].appTemp != null}
-          <br />Feels Like: {Math.round(
-            forecastHourly.properties.periods[0].appTemp
-          )}
-          {forecastHourly.properties.periods[0].temperatureUnit}
-        {/if}
-      </h4>
-    {:else if isLoading && point?.properties}
-      <h4 style="text-align: center;">Loading current conditions...</h4>
     {/if}
   </div>
 
