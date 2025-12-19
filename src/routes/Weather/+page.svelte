@@ -74,6 +74,85 @@
   const GRAPH_HOURS = 25;
   const USER_AGENT = "https://github.com/jquagga/swa";
 
+  // Dataset configuration with centralized units
+  const DATASET_CONFIG = {
+    TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+      denseDataPointRadius: 2,
+    },
+    APPARENT_TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+      denseDataPointRadius: 2,
+    },
+    PRECIPITATION: {
+      unit: "%",
+      defaultPointRadius: 2,
+      denseDataPoint: 1,
+    },
+  };
+
+  // Helper functions for tooltip formatting
+  function formatTooltipTitle(context: any[]): string {
+    try {
+      // Safety check for empty context
+      if (!context || context.length === 0) {
+        return "No data available";
+      }
+
+      // Use parsed x value instead of label for more reliable date parsing
+      const xValue = context[0].parsed.x;
+      const date = DateTime.fromMillis(xValue);
+
+      if (date.isValid) {
+        return date.toFormat("EEE, MMM d, h:mm a");
+      }
+
+      // Fallback to label if parsed x value is invalid
+      if (context[0].label) {
+        const fallbackDate = DateTime.fromISO(context[0].label);
+        if (fallbackDate.isValid) {
+          return fallbackDate.toFormat("EEE, MMM d, h:mm a");
+        }
+        // Final fallback to regular date parsing
+        return new Date(context[0].label).toLocaleString();
+      }
+
+      return "Invalid date";
+    } catch (e) {
+      // Final fallback to a simple label if available
+      return context && context[0] && context[0].label
+        ? context[0].label
+        : "Date error";
+    }
+  }
+
+  function formatTooltipLabel(context: any): string {
+    try {
+      let label = context.dataset.label || "";
+      if (label) {
+        label += ": ";
+      }
+
+      // Use unit property from dataset instead of hard-coding indices
+      const unit = context.dataset.unit || "";
+      label += context.parsed.y + unit;
+      return label;
+    } catch (e) {
+      return "Data error";
+    }
+  }
+
+  // Helper function to determine point radius based on data density
+  function getPointRadius(baseRadius: number, dataLength: number): number {
+    // Reduce point radius for dense data to improve performance
+    if (dataLength > 20) {
+      return Math.max(1, baseRadius - 1);
+    }
+    return baseRadius;
+  }
+
   // Weather emoji mapping for cleaner code
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
@@ -357,6 +436,21 @@
       chartInstance.destroy();
     }
 
+    // Determine point radius based on data density
+    const isDenseData = chartData.labels.length > 20;
+    const tempPointRadius = getPointRadius(
+      DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
+      chartData.labels.length
+    );
+    const apparentTempPointRadius = getPointRadius(
+      DATASET_CONFIG.APPARENT_TEMPERATURE.defaultPointRadius,
+      chartData.labels.length
+    );
+    const precipPointRadius = getPointRadius(
+      DATASET_CONFIG.PRECIPITATION.defaultPointRadius,
+      chartData.labels.length
+    );
+
     chartInstance = new Chart(canvasElement, {
       type: "line",
       data: {
@@ -369,13 +463,13 @@
             backgroundColor: "rgba(217, 53, 38, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 3,
-            pointHoverRadius: 6,
+            pointRadius: tempPointRadius,
+            pointHoverRadius: tempPointRadius + 3,
             pointBackgroundColor: "#D93526",
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
-            unit: "°F",
+            unit: DATASET_CONFIG.TEMPERATURE.unit,
           },
           {
             label: "Apparent Temperature",
@@ -384,14 +478,14 @@
             backgroundColor: "rgba(255, 149, 0, 0.1)",
             tension: 0.4,
             yAxisID: "y",
-            pointRadius: 3,
-            pointHoverRadius: 6,
+            pointRadius: apparentTempPointRadius,
+            pointHoverRadius: apparentTempPointRadius + 3,
             pointBackgroundColor: "#FF9500",
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
             borderDash: [5, 5],
-            unit: "°F",
+            unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
           },
           {
             label: "Chance of Precipitation",
@@ -402,13 +496,13 @@
             fill: true,
             tension: 0.4,
             yAxisID: "y1",
-            pointRadius: 2,
-            pointHoverRadius: 5,
+            pointRadius: precipPointRadius,
+            pointHoverRadius: precipPointRadius + 3,
             pointBackgroundColor: "#017FC0",
             pointBorderColor: "#fff",
             pointBorderWidth: 1,
             borderWidth: 2,
-            unit: "%",
+            unit: DATASET_CONFIG.PRECIPITATION.unit,
           },
         ],
       },
@@ -494,54 +588,8 @@
             padding: 12,
             displayColors: true,
             callbacks: {
-              title: function (context) {
-                try {
-                  // Safety check for empty context
-                  if (!context || context.length === 0) {
-                    return "No data available";
-                  }
-
-                  // Use parsed x value instead of label for more reliable date parsing
-                  const xValue = context[0].parsed.x;
-                  const date = DateTime.fromMillis(xValue);
-
-                  if (date.isValid) {
-                    return date.toFormat("EEE, MMM d, h:mm a");
-                  }
-
-                  // Fallback to label if parsed x value is invalid
-                  if (context[0].label) {
-                    const fallbackDate = DateTime.fromISO(context[0].label);
-                    if (fallbackDate.isValid) {
-                      return fallbackDate.toFormat("EEE, MMM d, h:mm a");
-                    }
-                    // Final fallback to regular date parsing
-                    return new Date(context[0].label).toLocaleString();
-                  }
-
-                  return "Invalid date";
-                } catch (e) {
-                  // Final fallback to a simple label if available
-                  return context && context[0] && context[0].label
-                    ? context[0].label
-                    : "Date error";
-                }
-              },
-              label: function (context) {
-                try {
-                  let label = context.dataset.label || "";
-                  if (label) {
-                    label += ": ";
-                  }
-
-                  // Use unit property from dataset instead of hard-coding indices
-                  const unit = context.dataset.unit || "";
-                  label += context.parsed.y + unit;
-                  return label;
-                } catch (e) {
-                  return "Data error";
-                }
-              },
+              title: formatTooltipTitle,
+              label: formatTooltipLabel,
             },
           },
         },
