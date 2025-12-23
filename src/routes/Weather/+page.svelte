@@ -541,8 +541,8 @@
             beginAtZero: false,
             grace: "5%",
             ticks: {
-              callback: function (value: string) {
-                return value + "°";
+              callback: function (value: number | string) {
+                return String(value) + "°";
               },
               padding: 8,
             },
