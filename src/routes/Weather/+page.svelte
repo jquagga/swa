@@ -157,6 +157,7 @@
   // Weather emoji mapping for cleaner code
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
+    freezing: "🧊",
     thunder: "⛈️",
     rain: "🌧️",
     "partly cloudy": "🌥️",
@@ -540,8 +541,8 @@
             beginAtZero: false,
             grace: "5%",
             ticks: {
-              callback: function (value) {
-                return value + "°";
+              callback: function (value: number | string) {
+                return String(value) + "°";
               },
               padding: 8,
             },
