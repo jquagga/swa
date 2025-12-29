@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { page } from "$app/stores";
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import Chart from "chart.js/auto";
@@ -170,38 +171,33 @@
     clear: "🌕",
   };
 
-  // On mount, get geolocation
+  // On mount, get lat/lon from URL parameters and process weather
   onMount(() => {
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 15_000,
-      maximumAge: 3600,
-    };
-    navigator.geolocation.getCurrentPosition(success, error, options);
+    const lat = $page.url.searchParams.get("lat");
+    const lon = $page.url.searchParams.get("lon");
 
-    // Cleanup function
-    return () => {
-      if (map) {
-        map.remove();
-        map = null;
-      }
-      if (chartInstance) {
-        chartInstance.destroy();
-        chartInstance = null;
-      }
-    };
-  });
+    if (!lat || !lon) {
+      geolocationError = "No location provided. Please go back and try again.";
+      isLoading = false;
+      return;
+    }
 
-  async function success(pos: GeolocationPosition) {
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lon);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+      geolocationError =
+        "Invalid location coordinates. Please go back and try again.";
+      isLoading = false;
+      return;
+    }
+
+    // Set loading state before processing weather
     isLoading = true;
-    try {
-      await processWeather(
-        Math.round(pos.coords.latitude * 10000) / 10000,
-        Math.round(pos.coords.longitude * 10000) / 10000
-      );
-    } catch (error) {
+
+    // Process weather with the provided coordinates
+    processWeather(latitude, longitude).catch((error) => {
       console.error("Error processing weather data:", error);
-      // Provide more specific error messages based on the error type
       if (error instanceof Error) {
         if (error.message.includes("HTTP error")) {
           geolocationError =
@@ -218,23 +214,21 @@
       } else {
         geolocationError = "Failed to process weather data. Please try again.";
       }
-    } finally {
       isLoading = false;
-    }
-  }
+    });
 
-  function error(error: GeolocationPositionError) {
-    isLoading = false;
-    const errorMessages: Record<number, string> = {
-      1: "Please enable location access to see your local forecast.",
-      2: "Unable to determine your location. Please try again.",
-      3: "Location request timed out. Please try again.",
+    // Cleanup function
+    return () => {
+      if (map) {
+        map.remove();
+        map = null;
+      }
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
     };
-
-    geolocationError =
-      errorMessages[error.code] ||
-      "Unable to get your location. Please try again.";
-  }
+  });
 
   async function fetchData(url: string): Promise<any> {
     const headers = {
@@ -689,6 +683,8 @@
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error; // Re-throw to be caught by the caller
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -720,7 +716,7 @@
       {point.properties.relativeLocation.properties.city}, {point.properties
         .relativeLocation.properties.state}
     {:else if isLoading}
-      <span aria-busy="true">Geolocating...</span>
+      <span aria-busy="true">Loading weather data...</span>
     {:else}
       <span>Loading weather data...</span>
     {/if}
