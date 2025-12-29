@@ -47,10 +47,10 @@
   <div>
     <h1 style="text-align: center">Simple Weather</h1>
     <p>
-      Simple Weather App is a Javascript web app which queries the US National
-      Weather Service to provide a responsive weather forecast. Pressing the
-      button below will ask for location permission, and provide your forecast
-      if you're in the United States.
+      Simple Weather App queries the US National Weather Service to provide a
+      responsive weather forecast. Pressing the button below will ask for
+      location permission, and provide your forecast if you're in the United
+      States.
     </p>
     <div style="text-align: center;">
       {#if geolocationError}
@@ -64,5 +64,25 @@
         {isGeolocating ? "Geolocating..." : "Geolocate"}
       </button>
     </div>
+    <br />
+    <br />
+    <h2 style="text-align: center;">OR:</h2>
+    <p>
+      Alternatively, you can utilize the Census Bureau geocoding search to
+      search for a US address and this will query the forecast.
+    </p>
+    <input
+      type="search"
+      name="address"
+      placeholder="Enter Full Street Address:"
+      aria-label="Street Address"
+      class="container-fluid"
+    />
+    <br />
+    <br />
+    <article>
+      Note: A full street address is needed. Searching for Orlando, FL will not
+      work but searching for 1180 Seven Seas Dr, Orlando FL will.
+    </article>
   </div>
 </div>
