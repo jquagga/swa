@@ -3,6 +3,9 @@
 
   let geolocationError = $state<string | null>(null);
   let isGeolocating = $state(false);
+  let address = $state("");
+  let isSearching = $state(false);
+  let searchError = $state<string | null>(null);
 
   function handleGeolocate() {
     geolocationError = null;
@@ -21,10 +24,10 @@
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const latitude = Math.round(pos.coords.latitude * 10000) / 10000;
         const longitude = Math.round(pos.coords.longitude * 10000) / 10000;
-        goto(`/Weather?lat=${latitude}&lon=${longitude}`);
+        await goto(`/Weather?lat=${latitude}&lon=${longitude}`);
       },
       (error) => {
         const errorMessages: Record<number, string> = {
@@ -40,6 +43,61 @@
       },
       options
     );
+  }
+
+  async function handleAddressSearch() {
+    searchError = null;
+    isSearching = true;
+
+    if (!address.trim()) {
+      searchError = "Please enter an address to search.";
+      isSearching = false;
+      return;
+    }
+
+    try {
+      const encodedAddress = encodeURIComponent(address.trim());
+      const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=json`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Check if we have a valid result with coordinates
+      if (
+        data.result &&
+        data.result.addressMatches &&
+        data.result.addressMatches.length > 0
+      ) {
+        const match = data.result.addressMatches[0];
+        const coordinates = match.coordinates;
+
+        if (
+          coordinates &&
+          coordinates.x !== undefined &&
+          coordinates.y !== undefined
+        ) {
+          // Census API returns x as longitude and y as latitude
+          const longitude = Math.round(coordinates.x * 10000) / 10000;
+          const latitude = Math.round(coordinates.y * 10000) / 10000;
+          goto(`/Weather?lat=${latitude}&lon=${longitude}`);
+        } else {
+          searchError = "No coordinates found for the provided address.";
+        }
+      } else {
+        searchError =
+          "Address not found. Please check the address and try again.";
+      }
+    } catch (error) {
+      console.error("Error geocoding address:", error);
+      searchError = "Unable to geocode the address. Please try again.";
+    } finally {
+      isSearching = false;
+    }
   }
 </script>
 
@@ -68,8 +126,8 @@
     <br />
     <h2 style="text-align: center;">OR:</h2>
     <p>
-      Alternatively, you can utilize the Census Bureau geocoding search to
-      search for a US address and this will query the forecast.
+      Alternatively, you can utilize the Census Bureau geocoding search and this
+      will query the forecast for that address.
     </p>
     <input
       type="search"
@@ -77,12 +135,27 @@
       placeholder="Enter Full Street Address:"
       aria-label="Street Address"
       class="container-fluid"
+      bind:value={address}
     />
     <br />
+
+    <div style="text-align: center;">
+      {#if searchError}
+        <p style="color: red;">{searchError}</p>
+      {/if}
+      <button
+        onclick={handleAddressSearch}
+        disabled={isSearching}
+        class="outline"
+      >
+        {isSearching ? "Searching..." : "Search"}
+      </button>
+    </div>
     <br />
     <article>
-      Note: A full street address is needed. Searching for Orlando, FL will not
-      work but searching for 1180 Seven Seas Dr, Orlando FL will.
+      Note: A full street address is needed. Searching for Washington, DC will
+      not work but searching for 1600 Pennsylvania Ave SE, Washington, DC will.
     </article>
+    <!-- And yes, SE is way cooler than NW ;)-->
   </div>
 </div>
