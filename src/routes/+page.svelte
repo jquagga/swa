@@ -169,8 +169,6 @@
         {isGeolocating ? "Geolocating..." : "Geolocate"}
       </button>
     </div>
-    <br />
-    <br />
     <h2 style="text-align: center;">OR:</h2>
     <p>
       Alternatively, you can utilize the Census Bureau geocoding search and this
