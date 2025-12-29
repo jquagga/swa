@@ -7,6 +7,12 @@
   let isSearching = $state(false);
   let searchError = $state<string | null>(null);
 
+  async function navigateToWeather(latitude: number, longitude: number) {
+    const roundedLat = Math.round(latitude * 10000) / 10000;
+    const roundedLon = Math.round(longitude * 10000) / 10000;
+    await goto(`/Weather?lat=${roundedLat}&lon=${roundedLon}`);
+  }
+
   function handleGeolocate() {
     geolocationError = null;
     isGeolocating = true;
@@ -25,9 +31,7 @@
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const latitude = Math.round(pos.coords.latitude * 10000) / 10000;
-        const longitude = Math.round(pos.coords.longitude * 10000) / 10000;
-        await goto(`/Weather?lat=${latitude}&lon=${longitude}`);
+        await navigateToWeather(pos.coords.latitude, pos.coords.longitude);
       },
       (error) => {
         const errorMessages: Record<number, string> = {
@@ -47,25 +51,70 @@
 
   async function handleAddressSearch() {
     searchError = null;
-    isSearching = true;
 
     if (!address.trim()) {
       searchError = "Please enter an address to search.";
-      isSearching = false;
       return;
     }
 
+    isSearching = true;
+
     try {
       const encodedAddress = encodeURIComponent(address.trim());
-      const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=json`;
+      const callbackName = `censusGeocoderCallback_${Date.now()}`;
 
-      const response = await fetch(url);
+      // Create a Promise-based JSONP request
+      const data = await new Promise((resolve, reject) => {
+        // Define the callback function globally
+        (window as any)[callbackName] = (response: any) => {
+          // Clean up the global callback function
+          delete (window as any)[callbackName];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+          // Remove the script tag
+          const script = document.getElementById(`jsonp-${callbackName}`);
+          if (script && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
 
-      const data = await response.json();
+          if (response) {
+            resolve(response);
+          } else {
+            reject(new Error("No response from geocoder"));
+          }
+        };
+
+        // Create the JSONP URL with callback parameter
+        const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=jsonp&callback=${callbackName}`;
+
+        // Create and append the script tag
+        const script = document.createElement("script");
+        script.id = `jsonp-${callbackName}`;
+        script.src = url;
+        script.onerror = () => {
+          delete (window as any)[callbackName];
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+          reject(new Error("Failed to load geocoder script"));
+        };
+
+        // Set a timeout for the request
+        const timeout = setTimeout(() => {
+          delete (window as any)[callbackName];
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+          reject(new Error("Geocoder request timed out"));
+        }, 15000);
+
+        // Add the script to the document
+        document.body.appendChild(script);
+
+        // Clear timeout when the script loads
+        script.onload = () => {
+          clearTimeout(timeout);
+        };
+      });
 
       // Check if we have a valid result with coordinates
       if (
@@ -82,9 +131,7 @@
           coordinates.y !== undefined
         ) {
           // Census API returns x as longitude and y as latitude
-          const longitude = Math.round(coordinates.x * 10000) / 10000;
-          const latitude = Math.round(coordinates.y * 10000) / 10000;
-          goto(`/Weather?lat=${latitude}&lon=${longitude}`);
+          await navigateToWeather(coordinates.y, coordinates.x);
         } else {
           searchError = "No coordinates found for the provided address.";
         }
