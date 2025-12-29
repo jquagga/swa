@@ -14,6 +14,12 @@
       maximumAge: 3600,
     };
 
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      geolocationError = "Geolocation is not supported in this environment.";
+      isGeolocating = false;
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const latitude = Math.round(pos.coords.latitude * 10000) / 10000;
