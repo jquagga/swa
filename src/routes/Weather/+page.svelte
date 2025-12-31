@@ -432,8 +432,8 @@
         import("chartjs-adapter-luxon"),
       ]);
       chartModule = chartJsModule.default;
-      // Register the luxon adapter
-      chartModule.register(luxonAdapterModule.default);
+      // Register the luxon adapter - use the module directly, not default
+      chartModule.register(luxonAdapterModule);
     }
 
     // Destroy existing chart if it exists
@@ -718,7 +718,7 @@
         "#myChart"
       ) as HTMLCanvasElement;
       if (canvasElement) {
-        createChart(canvasElement, chartData);
+        await createChart(canvasElement, chartData);
       }
 
       // Fetch alerts after the main weather data has been processed and rendered
