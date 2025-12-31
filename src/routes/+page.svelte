@@ -64,7 +64,7 @@
       const callbackName = `censusGeocoderCallback_${Date.now()}`;
 
       // Create a Promise-based JSONP request
-      const data = await new Promise((resolve, reject) => {
+      const data = await new Promise<any>((resolve, reject) => {
         // Define the callback function globally
         (window as any)[callbackName] = (response: any) => {
           // Clean up the global callback function

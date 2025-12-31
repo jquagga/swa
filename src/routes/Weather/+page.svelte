@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { page } from "$app/state";
-  import maplibregl from "maplibre-gl";
-  import "maplibre-gl/dist/maplibre-gl.css";
-  import Chart from "chart.js/auto";
-  import "chartjs-adapter-luxon";
   import { DateTime } from "luxon";
+  import type { Chart } from "chart.js/auto";
+  import "maplibre-gl/dist/maplibre-gl.css";
 
   // Type definitions for better type safety
   interface WeatherPoint {
@@ -64,11 +62,46 @@
   let forecast = $state<ForecastData>({});
   let forecastHourly = $state<ForecastData>({});
   let NWSURL = $state("");
-  let map: maplibregl.Map | null = null;
+  let map: import("maplibre-gl").Map | null = null; // Lazy loaded maplibregl.Map with type safety
+  let mapObservers: IntersectionObserver[] = []; // Track IntersectionObservers for cleanup
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let hourlyForecastProcessed = $state(false);
-  let chartInstance: Chart | null = null;
+  let chartInstance: Chart | null = null; // Lazy loaded Chart instance
+  let maplibreglModule: typeof import("maplibre-gl") | null = null; // Lazy loaded maplibre-gl module with type safety
+  let chartModule: typeof Chart | null = null; // Lazy loaded Chart.js module
+
+  // Helper functions to safely get typed constructors for lazy-loaded modules
+  async function getChartConstructor(): Promise<typeof Chart> {
+    if (!chartModule) {
+      const [chartJsModule] = await Promise.all([
+        import("chart.js/auto"),
+        import("chartjs-adapter-luxon"),
+      ]);
+      chartModule = chartJsModule.default as typeof Chart;
+    }
+
+    const ChartCtor = chartModule;
+    if (!ChartCtor) {
+      throw new Error("Chart module failed to load");
+    }
+
+    return ChartCtor;
+  }
+
+  async function getMapLibreModule(): Promise<typeof import("maplibre-gl")> {
+    if (!maplibreglModule) {
+      const module = await import("maplibre-gl");
+      maplibreglModule = module;
+    }
+
+    const maplibre = maplibreglModule;
+    if (!maplibre) {
+      throw new Error("maplibre-gl module failed to load");
+    }
+
+    return maplibre;
+  }
 
   // Constants
   const MAX_RETRIES = 3;
@@ -226,6 +259,11 @@
       if (chartInstance) {
         chartInstance.destroy();
         chartInstance = null;
+      }
+      // Clean up any active IntersectionObservers
+      if (mapObservers) {
+        mapObservers.forEach((observer) => observer.disconnect());
+        mapObservers = [];
       }
     };
   });
@@ -418,7 +456,7 @@
   }
 
   // Create the temperature chart
-  function createChart(
+  async function createChart(
     canvasElement: HTMLCanvasElement,
     chartData: {
       labels: string[];
@@ -426,7 +464,10 @@
       apparentTempValues: number[];
       popValues: number[];
     }
-  ): void {
+  ): Promise<void> {
+    // Get Chart constructor with proper type narrowing
+    const ChartCtor = await getChartConstructor();
+
     // Destroy existing chart if it exists
     if (chartInstance) {
       chartInstance.destroy();
@@ -446,7 +487,7 @@
       chartData.labels.length
     );
 
-    chartInstance = new Chart(canvasElement, {
+    chartInstance = new ChartCtor(canvasElement, {
       type: "line",
       data: {
         labels: chartData.labels,
@@ -505,8 +546,7 @@
         responsive: true,
         maintainAspectRatio: false,
         animation: {
-          duration: 750,
-          easing: "easeInOutQuart",
+          duration: 0, // Disable animations for better performance
         },
         interaction: {
           mode: "index",
@@ -588,7 +628,13 @@
   }
 
   // Initialize the map
-  function initializeMap(latitude: number, longitude: number): void {
+  async function initializeMap(
+    latitude: number,
+    longitude: number
+  ): Promise<void> {
+    // Get maplibre-gl module with proper type narrowing
+    const maplibregl = await getMapLibreModule();
+
     // Check if map already exists and remove it
     if (map) {
       map.remove();
@@ -630,6 +676,40 @@
     });
   }
 
+  // Setup Intersection Observer for lazy map initialization
+  function setupMapObserver(latitude: number, longitude: number): void {
+    const mapElement = document.getElementById("map");
+    if (!mapElement) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !map) {
+            // Guard against multiple initializations
+            // Unobserve the element before calling initializeMap
+            observer.unobserve(entry.target);
+            // Map is now visible, initialize it
+            initializeMap(latitude, longitude).catch(console.error);
+            // Disconnect observer after initialization
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: "200px", // Start loading 200px before map enters viewport
+        threshold: 0.01, // Trigger when at least 1% of the map is visible
+      }
+    );
+
+    observer.observe(mapElement);
+
+    // Store observer reference for cleanup
+    if (!mapObservers) {
+      mapObservers = [];
+    }
+    mapObservers.push(observer);
+  }
+
   // Main function to process all weather data
   async function processWeather(
     latitude: number,
@@ -662,8 +742,8 @@
       // Process forecast emojis
       processForecastEmojis(forecast);
 
-      // Initialize map
-      initializeMap(latitude, longitude);
+      // Setup map observer to initialize map when it enters viewport
+      setupMapObserver(latitude, longitude);
 
       // Build NWS URL
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
@@ -674,7 +754,7 @@
         "#myChart"
       ) as HTMLCanvasElement;
       if (canvasElement) {
-        createChart(canvasElement, chartData);
+        await createChart(canvasElement, chartData);
       }
 
       // Fetch alerts after the main weather data has been processed and rendered
