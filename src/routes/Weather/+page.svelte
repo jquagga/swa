@@ -62,14 +62,46 @@
   let forecast = $state<ForecastData>({});
   let forecastHourly = $state<ForecastData>({});
   let NWSURL = $state("");
-  let map: any = null; // Lazy loaded maplibregl.Map
+  let map: import("maplibre-gl").Map | null = null; // Lazy loaded maplibregl.Map with type safety
   let mapObservers: IntersectionObserver[] = []; // Track IntersectionObservers for cleanup
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let hourlyForecastProcessed = $state(false);
   let chartInstance: Chart | null = null; // Lazy loaded Chart instance
-  let maplibreglModule: any = null; // Lazy loaded maplibre-gl module
+  let maplibreglModule: typeof import("maplibre-gl") | null = null; // Lazy loaded maplibre-gl module with type safety
   let chartModule: typeof Chart | null = null; // Lazy loaded Chart.js module
+
+  // Helper functions to safely get typed constructors for lazy-loaded modules
+  async function getChartConstructor(): Promise<typeof Chart> {
+    if (!chartModule) {
+      const [chartJsModule] = await Promise.all([
+        import("chart.js/auto"),
+        import("chartjs-adapter-luxon"),
+      ]);
+      chartModule = chartJsModule.default as typeof Chart;
+    }
+
+    const ChartCtor = chartModule;
+    if (!ChartCtor) {
+      throw new Error("Chart module failed to load");
+    }
+
+    return ChartCtor;
+  }
+
+  async function getMapLibreModule(): Promise<typeof import("maplibre-gl")> {
+    if (!maplibreglModule) {
+      const module = await import("maplibre-gl");
+      maplibreglModule = module;
+    }
+
+    const maplibre = maplibreglModule;
+    if (!maplibre) {
+      throw new Error("maplibre-gl module failed to load");
+    }
+
+    return maplibre;
+  }
 
   // Constants
   const MAX_RETRIES = 3;
@@ -433,14 +465,8 @@
       popValues: number[];
     }
   ): Promise<void> {
-    // Lazy load Chart.js and luxon adapter if not already loaded
-    if (!chartModule) {
-      const [chartJsModule] = await Promise.all([
-        import("chart.js/auto"),
-        import("chartjs-adapter-luxon"),
-      ]);
-      chartModule = chartJsModule.default as typeof Chart;
-    }
+    // Get Chart constructor with proper type narrowing
+    const ChartCtor = await getChartConstructor();
 
     // Destroy existing chart if it exists
     if (chartInstance) {
@@ -461,7 +487,7 @@
       chartData.labels.length
     );
 
-    chartInstance = new chartModule(canvasElement, {
+    chartInstance = new ChartCtor(canvasElement, {
       type: "line",
       data: {
         labels: chartData.labels,
@@ -606,11 +632,8 @@
     latitude: number,
     longitude: number
   ): Promise<void> {
-    // Lazy load maplibre-gl if not already loaded
-    if (!maplibreglModule) {
-      const module = await import("maplibre-gl");
-      maplibreglModule = module.default;
-    }
+    // Get maplibre-gl module with proper type narrowing
+    const maplibregl = await getMapLibreModule();
 
     // Check if map already exists and remove it
     if (map) {
@@ -625,7 +648,7 @@
       ? "https://tiles.openfreemap.org/styles/dark"
       : "https://tiles.openfreemap.org/styles/positron";
 
-    map = new maplibreglModule.Map({
+    map = new maplibregl.Map({
       container: "map",
       style: mapStyle,
       center: [longitude, latitude],
@@ -661,9 +684,12 @@
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
+          if (entry.isIntersecting && !map) {
+            // Guard against multiple initializations
+            // Unobserve the element before calling initializeMap
+            observer.unobserve(entry.target);
             // Map is now visible, initialize it
-            initializeMap(latitude, longitude);
+            initializeMap(latitude, longitude).catch(console.error);
             // Disconnect observer after initialization
             observer.disconnect();
           }
