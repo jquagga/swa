@@ -173,8 +173,8 @@
 
   // On mount, get lat/lon from URL parameters and process weather
   onMount(() => {
-    const lat = page.url.searchParams.get("lat");
-    const lon = page.url.searchParams.get("lon");
+    const lat = $page.url.searchParams.get("lat");
+    const lon = $page.url.searchParams.get("lon");
 
     if (!lat || !lon) {
       geolocationError = "No location provided. Please go back and try again.";
