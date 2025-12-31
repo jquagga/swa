@@ -1,10 +1,10 @@
 @use "@picocss/pico/scss/pico" with (
   $theme-color: "azure",
-  $enable-classes: false,
+  //$enable-classes: false,
   // Use classless semantic mode for smaller bundle
   $enable-transitions: true,
   // Keep transitions for better UX
-  $enable-semantic-container: true,
+  //$enable-semantic-container: true,
   // Enable semantic containers
   $modules:
     (
@@ -51,8 +51,8 @@
       "components/tooltip": false,
 
       // Keep these enabled
-      "utilities/accessibility": true,
-      "utilities/reduce-motion": true,
+      "utilities/accessibility": false,
+      "utilities/reduce-motion": false,
     )
 );
 @use "@picocss/pico/scss/colors/utilities" with (
