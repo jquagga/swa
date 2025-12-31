@@ -1,18 +1,59 @@
 @use "@picocss/pico/scss/pico" with (
   $theme-color: "azure",
-  $modules: (
-    "content/code": false,
-    "forms/checkbox-radio-switch": false,
-    "forms/input-color": false,
-    "forms/input-date": false,
-    "forms/input-file": false,
-    "forms/input-range": false,
-    "components/dropdown": false,
-    "components/modal": false,
-    "components/nav": false,
-    "components/progress": false,
-    "components/tooltip": false,
-  )
+  $enable-classes: false,
+  // Use classless semantic mode for smaller bundle
+  $enable-transitions: true,
+  // Keep transitions for better UX
+  $enable-semantic-container: true,
+  // Enable semantic containers
+  $modules:
+    (
+      // Keep essential layout modules
+      "layout/document": true,
+      "layout/landmarks": true,
+      "layout/container": true,
+      "layout/section": true,
+      "layout/grid": true,
+
+      // Keep content modules used in the app
+      "content/link": true,
+      "content/typography": true,
+      "content/button": true,
+      "content/table": true,
+
+      // Keep basic forms (search input is used)
+      "forms/basics": true,
+      "forms/input-search": true,
+
+      // DISABLE unused content modules
+      "content/code": false,
+      "content/embedded": false,
+      "content/figure": false,
+      "content/misc": false,
+
+      // DISABLE unused form inputs
+      "forms/checkbox-radio-switch": false,
+      "forms/input-color": false,
+      "forms/input-date": false,
+      "forms/input-file": false,
+      "forms/input-range": false,
+
+      // DISABLE unused components
+      "components/accordion": true,
+      // Re-enabled - used for alerts
+      "components/card": false,
+      "components/dropdown": false,
+      "components/group": false,
+      "components/loading": false,
+      "components/modal": false,
+      "components/nav": false,
+      "components/progress": false,
+      "components/tooltip": false,
+
+      // Keep these enabled
+      "utilities/accessibility": true,
+      "utilities/reduce-motion": true,
+    )
 );
 @use "@picocss/pico/scss/colors/utilities" with (
   $palette: (

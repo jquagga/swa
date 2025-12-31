@@ -172,7 +172,11 @@
     <h2 style="text-align: center;">OR:</h2>
     <p>
       Alternatively, you can utilize the Census Bureau geocoding search and this
-      will query the forecast for that address.
+      will query the forecast for that address. <strong>
+        A full street address is needed.
+      </strong>
+      Searching for Washington, DC will not work but searching for 1600 Pennsylvania
+      Ave SE, Washington, DC will.
     </p>
     <input
       type="search"
@@ -196,11 +200,5 @@
         {isSearching ? "Searching..." : "Search"}
       </button>
     </div>
-    <br />
-    <article>
-      Note: A full street address is needed. Searching for Washington, DC will
-      not work but searching for 1600 Pennsylvania Ave SE, Washington, DC will.
-    </article>
-    <!-- And yes, SE is way cooler than NW ;)-->
   </div>
 </div>
