@@ -22,4 +22,5 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-megalinter-reports/
+.dev.vars*
+!.dev.vars.example
