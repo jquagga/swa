@@ -1,10 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { page } from "$app/state";
-  import maplibregl from "maplibre-gl";
-  import "maplibre-gl/dist/maplibre-gl.css";
-  import Chart from "chart.js/auto";
-  import "chartjs-adapter-luxon";
   import { DateTime } from "luxon";
 
   // Type definitions for better type safety
@@ -64,11 +60,13 @@
   let forecast = $state<ForecastData>({});
   let forecastHourly = $state<ForecastData>({});
   let NWSURL = $state("");
-  let map: maplibregl.Map | null = null;
+  let map: any = null; // Lazy loaded maplibregl.Map
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let hourlyForecastProcessed = $state(false);
-  let chartInstance: Chart | null = null;
+  let chartInstance: any = null; // Lazy loaded Chart instance
+  let maplibreglModule: any = null; // Lazy loaded maplibre-gl module
+  let chartModule: any = null; // Lazy loaded Chart.js module
 
   // Constants
   const MAX_RETRIES = 3;
@@ -418,7 +416,7 @@
   }
 
   // Create the temperature chart
-  function createChart(
+  async function createChart(
     canvasElement: HTMLCanvasElement,
     chartData: {
       labels: string[];
@@ -426,7 +424,18 @@
       apparentTempValues: number[];
       popValues: number[];
     }
-  ): void {
+  ): Promise<void> {
+    // Lazy load Chart.js and luxon adapter if not already loaded
+    if (!chartModule) {
+      const [chartJsModule, luxonAdapterModule] = await Promise.all([
+        import("chart.js/auto"),
+        import("chartjs-adapter-luxon"),
+      ]);
+      chartModule = chartJsModule.default;
+      // Register the luxon adapter
+      chartModule.register(luxonAdapterModule.default);
+    }
+
     // Destroy existing chart if it exists
     if (chartInstance) {
       chartInstance.destroy();
@@ -446,7 +455,7 @@
       chartData.labels.length
     );
 
-    chartInstance = new Chart(canvasElement, {
+    chartInstance = new chartModule(canvasElement, {
       type: "line",
       data: {
         labels: chartData.labels,
@@ -505,8 +514,7 @@
         responsive: true,
         maintainAspectRatio: false,
         animation: {
-          duration: 750,
-          easing: "easeInOutQuart",
+          duration: 0, // Disable animations for better performance
         },
         interaction: {
           mode: "index",
@@ -588,7 +596,18 @@
   }
 
   // Initialize the map
-  function initializeMap(latitude: number, longitude: number): void {
+  async function initializeMap(
+    latitude: number,
+    longitude: number
+  ): Promise<void> {
+    // Lazy load maplibre-gl if not already loaded
+    if (!maplibreglModule) {
+      const module = await import("maplibre-gl");
+      maplibreglModule = module.default;
+      // Import CSS for maplibre-gl
+      await import("maplibre-gl/dist/maplibre-gl.css");
+    }
+
     // Check if map already exists and remove it
     if (map) {
       map.remove();
@@ -602,7 +621,7 @@
       ? "https://tiles.openfreemap.org/styles/dark"
       : "https://tiles.openfreemap.org/styles/positron";
 
-    map = new maplibregl.Map({
+    map = new maplibreglModule.Map({
       container: "map",
       style: mapStyle,
       center: [longitude, latitude],
@@ -628,6 +647,31 @@
         paint: {},
       });
     });
+  }
+
+  // Setup Intersection Observer for lazy map initialization
+  function setupMapObserver(latitude: number, longitude: number): void {
+    const mapElement = document.getElementById("map");
+    if (!mapElement) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Map is now visible, initialize it
+            initializeMap(latitude, longitude);
+            // Disconnect observer after initialization
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        rootMargin: "200px", // Start loading 200px before map enters viewport
+        threshold: 0.01, // Trigger when at least 1% of the map is visible
+      }
+    );
+
+    observer.observe(mapElement);
   }
 
   // Main function to process all weather data
@@ -662,8 +706,8 @@
       // Process forecast emojis
       processForecastEmojis(forecast);
 
-      // Initialize map
-      initializeMap(latitude, longitude);
+      // Setup map observer to initialize map when it enters viewport
+      setupMapObserver(latitude, longitude);
 
       // Build NWS URL
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
