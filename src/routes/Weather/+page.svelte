@@ -2,6 +2,8 @@
   import { onMount, onDestroy } from "svelte";
   import { page } from "$app/state";
   import { DateTime } from "luxon";
+  import type { Chart } from "chart.js/auto";
+  import "maplibre-gl/dist/maplibre-gl.css";
 
   // Type definitions for better type safety
   interface WeatherPoint {
@@ -61,12 +63,13 @@
   let forecastHourly = $state<ForecastData>({});
   let NWSURL = $state("");
   let map: any = null; // Lazy loaded maplibregl.Map
+  let mapObservers: IntersectionObserver[] = []; // Track IntersectionObservers for cleanup
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let hourlyForecastProcessed = $state(false);
-  let chartInstance: any = null; // Lazy loaded Chart instance
+  let chartInstance: Chart | null = null; // Lazy loaded Chart instance
   let maplibreglModule: any = null; // Lazy loaded maplibre-gl module
-  let chartModule: any = null; // Lazy loaded Chart.js module
+  let chartModule: typeof Chart | null = null; // Lazy loaded Chart.js module
 
   // Constants
   const MAX_RETRIES = 3;
@@ -224,6 +227,11 @@
       if (chartInstance) {
         chartInstance.destroy();
         chartInstance = null;
+      }
+      // Clean up any active IntersectionObservers
+      if (mapObservers) {
+        mapObservers.forEach((observer) => observer.disconnect());
+        mapObservers = [];
       }
     };
   });
@@ -427,13 +435,11 @@
   ): Promise<void> {
     // Lazy load Chart.js and luxon adapter if not already loaded
     if (!chartModule) {
-      const [chartJsModule, luxonAdapterModule] = await Promise.all([
+      const [chartJsModule] = await Promise.all([
         import("chart.js/auto"),
         import("chartjs-adapter-luxon"),
       ]);
-      chartModule = chartJsModule.default;
-      // Register the luxon adapter - use the module directly, not default
-      chartModule.register(luxonAdapterModule);
+      chartModule = chartJsModule.default as typeof Chart;
     }
 
     // Destroy existing chart if it exists
@@ -604,8 +610,6 @@
     if (!maplibreglModule) {
       const module = await import("maplibre-gl");
       maplibreglModule = module.default;
-      // Import CSS for maplibre-gl
-      await import("maplibre-gl/dist/maplibre-gl.css");
     }
 
     // Check if map already exists and remove it
@@ -672,6 +676,12 @@
     );
 
     observer.observe(mapElement);
+
+    // Store observer reference for cleanup
+    if (!mapObservers) {
+      mapObservers = [];
+    }
+    mapObservers.push(observer);
   }
 
   // Main function to process all weather data
