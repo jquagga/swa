@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import maplibregl from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import Chart from "chart.js/auto";
@@ -467,7 +467,7 @@
             unit: DATASET_CONFIG.TEMPERATURE.unit,
           },
           {
-            label: "Apparent Temperature",
+            label: "Feels Like",
             data: chartData.apparentTempValues,
             borderColor: "#FF9500",
             backgroundColor: "rgba(255, 149, 0, 0.1)",
