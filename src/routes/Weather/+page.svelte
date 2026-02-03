@@ -790,7 +790,7 @@
             <p>{alert.properties.instruction}</p>
           </details>
         {/snippet}
-        {#each alerts.features as alert, index (index)}
+        {#each alerts.features as alert (alert.properties.event + "-" + alert.properties.effective)}
           {@render alertItem(alert)}
         {/each}
       {/if}
