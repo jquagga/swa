@@ -1,11 +1,20 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
 
+  // Use $derived for computed error states
   let geolocationError = $state<string | null>(null);
   let isGeolocating = $state(false);
   let address = $state("");
   let isSearching = $state(false);
   let searchError = $state<string | null>(null);
+
+  // Use $derived for button text
+  let geolocateButtonText = $derived(
+    isGeolocating ? "Geolocating..." : "Geolocate",
+  );
+  let searchButtonText = $derived(isSearching ? "Searching..." : "Search");
+
+  // Simple unique IDs for accessibility (not using $props.id() as this is a page component)
 
   async function navigateToWeather(latitude: number, longitude: number) {
     const roundedLat = Math.round(latitude * 10000) / 10000;
@@ -45,7 +54,7 @@
           "Unable to get your location. Please try again.";
         isGeolocating = false;
       },
-      options
+      options,
     );
   }
 
@@ -166,7 +175,7 @@
         disabled={isGeolocating}
         style="text-align: center;"
       >
-        {isGeolocating ? "Geolocating..." : "Geolocate"}
+        {geolocateButtonText}
       </button>
     </div>
     <h2 style="text-align: center;">OR:</h2>
@@ -178,7 +187,9 @@
       Searching for Washington, DC will not work but searching for 1600 Pennsylvania
       Ave SE, Washington, DC will.
     </p>
+    <label for="address-input">Street Address:</label>
     <input
+      id="address-input"
       type="search"
       name="address"
       placeholder="Enter Full Street Address:"
@@ -197,7 +208,7 @@
         disabled={isSearching}
         class="outline"
       >
-        {isSearching ? "Searching..." : "Search"}
+        {searchButtonText}
       </button>
     </div>
   </div>
