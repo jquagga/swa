@@ -100,7 +100,7 @@
     } else if (isLoading) {
       return "Loading weather data...";
     } else {
-      return "Loading weather data...";
+      return "No weather data available";
     }
   });
 
@@ -428,16 +428,12 @@
       },
     );
 
-    let startIndex = 0;
     let count = 0;
+    const now = DateTime.now();
 
-    for (
-      let i = startIndex;
-      i < periodsWithAppTemp.length && count < GRAPH_HOURS;
-      i++
-    ) {
+    for (let i = 0; i < periodsWithAppTemp.length && count < GRAPH_HOURS; i++) {
       // Skip past periods
-      if (DateTime.now() > DateTime.fromISO(periodsWithAppTemp[i].endTime)) {
+      if (now > DateTime.fromISO(periodsWithAppTemp[i].endTime)) {
         continue;
       }
 
@@ -734,8 +730,7 @@
       forecastHourly = hourlyForecastData;
       forecast = weeklyForecastData;
 
-      // Process hourly data for chart (this also calculates appTemp needed for current conditions)
-      // The derived state will automatically update
+      // Mark hourly forecast as processed so the derived chart state can initialize
       hourlyForecastProcessed = true;
 
       // Process forecast emojis
