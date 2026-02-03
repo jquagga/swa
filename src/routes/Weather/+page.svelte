@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount } from "svelte";
   import { page } from "$app/state";
   import { DateTime } from "luxon";
   import type { Chart } from "chart.js/auto";
@@ -62,14 +62,50 @@
   let forecast = $state<ForecastData>({});
   let forecastHourly = $state<ForecastData>({});
   let NWSURL = $state("");
-  let map: import("maplibre-gl").Map | null = null; // Lazy loaded maplibregl.Map with type safety
-  let mapObservers: IntersectionObserver[] = []; // Track IntersectionObservers for cleanup
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let hourlyForecastProcessed = $state(false);
-  let chartInstance: Chart | null = null; // Lazy loaded Chart instance
-  let maplibreglModule: typeof import("maplibre-gl") | null = null; // Lazy loaded maplibre-gl module with type safety
-  let chartModule: typeof Chart | null = null; // Lazy loaded Chart.js module
+  let chartModule: typeof Chart | null = null;
+  let maplibreglModule: typeof import("maplibre-gl") | null = null;
+
+  // Constants
+  const MAX_RETRIES = 3;
+  const GRAPH_HOURS = 25;
+  const USER_AGENT = "https://github.com/jquagga/swa";
+
+  // Dataset configuration with centralized units
+  const DATASET_CONFIG = {
+    TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+    },
+    APPARENT_TEMPERATURE: {
+      unit: "°F",
+      defaultPointRadius: 3,
+    },
+    PRECIPITATION: {
+      unit: "%",
+      defaultPointRadius: 2,
+    },
+  } as const;
+
+  // Use $derived for computed location display
+  let locationDisplay = $derived.by(() => {
+    if (geolocationError) {
+      return geolocationError;
+    } else if (point.detail) {
+      return `The weather.gov API has returned an error: ${point.detail}`;
+    } else if (point.properties?.relativeLocation?.properties) {
+      return `${point.properties.relativeLocation.properties.city}, ${point.properties.relativeLocation.properties.state}`;
+    } else if (isLoading) {
+      return "Loading weather data...";
+    } else {
+      return "Loading weather data...";
+    }
+  });
+
+  // Use $derived for loading state
+  let showLoading = $derived(isLoading && !point.properties);
 
   // Helper functions to safely get typed constructors for lazy-loaded modules
   async function getChartConstructor(): Promise<typeof Chart> {
@@ -103,30 +139,9 @@
     return maplibre;
   }
 
-  // Constants
-  const MAX_RETRIES = 3;
-  const GRAPH_HOURS = 25;
-  const USER_AGENT = "https://github.com/jquagga/swa";
-
-  // Dataset configuration with centralized units
-  const DATASET_CONFIG = {
-    TEMPERATURE: {
-      unit: "°F",
-      defaultPointRadius: 3,
-    },
-    APPARENT_TEMPERATURE: {
-      unit: "°F",
-      defaultPointRadius: 3,
-    },
-    PRECIPITATION: {
-      unit: "%",
-      defaultPointRadius: 2,
-    },
-  };
-
   // Helper functions for tooltip formatting
   function formatTooltipTitle(
-    context: import("chart.js").TooltipItem<any>[]
+    context: import("chart.js").TooltipItem<any>[],
   ): string {
     try {
       // Safety check for empty context
@@ -162,7 +177,7 @@
   }
 
   function formatTooltipLabel(
-    context: import("chart.js").TooltipItem<any>
+    context: import("chart.js").TooltipItem<any>,
   ): string {
     try {
       let label = context.dataset.label || "";
@@ -204,7 +219,7 @@
     clear: "🌕",
   };
 
-  // On mount, get lat/lon from URL parameters and process weather
+  // Use onMount for initial setup (avoiding state assignment in $effect)
   onMount(() => {
     const lat = page.url.searchParams.get("lat");
     const lon = page.url.searchParams.get("lon");
@@ -249,23 +264,6 @@
       }
       isLoading = false;
     });
-
-    // Cleanup function
-    return () => {
-      if (map) {
-        map.remove();
-        map = null;
-      }
-      if (chartInstance) {
-        chartInstance.destroy();
-        chartInstance = null;
-      }
-      // Clean up any active IntersectionObservers
-      if (mapObservers) {
-        mapObservers.forEach((observer) => observer.disconnect());
-        mapObservers = [];
-      }
-    };
   });
 
   async function fetchData(url: string): Promise<any> {
@@ -358,7 +356,7 @@
   function calculateApparentTemperature(
     tempF: number,
     humidity: number,
-    windSpeedMph: number
+    windSpeedMph: number,
   ): number {
     // Taken right from NWS CAVE and converted to JS
     if (tempF <= 51) {
@@ -401,13 +399,8 @@
     return tempF;
   }
 
-  // Process hourly forecast data for chart
-  function processHourlyForecast(forecastHourly: ForecastData): {
-    labels: string[];
-    tempValues: number[];
-    apparentTempValues: number[];
-    popValues: number[];
-  } {
+  // Use $derived for hourly chart data
+  let hourlyChartData = $derived.by(() => {
     if (!forecastHourly.properties?.periods) {
       return {
         labels: [],
@@ -422,38 +415,42 @@
     const apparentTempValues: number[] = [];
     const popValues: number[] = [];
 
-    let periods = [...forecastHourly.properties.periods];
+    // Create a new array with appTemp property (no mutation of original state)
+    const periodsWithAppTemp = forecastHourly.properties.periods.map(
+      (period) => {
+        const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
+        const apparentTemp = calculateApparentTemperature(
+          period.temperature,
+          period.relativeHumidity.value,
+          windSpeedValue,
+        );
+        return { ...period, appTemp: apparentTemp };
+      },
+    );
 
-    for (let i = 0; i < GRAPH_HOURS && i < periods.length; i++) {
+    let startIndex = 0;
+    let count = 0;
+
+    for (
+      let i = startIndex;
+      i < periodsWithAppTemp.length && count < GRAPH_HOURS;
+      i++
+    ) {
       // Skip past periods
-      if (DateTime.now() > DateTime.fromISO(periods[i].endTime)) {
-        periods = periods.slice(1);
-        i--; // Reset the loop counter
+      if (DateTime.now() > DateTime.fromISO(periodsWithAppTemp[i].endTime)) {
         continue;
       }
 
-      const period = periods[i];
+      const period = periodsWithAppTemp[i];
       labels.push(period.startTime);
       tempValues.push(period.temperature);
       popValues.push(period.probabilityOfPrecipitation?.value || 0);
-
-      // Parse wind speed
-      const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
-
-      // Calculate apparent temperature
-      const apparentTemp = calculateApparentTemperature(
-        period.temperature,
-        period.relativeHumidity.value,
-        windSpeedValue
-      );
-
-      // Store the calculated apparent temperature
-      period.appTemp = apparentTemp;
-      apparentTempValues.push(Math.round(apparentTemp));
+      apparentTempValues.push(Math.round(period.appTemp));
+      count++;
     }
 
     return { labels, tempValues, apparentTempValues, popValues };
-  }
+  });
 
   // Create the temperature chart
   async function createChart(
@@ -463,28 +460,23 @@
       tempValues: number[];
       apparentTempValues: number[];
       popValues: number[];
-    }
+    },
   ): Promise<void> {
     // Get Chart constructor with proper type narrowing
     const ChartCtor = await getChartConstructor();
 
-    // Destroy existing chart if it exists
-    if (chartInstance) {
-      chartInstance.destroy();
-    }
-
     // Determine point radius based on data density
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
-      chartData.labels.length
+      chartData.labels.length,
     );
     const apparentTempPointRadius = getPointRadius(
       DATASET_CONFIG.APPARENT_TEMPERATURE.defaultPointRadius,
-      chartData.labels.length
+      chartData.labels.length,
     );
     const precipPointRadius = getPointRadius(
       DATASET_CONFIG.PRECIPITATION.defaultPointRadius,
-      chartData.labels.length
+      chartData.labels.length,
     );
 
     chartInstance = new ChartCtor(canvasElement, {
@@ -520,7 +512,6 @@
             pointBorderColor: "#FF9500",
             pointBorderWidth: 1,
             borderWidth: 2,
-            //borderDash: [5, 5],
             unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
           },
           {
@@ -627,98 +618,106 @@
     });
   }
 
-  // Initialize the map
-  async function initializeMap(
-    latitude: number,
-    longitude: number
-  ): Promise<void> {
-    // Get maplibre-gl module with proper type narrowing
-    const maplibregl = await getMapLibreModule();
-
-    // Check if map already exists and remove it
-    if (map) {
-      map.remove();
+  // Use $effect for chart initialization and cleanup (reactive to data changes)
+  let chartInstance: Chart | null = null;
+  $effect(() => {
+    // Only initialize chart when data is ready
+    if (!hourlyForecastProcessed || !hourlyChartData.labels.length) {
+      return;
     }
 
-    // Determine map style based on color scheme preference
-    const isDarkMode =
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const mapStyle = isDarkMode
-      ? "https://tiles.openfreemap.org/styles/dark"
-      : "https://tiles.openfreemap.org/styles/positron";
+    const canvasElement = document.querySelector(
+      "#myChart",
+    ) as HTMLCanvasElement;
+    if (canvasElement) {
+      createChart(canvasElement, hourlyChartData).catch(console.error);
+    }
 
-    map = new maplibregl.Map({
-      container: "map",
-      style: mapStyle,
-      center: [longitude, latitude],
-      zoom: 7,
-      interactive: false,
-    });
-
-    map.on("load", () => {
-      if (!map) return;
-
-      map.addSource("nws_radar", {
-        type: "raster",
-        tiles: [
-          "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-        ],
-        tileSize: 256,
-      });
-
-      map.addLayer({
-        id: "nws_radar",
-        type: "raster",
-        source: "nws_radar",
-        paint: {},
-      });
-    });
-  }
-
-  // Setup Intersection Observer for lazy map initialization
-  function setupMapObserver(latitude: number, longitude: number): void {
-    const mapElement = document.getElementById("map");
-    if (!mapElement) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !map) {
-            // Guard against multiple initializations
-            // Unobserve the element before calling initializeMap
-            observer.unobserve(entry.target);
-            // Map is now visible, initialize it
-            initializeMap(latitude, longitude).catch(console.error);
-            // Disconnect observer after initialization
-            observer.disconnect();
-          }
-        });
-      },
-      {
-        rootMargin: "200px", // Start loading 200px before map enters viewport
-        threshold: 0.01, // Trigger when at least 1% of the map is visible
+    return () => {
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
       }
-    );
+    };
+  });
 
-    observer.observe(mapElement);
-
-    // Store observer reference for cleanup
-    if (!mapObservers) {
-      mapObservers = [];
+  // Use $effect for map initialization with @attach-like behavior (reactive to location changes)
+  let map: import("maplibre-gl").Map | null = null;
+  $effect(() => {
+    // Only initialize map when we have location data
+    if (
+      !point.properties ||
+      !page.url.searchParams.has("lat") ||
+      !page.url.searchParams.has("lon")
+    ) {
+      return;
     }
-    mapObservers.push(observer);
-  }
+
+    const latitude = parseFloat(page.url.searchParams.get("lat")!);
+    const longitude = parseFloat(page.url.searchParams.get("lon")!);
+
+    // Get maplibre-gl module with proper type narrowing
+    getMapLibreModule()
+      .then((maplibregl) => {
+        // Check if map already exists and remove it
+        if (map) {
+          map.remove();
+        }
+
+        // Determine map style based on color scheme preference
+        const isDarkMode =
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const mapStyle = isDarkMode
+          ? "https://tiles.openfreemap.org/styles/dark"
+          : "https://tiles.openfreemap.org/styles/positron";
+
+        map = new maplibregl.Map({
+          container: "map",
+          style: mapStyle,
+          center: [longitude, latitude],
+          zoom: 7,
+          interactive: false,
+        });
+
+        map.on("load", () => {
+          if (!map) return;
+
+          map.addSource("nws_radar", {
+            type: "raster",
+            tiles: [
+              "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+            ],
+            tileSize: 256,
+          });
+
+          map.addLayer({
+            id: "nws_radar",
+            type: "raster",
+            source: "nws_radar",
+            paint: {},
+          });
+        });
+      })
+      .catch(console.error);
+
+    return () => {
+      if (map) {
+        map.remove();
+        map = null;
+      }
+    };
+  });
 
   // Main function to process all weather data
   async function processWeather(
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<void> {
     try {
       // Get location data first (required for other calls)
       point = await fetchData(
-        `https://api.weather.gov/points/${latitude},${longitude}`
+        `https://api.weather.gov/points/${latitude},${longitude}`,
       );
 
       if (!point.properties) {
@@ -736,26 +735,14 @@
       forecast = weeklyForecastData;
 
       // Process hourly data for chart (this also calculates appTemp needed for current conditions)
-      const chartData = processHourlyForecast(forecastHourly);
+      // The derived state will automatically update
       hourlyForecastProcessed = true;
 
       // Process forecast emojis
       processForecastEmojis(forecast);
 
-      // Setup map observer to initialize map when it enters viewport
-      setupMapObserver(latitude, longitude);
-
       // Build NWS URL
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
-
-      // Create chart after DOM is ready and all data is processed
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      const canvasElement = document.querySelector(
-        "#myChart"
-      ) as HTMLCanvasElement;
-      if (canvasElement) {
-        await createChart(canvasElement, chartData);
-      }
 
       // Fetch alerts after the main weather data has been processed and rendered
       // This prevents the slow alerts API from delaying the initial page render
@@ -771,11 +758,11 @@
   // Separate function to fetch alerts asynchronously after main weather data is loaded
   async function fetchAlertsAsync(
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<void> {
     try {
       const alertsData = await fetchData(
-        `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`
+        `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
       );
       alerts = alertsData;
       processAlertSeverity(alerts);
@@ -786,90 +773,95 @@
   }
 </script>
 
-<div class="container">
-  <h1 style="text-align: center;">
-    {#if geolocationError}
-      {geolocationError}
-    {:else if point.detail}
-      The weather.gov API has returned an error: <br />{point.detail}
-    {:else if point.properties?.relativeLocation?.properties}
-      {point.properties.relativeLocation.properties.city}, {point.properties
-        .relativeLocation.properties.state}
-    {:else if isLoading}
-      <span aria-busy="true">Loading weather data...</span>
-    {:else}
-      <span>Loading weather data...</span>
-    {/if}
-  </h1>
+<svelte:boundary>
+  <div class="container">
+    <h1 style="text-align: center;">
+      {locationDisplay}
+    </h1>
 
-  <div id="alerts">
-    {#if alerts.features?.length}
-      {#each alerts.features as alert (alert.properties.event)}
-        <details>
-          <!-- svelte-ignore a11y_no_redundant_roles -->
-          <summary
-            role="button"
-            style="text-align: center;"
-            class={alert.properties.severity}
-          >
-            {alert.properties.event}
-          </summary>
-          <p>{alert.properties.description}</p>
-          <p>{alert.properties.instruction}</p>
-        </details>
-      {/each}
-    {/if}
-  </div>
-
-  <div style="height: 300px; margin: 20px 0;">
-    <canvas id="myChart"></canvas>
-  </div>
-
-  <div id="grid">
-    {#if forecast.properties?.periods}
-      <table class="striped">
-        <tbody>
-          {#each forecast.properties.periods as period (period.name)}
-            <tr>
-              <td>
-                <b>{period.name}</b><br />{period.shortForecast}
-                <!-- Daytime = Red/Hi, Night = Blue/Low -->
-                {#if period.isDaytime}
-                  <span class="pico-color-red-500">{period.temperature}</span>
-                {:else}
-                  <span class="pico-color-azure-500">{period.temperature}</span>
-                {/if}
-              </td>
-              <td>{period.detailedForecast}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {:else if !isLoading && point.properties}
-      <span aria-busy="true">Fetching weather data...</span>
-    {/if}
-  </div>
-
-  <div>
-    <div
-      id="map"
-      style="min-width: 100%; min-height: 50vh; position: relative"
-    ></div>
-  </div>
-  <br />
-
-  {#if NWSURL}
-    <div style="text-align: center;">
-      <a href={NWSURL}><button>Weather.gov forecast</button></a>
+    <div id="alerts">
+      {#if alerts.features?.length}
+        {#snippet alertItem(alert: WeatherAlert["features"][number])}
+          <details>
+            <!-- svelte-ignore a11y_no_redundant_roles -->
+            <summary
+              role="button"
+              style="text-align: center;"
+              class={alert.properties.severity}
+            >
+              {alert.properties.event}
+            </summary>
+            <p>{alert.properties.description}</p>
+            <p>{alert.properties.instruction}</p>
+          </details>
+        {/snippet}
+        {#each alerts.features as alert, index (index)}
+          {@render alertItem(alert)}
+        {/each}
+      {/if}
     </div>
-  {/if}
-  <br />
 
-  <p style="text-align: center;">
-    This forecast is generated from the U.S. National Weather Service's
-    <a href="https://www.weather.gov/documentation/services-web-api"
-      >weather.gov API</a
-    >
-    using this <a href="https://github.com/jquagga/swa">Simple Weather App</a>.
-  </p>
-</div>
+    <div style="height: 300px; margin: 20px 0;">
+      <canvas id="myChart"></canvas>
+    </div>
+
+    <div id="grid">
+      {#if forecast.properties?.periods}
+        {#snippet forecastRow(period: WeatherPeriod)}
+          <tr>
+            <td>
+              <b>{period.name}</b><br />{period.shortForecast}
+              <!-- Daytime = Red/Hi, Night = Blue/Low -->
+              {#if period.isDaytime}
+                <span class="pico-color-red-500">{period.temperature}</span>
+              {:else}
+                <span class="pico-color-azure-500">{period.temperature}</span>
+              {/if}
+            </td>
+            <td>{period.detailedForecast}</td>
+          </tr>
+        {/snippet}
+        <table class="striped">
+          <tbody>
+            {#each forecast.properties.periods as period (period.name)}
+              {@render forecastRow(period)}
+            {/each}
+          </tbody>
+        </table>
+      {:else if showLoading}
+        <span aria-busy="true">Fetching weather data...</span>
+      {/if}
+    </div>
+
+    <div>
+      <div
+        id="map"
+        style="min-width: 100%; min-height: 50vh; position: relative"
+      ></div>
+    </div>
+    <br />
+
+    {#if NWSURL}
+      <div style="text-align: center;">
+        <a href={NWSURL}><button>Weather.gov forecast</button></a>
+      </div>
+    {/if}
+    <br />
+
+    <p style="text-align: center;">
+      This forecast is generated from the U.S. National Weather Service's
+      <a href="https://www.weather.gov/documentation/services-web-api"
+        >weather.gov API</a
+      >
+      using this
+      <a href="https://github.com/jquagga/swa">Simple Weather App</a>.
+    </p>
+  </div>
+
+  {#snippet failed(error, reset)}
+    <div style="text-align: center; padding: 20px;">
+      <p style="color: red;">An error occurred: {(error as Error).message}</p>
+      <button onclick={reset}>Try Again</button>
+    </div>
+  {/snippet}
+</svelte:boundary>
