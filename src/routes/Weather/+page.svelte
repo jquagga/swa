@@ -769,7 +769,7 @@
 </script>
 
 <svelte:boundary>
-  <div class="container">
+  <div class="container-fluid">
     <h1 style="text-align: center;">
       {locationDisplay}
     </h1>
