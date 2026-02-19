@@ -23,7 +23,7 @@
     "@types/luxon": "3.7.1",
     "picomatch": "4.0.3",
     "sass-embedded": "1.97.3",
-    "svelte": "5.50.3",
+    "svelte": "5.51.5",
     "svelte-check": "4.3.6",
     "typescript": "5.9.3",
     "vite": "7.3.1",
