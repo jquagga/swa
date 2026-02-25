@@ -207,6 +207,7 @@
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
     freezing: "🧊",
+    sleet: "🧊",
     thunder: "⛈️",
     rain: "🌧️",
     "partly cloudy": "🌥️",
