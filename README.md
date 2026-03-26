@@ -13,7 +13,7 @@ Clone the repository and `npm run build` should put it all together. Serve with 
 
 ## Usage
 
-The app utilizes the javascript geolocation API to query location and returns the forecast from NWS. You simply have to allow location access. The app runs local to the browser so your location is never shared with me, however it is shared with NWS (in order to give you the forecast you have to tell it a location).
+The app utilizes the JavaScript geolocation API to query location and returns the forecast from NWS. You simply have to allow location access. The app runs local to the browser so your location is never shared with me, however it is shared with NWS (in order to give you the forecast you have to tell it a location).
 
 > [!IMPORTANT]
 > Simple Weather App only supports locations covered by US NWS forecast data (so largely the United States). If you are outside that area, might I suggest the excellent [MerrySky](https://merrysky.net/) as a great alternative!
@@ -24,7 +24,7 @@ The app polls the NWS alerts, forecast and forecastHourly. Alerts are displayed 
 
 The goal was to provide the upstream data as similarly as possible; just in a more mobile friendly format.
 
-## Acknowledgements \ Tech Stack
+## Acknowledgments \ Tech Stack
 
 - [National Weather Service Weather.gov API](https://www.weather.gov/documentation/services-web-api)
 - Svelte
