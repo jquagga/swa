@@ -27,6 +27,7 @@
         event: string;
         description: string;
         instruction: string;
+        effective?: string;
       };
     }>;
   }
@@ -791,7 +792,7 @@
             <p>{alert.properties.instruction}</p>
           </details>
         {/snippet}
-        {#each alerts.features as alert (alert.properties.event + "-" + alert.properties.effective)}
+        {#each alerts.features as alert (alert.properties.event + "-" + (alert.properties.effective || ""))}
           {@render alertItem(alert)}
         {/each}
       {/if}
