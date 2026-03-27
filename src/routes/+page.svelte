@@ -70,62 +70,20 @@
 
     try {
       const encodedAddress = encodeURIComponent(address.trim());
-      const callbackName = `censusGeocoderCallback_${Date.now()}`;
+      const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=json`;
 
-      // Create a Promise-based JSONP request
-      const data = await new Promise<any>((resolve, reject) => {
-        // Define the callback function globally
-        (window as any)[callbackName] = (response: any) => {
-          // Clean up the global callback function
-          delete (window as any)[callbackName];
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-          // Remove the script tag
-          const script = document.getElementById(`jsonp-${callbackName}`);
-          if (script && script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-          if (response) {
-            resolve(response);
-          } else {
-            reject(new Error("No response from geocoder"));
-          }
-        };
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-        // Create the JSONP URL with callback parameter
-        const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=jsonp&callback=${callbackName}`;
+      const data: any = await response.json();
 
-        // Create and append the script tag
-        const script = document.createElement("script");
-        script.id = `jsonp-${callbackName}`;
-        script.src = url;
-        script.onerror = () => {
-          delete (window as any)[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-          reject(new Error("Failed to load geocoder script"));
-        };
-
-        // Set a timeout for the request
-        const timeout = setTimeout(() => {
-          delete (window as any)[callbackName];
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-          reject(new Error("Geocoder request timed out"));
-        }, 15000);
-
-        // Add the script to the document
-        document.body.appendChild(script);
-
-        // Clear timeout when the script loads
-        script.onload = () => {
-          clearTimeout(timeout);
-        };
-      });
-
-      // Check if we have a valid result with coordinates
       if (
         data.result &&
         data.result.addressMatches &&
@@ -139,7 +97,6 @@
           coordinates.x !== undefined &&
           coordinates.y !== undefined
         ) {
-          // Census API returns x as longitude and y as latitude
           await navigateToWeather(coordinates.y, coordinates.x);
         } else {
           searchError = "No coordinates found for the provided address.";
