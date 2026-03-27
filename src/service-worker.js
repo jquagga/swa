@@ -1,13 +1,13 @@
 /// <reference types="@sveltejs/kit" />
 import { build, files, version } from "$service-worker";
 
-// Create a unique cache name for this deployment
+const self = /** @type {ServiceWorkerGlobalScope} */ (
+  /** @type {unknown} */ (globalThis.self)
+);
+
 const CACHE = `cache-${version}`;
 
-const ASSETS = [
-  ...build, // the app itself
-  ...files, // everything in `static`
-];
+const ASSETS = [...build, ...files];
 
 self.addEventListener("install", (event) => {
   // Create a new cache and add all files to it

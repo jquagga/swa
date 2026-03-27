@@ -6,10 +6,7 @@ declare global {
       env: Env;
       cf: CfProperties;
       ctx: ExecutionContext;
-      env: Env;
-      ctx: ExecutionContext;
       caches: CacheStorage;
-      cf?: IncomingRequestCfProperties;
     }
   }
 }

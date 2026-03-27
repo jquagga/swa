@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { page } from "$app/state";
   import { DateTime } from "luxon";
   import type { Chart } from "chart.js/auto";
   import "maplibre-gl/dist/maplibre-gl.css";
 
-  // Type definitions for better type safety
   interface WeatherPoint {
     properties?: {
       relativeLocation?: {
@@ -57,11 +55,17 @@
     };
   }
 
-  // State variables with proper typing
-  let point = $state<WeatherPoint>({});
+  type ChartData = {
+    labels: string[];
+    tempValues: number[];
+    apparentTempValues: number[];
+    popValues: number[];
+  };
+
+  let point = $state.raw<WeatherPoint>({});
   let alerts = $state<WeatherAlert>({ features: [] });
   let forecast = $state<ForecastData>({});
-  let forecastHourly = $state<ForecastData>({});
+  let forecastHourly = $state.raw<ForecastData>({});
   let NWSURL = $state("");
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
@@ -69,12 +73,10 @@
   let chartModule: typeof Chart | null = null;
   let maplibreglModule: typeof import("maplibre-gl") | null = null;
 
-  // Constants
   const MAX_RETRIES = 3;
   const GRAPH_HOURS = 25;
   const USER_AGENT = "https://github.com/jquagga/swa";
 
-  // Dataset configuration with centralized units
   const DATASET_CONFIG = {
     TEMPERATURE: {
       unit: "°F",
@@ -90,7 +92,6 @@
     },
   } as const;
 
-  // Use $derived for computed location display
   let locationDisplay = $derived.by(() => {
     if (geolocationError) {
       return geolocationError;
@@ -105,10 +106,8 @@
     }
   });
 
-  // Use $derived for loading state
   let showLoading = $derived(isLoading && !point.properties);
 
-  // Helper functions to safely get typed constructors for lazy-loaded modules
   async function getChartConstructor(): Promise<typeof Chart> {
     if (!chartModule) {
       const [chartJsModule] = await Promise.all([
@@ -140,17 +139,14 @@
     return maplibre;
   }
 
-  // Helper functions for tooltip formatting
   function formatTooltipTitle(
     context: import("chart.js").TooltipItem<any>[],
   ): string {
     try {
-      // Safety check for empty context
       if (!context || context.length === 0) {
         return "No data available";
       }
 
-      // Use parsed x value instead of label for more reliable date parsing
       const xValue = context[0].parsed.x;
       const date = DateTime.fromMillis(xValue);
 
@@ -158,19 +154,16 @@
         return date.toFormat("EEE, MMM d, h:mm a");
       }
 
-      // Fallback to label if parsed x value is invalid
       if (context[0].label) {
         const fallbackDate = DateTime.fromISO(context[0].label);
         if (fallbackDate.isValid) {
           return fallbackDate.toFormat("EEE, MMM d, h:mm a");
         }
-        // Final fallback to regular date parsing
         return new Date(context[0].label).toLocaleString();
       }
 
       return "Invalid date";
     } catch (e) {
-      // Final fallback to a simple label if available
       return context && context[0] && context[0].label
         ? context[0].label
         : "Date error";
@@ -186,7 +179,6 @@
         label += ": ";
       }
 
-      // Use unit property from dataset instead of hard-coding indices
       const unit = context.dataset.unit || "";
       label += context.parsed.y + unit;
       return label;
@@ -195,16 +187,13 @@
     }
   }
 
-  // Helper function to determine point radius based on data density
   function getPointRadius(baseRadius: number, dataLength: number): number {
-    // Reduce point radius for dense data to improve performance
     if (dataLength > 20) {
       return Math.max(1, baseRadius - 1);
     }
     return baseRadius;
   }
 
-  // Weather emoji mapping for cleaner code
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
     freezing: "🧊",
@@ -221,53 +210,6 @@
     clear: "🌕",
   };
 
-  // Use onMount for initial setup (avoiding state assignment in $effect)
-  onMount(() => {
-    const lat = page.url.searchParams.get("lat");
-    const lon = page.url.searchParams.get("lon");
-
-    if (!lat || !lon) {
-      geolocationError = "No location provided. Please go back and try again.";
-      isLoading = false;
-      return;
-    }
-
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lon);
-
-    if (isNaN(latitude) || isNaN(longitude)) {
-      geolocationError =
-        "Invalid location coordinates. Please go back and try again.";
-      isLoading = false;
-      return;
-    }
-
-    // Set loading state before processing weather
-    isLoading = true;
-
-    // Process weather with the provided coordinates
-    processWeather(latitude, longitude).catch((error) => {
-      console.error("Error processing weather data:", error);
-      if (error instanceof Error) {
-        if (error.message.includes("HTTP error")) {
-          geolocationError =
-            "Unable to fetch weather data. The service may be temporarily unavailable.";
-        } else if (
-          error.message.includes("NetworkError") ||
-          error.message.includes("Failed to fetch")
-        ) {
-          geolocationError =
-            "Network error. Please check your internet connection and try again.";
-        } else {
-          geolocationError = `Error: ${error.message}`;
-        }
-      } else {
-        geolocationError = "Failed to process weather data. Please try again.";
-      }
-      isLoading = false;
-    });
-  });
-
   async function fetchData(url: string): Promise<any> {
     const headers = {
       accept: "application/geo+json",
@@ -280,7 +222,7 @@
     while (retryCount < MAX_RETRIES) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch(url, {
           headers,
@@ -304,9 +246,8 @@
           break;
         }
 
-        // Exponential backoff with jitter
         const baseDelay = 1000 * Math.pow(2, retryCount);
-        const jitter = Math.random() * 0.3 * baseDelay; // Add up to 30% jitter
+        const jitter = Math.random() * 0.3 * baseDelay;
         const delay = baseDelay + jitter;
 
         await new Promise<void>((resolve) => setTimeout(resolve, delay));
@@ -316,7 +257,6 @@
     throw lastError || new Error("Unknown error occurred during fetch");
   }
 
-  // Process alert severity with cleaner code
   function processAlertSeverity(alerts: WeatherAlert): void {
     if (!alerts.features) return;
 
@@ -334,7 +274,6 @@
     });
   }
 
-  // Map weather description to emoji
   function mapWeatherToEmoji(description: string): string {
     const lowerDesc = description.toLowerCase();
     for (const [key, emoji] of Object.entries(weatherEmojiMap)) {
@@ -342,10 +281,9 @@
         return emoji;
       }
     }
-    return description; // Return original if no match found
+    return description;
   }
 
-  // Process forecast periods to add emojis
   function processForecastEmojis(forecast: ForecastData): void {
     if (!forecast.properties?.periods) return;
 
@@ -354,13 +292,11 @@
     });
   }
 
-  // Calculate apparent temperature
   function calculateApparentTemperature(
     tempF: number,
     humidity: number,
     windSpeedMph: number,
   ): number {
-    // Taken right from NWS CAVE and converted to JS
     if (tempF <= 51) {
       const mag = windSpeedMph * 1.15;
       return mag <= 3
@@ -384,14 +320,11 @@
 
       let heatIndexValue = A + B + C + D + E + F + G + H + I;
 
-      // Apply adjustment for low humidities
       if (humidity < 13 && tempF > 80 && tempF < 112) {
         const adjustment =
           ((13 - humidity) / 4) * Math.sqrt((17 - Math.abs(tempF - 95)) / 17);
         heatIndexValue -= adjustment;
-      }
-      // Apply adjustment for high humidities
-      else if (humidity > 85 && tempF >= 80 && tempF < 87) {
+      } else if (humidity > 85 && tempF >= 80 && tempF < 87) {
         const adjustment = ((humidity - 85) / 10) * ((87 - tempF) / 5);
         heatIndexValue += adjustment;
       }
@@ -401,7 +334,6 @@
     return tempF;
   }
 
-  // Use $derived for hourly chart data
   let hourlyChartData = $derived.by(() => {
     if (!forecastHourly.properties?.periods) {
       return {
@@ -417,7 +349,6 @@
     const apparentTempValues: number[] = [];
     const popValues: number[] = [];
 
-    // Create a new array with appTemp property (no mutation of original state)
     const periodsWithAppTemp = forecastHourly.properties.periods.map(
       (period) => {
         const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
@@ -434,7 +365,6 @@
     const now = DateTime.now();
 
     for (let i = 0; i < periodsWithAppTemp.length && count < GRAPH_HOURS; i++) {
-      // Skip past periods
       if (now > DateTime.fromISO(periodsWithAppTemp[i].endTime)) {
         continue;
       }
@@ -450,20 +380,11 @@
     return { labels, tempValues, apparentTempValues, popValues };
   });
 
-  // Create the temperature chart
-  async function createChart(
-    canvasElement: HTMLCanvasElement,
-    chartData: {
-      labels: string[];
-      tempValues: number[];
-      apparentTempValues: number[];
-      popValues: number[];
-    },
-  ): Promise<void> {
-    // Get Chart constructor with proper type narrowing
-    const ChartCtor = await getChartConstructor();
+  let chartReady = $derived(
+    hourlyForecastProcessed && hourlyChartData.labels.length > 0,
+  );
 
-    // Determine point radius based on data density
+  function buildChartConfig(chartData: ChartData) {
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
@@ -477,8 +398,8 @@
       chartData.labels.length,
     );
 
-    chartInstance = new ChartCtor(canvasElement, {
-      type: "line",
+    return {
+      type: "line" as const,
       data: {
         labels: chartData.labels,
         datasets: [
@@ -535,10 +456,10 @@
         responsive: true,
         maintainAspectRatio: false,
         animation: {
-          duration: 0, // Disable animations for better performance
+          duration: 0,
         },
         interaction: {
-          mode: "index",
+          mode: "index" as const,
           intersect: false,
         },
         scales: {
@@ -587,8 +508,8 @@
         plugins: {
           legend: {
             display: true,
-            position: "bottom",
-            align: "center",
+            position: "bottom" as const,
+            align: "center" as const,
             labels: {
               usePointStyle: true,
               padding: 20,
@@ -609,111 +530,126 @@
         },
         elements: {
           line: {
-            borderJoinStyle: "round",
+            borderJoinStyle: "round" as const,
           },
         },
       },
-    });
+    };
   }
 
-  // Use $effect for chart initialization and cleanup (reactive to data changes)
-  let chartInstance: Chart | null = null;
-  $effect(() => {
-    // Only initialize chart when data is ready
-    if (!hourlyForecastProcessed || !hourlyChartData.labels.length) {
-      return;
-    }
+  function chartAttachment() {
+    return (canvas: HTMLCanvasElement) => {
+      let instance: Chart | null = null;
+      let destroyed = false;
 
-    const canvasElement = document.querySelector(
-      "#myChart",
-    ) as HTMLCanvasElement;
-    if (canvasElement) {
-      createChart(canvasElement, hourlyChartData).catch(console.error);
-    }
+      getChartConstructor()
+        .then((ChartCtor) => {
+          if (destroyed) return;
+          instance = new ChartCtor(canvas, buildChartConfig(hourlyChartData));
+        })
+        .catch(console.error);
 
-    return () => {
-      if (chartInstance) {
-        chartInstance.destroy();
-        chartInstance = null;
-      }
+      $effect(() => {
+        if (instance && !destroyed) {
+          const data = hourlyChartData;
+          instance.data.labels = data.labels;
+          instance.data.datasets[0].data = data.tempValues;
+          instance.data.datasets[1].data = data.apparentTempValues;
+          instance.data.datasets[2].data = data.popValues;
+          instance.update("none");
+        }
+      });
+
+      return () => {
+        destroyed = true;
+        if (instance) {
+          instance.destroy();
+          instance = null;
+        }
+      };
     };
+  }
+
+  let mapCoords = $derived.by(() => {
+    if (!point.properties) return null;
+    const latStr = page.url.searchParams.get("lat");
+    const lonStr = page.url.searchParams.get("lon");
+    if (!latStr || !lonStr) return null;
+    const lat = parseFloat(latStr);
+    const lon = parseFloat(lonStr);
+    if (isNaN(lat) || isNaN(lon)) return null;
+    return { lat, lon };
   });
 
-  // Use $effect for map initialization with @attach-like behavior (reactive to location changes)
-  let map: import("maplibre-gl").Map | null = null;
-  $effect(() => {
-    // Only initialize map when we have location data
-    if (
-      !point.properties ||
-      !page.url.searchParams.has("lat") ||
-      !page.url.searchParams.has("lon")
-    ) {
-      return;
-    }
+  function mapAttachment(latitude: number, longitude: number) {
+    return (container: HTMLElement) => {
+      let mapInstance: import("maplibre-gl").Map | null = null;
+      let destroyed = false;
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-    const latitude = parseFloat(page.url.searchParams.get("lat")!);
-    const longitude = parseFloat(page.url.searchParams.get("lon")!);
-
-    // Get maplibre-gl module with proper type narrowing
-    getMapLibreModule()
-      .then((maplibregl) => {
-        // Check if map already exists and remove it
-        if (map) {
-          map.remove();
-        }
-
-        // Determine map style based on color scheme preference
-        const isDarkMode =
-          window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-        const mapStyle = isDarkMode
+      function getStyle() {
+        return mediaQuery.matches
           ? "https://tiles.openfreemap.org/styles/dark"
           : "https://tiles.openfreemap.org/styles/positron";
-
-        map = new maplibregl.Map({
-          container: "map",
-          style: mapStyle,
-          center: [longitude, latitude],
-          zoom: 7,
-          interactive: false,
-        });
-
-        map.on("load", () => {
-          if (!map) return;
-
-          map.addSource("nws_radar", {
-            type: "raster",
-            tiles: [
-              "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-            ],
-            tileSize: 256,
-          });
-
-          map.addLayer({
-            id: "nws_radar",
-            type: "raster",
-            source: "nws_radar",
-            paint: {},
-          });
-        });
-      })
-      .catch(console.error);
-
-    return () => {
-      if (map) {
-        map.remove();
-        map = null;
       }
-    };
-  });
 
-  // Main function to process all weather data
+      function handleStyleChange() {
+        if (mapInstance && !destroyed) {
+          mapInstance.setStyle(getStyle());
+        }
+      }
+
+      mediaQuery.addEventListener("change", handleStyleChange);
+
+      getMapLibreModule()
+        .then((maplibregl) => {
+          if (destroyed) return;
+
+          mapInstance = new maplibregl.Map({
+            container,
+            style: getStyle(),
+            center: [longitude, latitude],
+            zoom: 7,
+            interactive: false,
+          });
+
+          mapInstance.on("load", () => {
+            if (!mapInstance || destroyed) return;
+
+            mapInstance.addSource("nws_radar", {
+              type: "raster",
+              tiles: [
+                "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+              ],
+              tileSize: 256,
+            });
+
+            mapInstance.addLayer({
+              id: "nws_radar",
+              type: "raster",
+              source: "nws_radar",
+              paint: {},
+            });
+          });
+        })
+        .catch(console.error);
+
+      return () => {
+        destroyed = true;
+        mediaQuery.removeEventListener("change", handleStyleChange);
+        if (mapInstance) {
+          mapInstance.remove();
+          mapInstance = null;
+        }
+      };
+    };
+  }
+
   async function processWeather(
     latitude: number,
     longitude: number,
   ): Promise<void> {
     try {
-      // Get location data first (required for other calls)
       point = await fetchData(
         `https://api.weather.gov/points/${latitude},${longitude}`,
       );
@@ -722,37 +658,29 @@
         throw new Error("Invalid location data received");
       }
 
-      // Parallel fetch weather data (excluding alerts)
       const [hourlyForecastData, weeklyForecastData] = await Promise.all([
         fetchData(point.properties.forecastHourly || ""),
         fetchData(point.properties.forecast || ""),
       ]);
 
-      // Process the fetched weather data
       forecastHourly = hourlyForecastData;
       forecast = weeklyForecastData;
 
-      // Mark hourly forecast as processed so the derived chart state can initialize
       hourlyForecastProcessed = true;
 
-      // Process forecast emojis
       processForecastEmojis(forecast);
 
-      // Build NWS URL
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
 
-      // Fetch alerts after the main weather data has been processed and rendered
-      // This prevents the slow alerts API from delaying the initial page render
       fetchAlertsAsync(latitude, longitude);
     } catch (error) {
       console.error("Error in processWeather:", error);
-      throw error; // Re-throw to be caught by the caller
+      throw error;
     } finally {
       isLoading = false;
     }
   }
 
-  // Separate function to fetch alerts asynchronously after main weather data is loaded
   async function fetchAlertsAsync(
     latitude: number,
     longitude: number,
@@ -765,7 +693,48 @@
       processAlertSeverity(alerts);
     } catch (error) {
       console.error("Error fetching alerts:", error);
-      // Don't throw here
+    }
+  }
+
+  {
+    const lat = page.url.searchParams.get("lat");
+    const lon = page.url.searchParams.get("lon");
+
+    if (!lat || !lon) {
+      geolocationError = "No location provided. Please go back and try again.";
+      isLoading = false;
+    } else {
+      const latitude = parseFloat(lat);
+      const longitude = parseFloat(lon);
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        geolocationError =
+          "Invalid location coordinates. Please go back and try again.";
+        isLoading = false;
+      } else {
+        isLoading = true;
+
+        processWeather(latitude, longitude).catch((error) => {
+          console.error("Error processing weather data:", error);
+          if (error instanceof Error) {
+            if (error.message.includes("HTTP error")) {
+              geolocationError =
+                "Unable to fetch weather data. The service may be temporarily unavailable.";
+            } else if (
+              error.message.includes("NetworkError") ||
+              error.message.includes("Failed to fetch")
+            ) {
+              geolocationError =
+                "Network error. Please check your internet connection and try again.";
+            } else {
+              geolocationError = `Error: ${error.message}`;
+            }
+          } else {
+            geolocationError = "Failed to process weather data. Please try again.";
+          }
+          isLoading = false;
+        });
+      }
     }
   }
 </script>
@@ -799,7 +768,7 @@
     </div>
 
     <div style="height: 300px; margin: 20px 0;">
-      <canvas id="myChart"></canvas>
+      <canvas id="myChart" {@attach chartReady && chartAttachment()}></canvas>
     </div>
 
     <div id="grid">
@@ -808,7 +777,6 @@
           <tr>
             <td>
               <b>{period.name}</b><br />{period.shortForecast}
-              <!-- Daytime = Red/Hi, Night = Blue/Low -->
               {#if period.isDaytime}
                 <span class="pico-color-red-500">{period.temperature}</span>
               {:else}
@@ -834,6 +802,7 @@
       <div
         id="map"
         style="min-width: 100%; min-height: 50vh; position: relative"
+        {@attach mapCoords && mapAttachment(mapCoords.lat, mapCoords.lon)}
       ></div>
     </div>
     <br />
