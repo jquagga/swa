@@ -26,3 +26,5 @@ vite.config.ts.timestamp-*
 !.dev.vars.example
 # Cloudflare Types
 /worker-configuration.d.ts
+
+tsconfig.tsbuildinfo

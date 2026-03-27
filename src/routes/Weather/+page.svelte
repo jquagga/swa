@@ -537,7 +537,7 @@
     };
   }
 
-  function chartAttachment(chartData: ChartData) {
+  function chartAttachment() {
     return (canvas: HTMLCanvasElement) => {
       let instance: Chart | null = null;
       let destroyed = false;
@@ -545,9 +545,20 @@
       getChartConstructor()
         .then((ChartCtor) => {
           if (destroyed) return;
-          instance = new ChartCtor(canvas, buildChartConfig(chartData));
+          instance = new ChartCtor(canvas, buildChartConfig(hourlyChartData));
         })
         .catch(console.error);
+
+      $effect(() => {
+        if (instance && !destroyed) {
+          const data = hourlyChartData;
+          instance.data.labels = data.labels;
+          instance.data.datasets[0].data = data.tempValues;
+          instance.data.datasets[1].data = data.apparentTempValues;
+          instance.data.datasets[2].data = data.popValues;
+          instance.update("none");
+        }
+      });
 
       return () => {
         destroyed = true;
@@ -561,8 +572,11 @@
 
   let mapCoords = $derived.by(() => {
     if (!point.properties) return null;
-    const lat = parseFloat(page.url.searchParams.get("lat")!);
-    const lon = parseFloat(page.url.searchParams.get("lon")!);
+    const latStr = page.url.searchParams.get("lat");
+    const lonStr = page.url.searchParams.get("lon");
+    if (!latStr || !lonStr) return null;
+    const lat = parseFloat(latStr);
+    const lon = parseFloat(lonStr);
     if (isNaN(lat) || isNaN(lon)) return null;
     return { lat, lon };
   });
@@ -754,7 +768,7 @@
     </div>
 
     <div style="height: 300px; margin: 20px 0;">
-      <canvas id="myChart" {@attach chartReady && chartAttachment(hourlyChartData)}></canvas>
+      <canvas id="myChart" {@attach chartReady && chartAttachment()}></canvas>
     </div>
 
     <div id="grid">
