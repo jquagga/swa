@@ -69,8 +69,7 @@
     isSearching = true;
 
     try {
-      const encodedAddress = encodeURIComponent(address.trim());
-      const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=json`;
+      const url = `/geocode?address=${encodeURIComponent(address.trim())}`;
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
