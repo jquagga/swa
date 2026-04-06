@@ -18,7 +18,7 @@
   "devDependencies": {
     "@picocss/pico": "2.1.1",
     "@sveltejs/adapter-cloudflare": "7.2.8",
-    "@sveltejs/kit": "2.55.0",
+    "@sveltejs/kit": "2.56.1",
     "@sveltejs/vite-plugin-svelte": "7.0.0",
     "@types/luxon": "3.7.1",
     "picomatch": "4.0.4",
