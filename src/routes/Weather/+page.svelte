@@ -297,6 +297,7 @@
     humidity: number,
     windSpeedMph: number,
   ): number {
+    // This is Wind Chill
     if (tempF <= 51) {
       const mag = windSpeedMph * 1.15;
       return mag <= 3
@@ -307,31 +308,28 @@
             0.4275 * tempF * Math.pow(mag, 0.16);
     }
 
-    if (tempF > 79) {
-      const A = -42.379;
-      const B = 2.04901523 * tempF;
-      const C = 10.14333127 * humidity;
-      const D = -0.22475541 * tempF * humidity;
-      const E = -0.00683783 * Math.pow(tempF, 2);
-      const F = -0.05481717 * Math.pow(humidity, 2);
-      const G = 0.00122874 * Math.pow(tempF, 2) * humidity;
-      const H = 0.00085282 * tempF * Math.pow(humidity, 2);
-      const I = -0.00000199 * Math.pow(tempF, 2) * Math.pow(humidity, 2);
-
-      let heatIndexValue = A + B + C + D + E + F + G + H + I;
-
-      if (humidity < 13 && tempF > 80 && tempF < 112) {
-        const adjustment =
-          ((13 - humidity) / 4) * Math.sqrt((17 - Math.abs(tempF - 95)) / 17);
-        heatIndexValue -= adjustment;
-      } else if (humidity > 85 && tempF >= 80 && tempF < 87) {
-        const adjustment = ((humidity - 85) / 10) * ((87 - tempF) / 5);
-        heatIndexValue += adjustment;
-      }
-
-      return heatIndexValue;
+    // And this is the "old" heat index calculation for simplicity
+    // If temp is less than 80 or humidity is less than 40, skip it.
+    if (tempF < 80.0 || humidity < 40.0) {
+      return tempF;
     }
-    return tempF;
+
+    const heatindexF =
+      -42.379 +
+      2.04901523 * tempF +
+      10.14333127 * humidity -
+      0.22475541 * tempF * humidity -
+      6.83783e-3 * tempF ** 2 -
+      5.481717e-2 * humidity ** 2 +
+      1.22874e-3 * tempF ** 2 * humidity +
+      8.5282e-4 * tempF * humidity ** 2 -
+      1.99e-6 * tempF ** 2 * humidity ** 2;
+
+    if (heatindexF < tempF) {
+      return tempF;
+    }
+
+    return heatindexF;
   }
 
   let hourlyChartData = $derived.by(() => {
@@ -730,7 +728,8 @@
               geolocationError = `Error: ${error.message}`;
             }
           } else {
-            geolocationError = "Failed to process weather data. Please try again.";
+            geolocationError =
+              "Failed to process weather data. Please try again.";
           }
           isLoading = false;
         });
