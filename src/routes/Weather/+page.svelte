@@ -297,7 +297,10 @@
     humidity: number,
     windSpeedMph: number,
   ): number {
-    // This is Wind Chill
+    // "Feels like" decision flow:
+    //   tempF <= 51 → wind chill (accounts for wind cooling)
+    //   tempF >= 80 && humidity >= 40 → heat index (accounts for humidity)
+    //   otherwise → return actual temperature
     if (tempF <= 51) {
       const mag = windSpeedMph * 1.15;
       return mag <= 3
@@ -308,22 +311,22 @@
             0.4275 * tempF * Math.pow(mag, 0.16);
     }
 
-    // And this is the "old" heat index calculation for simplicity
-    // If temp is less than 80 or humidity is less than 40, skip it.
     if (tempF < 80.0 || humidity < 40.0) {
       return tempF;
     }
 
+    const t2 = Math.pow(tempF, 2);
+    const h2 = Math.pow(humidity, 2);
     const heatindexF =
       -42.379 +
       2.04901523 * tempF +
       10.14333127 * humidity -
       0.22475541 * tempF * humidity -
-      6.83783e-3 * tempF ** 2 -
-      5.481717e-2 * humidity ** 2 +
-      1.22874e-3 * tempF ** 2 * humidity +
-      8.5282e-4 * tempF * humidity ** 2 -
-      1.99e-6 * tempF ** 2 * humidity ** 2;
+      6.83783e-3 * t2 -
+      5.481717e-2 * h2 +
+      1.22874e-3 * t2 * humidity +
+      8.5282e-4 * tempF * h2 -
+      1.99e-6 * t2 * h2;
 
     if (heatindexF < tempF) {
       return tempF;
