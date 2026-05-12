@@ -1,3 +1,5 @@
+# This project has moved to Codeberg: https://codeberg.org/jquagga/swa
+
 # Simple Weather App
 
 > Simple Weather App is a progressive web app which queries the US National Weather Service API to provide a responsive weather forecast.
