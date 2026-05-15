@@ -9,7 +9,7 @@
 
 ## Install
 
-Clone the repository and `npm run build` should put it all together. Serve with https (or you can just bookmark [partlycloudy.org](https://www.partlycloudy.org/).
+Clone the repository and `pnpm run build` should put it all together. Serve with https (or you can just bookmark [partlycloudy.org](https://www.partlycloudy.org/).
 
 ## Usage
 
