@@ -27,8 +27,8 @@
     "svelte": "5.55.7",
     "svelte-check": "4.4.8",
     "typescript": "6.0.3",
-    "vite": "8.0.11",
-    "wrangler": "4.90.0"
+    "vite": "8.0.12",
+    "wrangler": "4.90.1"
   },
   "dependencies": {
     "chart.js": "4.5.1",
