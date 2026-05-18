@@ -26,7 +26,7 @@ importers:
         version: 2.1.1
       '@sveltejs/adapter-cloudflare':
         specifier: 7.2.8
-        version: 7.2.8(@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(wrangler@4.90.1(@cloudflare/workers-types@4.20260511.1))
+        version: 7.2.8(@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(wrangler@4.90.1(@cloudflare/workers-types@4.20260517.1))
       '@sveltejs/kit':
         specifier: 2.59.1
         version: 2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0))
@@ -56,7 +56,7 @@ importers:
         version: 8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)
       wrangler:
         specifier: 4.90.1
-        version: 4.90.1(@cloudflare/workers-types@4.20260511.1)
+        version: 4.90.1(@cloudflare/workers-types@4.20260517.1)
 
 packages:
 
@@ -106,8 +106,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@cloudflare/workers-types@4.20260511.1':
-    resolution: {integrity: sha512-FA+si7cOq9i/gtCHhIc0XJL0l1F/ApF+m00752Aj7WZFJrj3ZulT2T8/+rT3BabMT0QEnqFEGIqCgrmqhgEfMg==}
+  '@cloudflare/workers-types@4.20260517.1':
+    resolution: {integrity: sha512-OjavgX6VpYoWlKg2xPgLKIhBeiJvNdwFVK8E1P6hF02wh1oEt1sZpTzbp9kdohprqjXo6UVqs7/AuIH0wxIcbw==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -817,9 +817,6 @@ packages:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
 
-  devalue@5.8.0:
-    resolution: {integrity: sha512-2zA9pFEsnp7vWBZbXF5JAgAq0fsUIt/1XPbRiAmRV3lp/2C3upzH+sADiyy66aFCihoLEsrQHxNM5w1gIDfsBg==}
-
   devalue@5.8.1:
     resolution: {integrity: sha512-4CXDYRBGqN+57wVJkuXBYmpAVUSg3L6JAQa/DFqm238G73E1wuyc/JhGQJzN7vUf/CMphYau2zXbfWzDR5aTEw==}
 
@@ -837,8 +834,8 @@ packages:
   esm-env@1.2.2:
     resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
 
-  esrap@2.2.8:
-    resolution: {integrity: sha512-MPweq2EvEGj8jwOI7Hgycw/QIHzqA1EbAM8lG7p+FBfZbZq/hQ6h3AMsqnu/djzisH1KVWNzbb7LSgIVtMlPSg==}
+  esrap@2.2.9:
+    resolution: {integrity: sha512-4KijP+NxCWthMCUC3qHbE6n4vCjqgJS1uAYKhuT/GWfFTf1Qyive2TgOjep+gzbSzRfnNyaN/UU9YmdOt8Eg0A==}
     peerDependencies:
       '@typescript-eslint/types': ^8.2.0
     peerDependenciesMeta:
@@ -1381,7 +1378,7 @@ snapshots:
   '@cloudflare/workerd-windows-64@1.20260508.1':
     optional: true
 
-  '@cloudflare/workers-types@4.20260511.1': {}
+  '@cloudflare/workers-types@4.20260517.1': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
@@ -1795,12 +1792,12 @@ snapshots:
     dependencies:
       acorn: 8.16.0
 
-  '@sveltejs/adapter-cloudflare@7.2.8(@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(wrangler@4.90.1(@cloudflare/workers-types@4.20260511.1))':
+  '@sveltejs/adapter-cloudflare@7.2.8(@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(wrangler@4.90.1(@cloudflare/workers-types@4.20260517.1))':
     dependencies:
-      '@cloudflare/workers-types': 4.20260511.1
+      '@cloudflare/workers-types': 4.20260517.1
       '@sveltejs/kit': 2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0))
       worktop: 0.8.0-next.18
-      wrangler: 4.90.1(@cloudflare/workers-types@4.20260511.1)
+      wrangler: 4.90.1(@cloudflare/workers-types@4.20260517.1)
 
   '@sveltejs/kit@2.59.1(@sveltejs/vite-plugin-svelte@7.1.2(svelte@5.55.7)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0)))(svelte@5.55.7)(typescript@6.0.3)(vite@8.0.12(esbuild@0.27.3)(sass-embedded@1.99.0)(sass@1.99.0))':
     dependencies:
@@ -1810,7 +1807,7 @@ snapshots:
       '@types/cookie': 0.6.0
       acorn: 8.16.0
       cookie: 0.6.0
-      devalue: 5.8.0
+      devalue: 5.8.1
       esm-env: 1.2.2
       kleur: 4.1.5
       magic-string: 0.30.21
@@ -1883,8 +1880,6 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  devalue@5.8.0: {}
-
   devalue@5.8.1: {}
 
   earcut@3.0.2: {}
@@ -1922,7 +1917,7 @@ snapshots:
 
   esm-env@1.2.2: {}
 
-  esrap@2.2.8:
+  esrap@2.2.9:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
@@ -2298,7 +2293,7 @@ snapshots:
       clsx: 2.1.1
       devalue: 5.8.1
       esm-env: 1.2.2
-      esrap: 2.2.8
+      esrap: 2.2.9
       is-reference: 3.0.3
       locate-character: 3.0.0
       magic-string: 0.30.21
@@ -2363,7 +2358,7 @@ snapshots:
       mrmime: 2.0.1
       regexparam: 3.0.0
 
-  wrangler@4.90.1(@cloudflare/workers-types@4.20260511.1):
+  wrangler@4.90.1(@cloudflare/workers-types@4.20260517.1):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260508.1)
@@ -2374,7 +2369,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20260508.1
     optionalDependencies:
-      '@cloudflare/workers-types': 4.20260511.1
+      '@cloudflare/workers-types': 4.20260517.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil
