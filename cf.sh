@@ -1,5 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 # Just a quick script so I can remember to build / upload to cloudflare pages
+
+set -euxo pipefail
 
 pnpm run build
 
