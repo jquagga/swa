@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "swa",
-  "compatibility_date": "2026-03-17",
+  "compatibility_date": "2026-05-26",
   "compatibility_flags": ["nodejs_als"],
   "main": ".svelte-kit/cloudflare/_worker.js",
   "assets": {
@@ -11,6 +11,12 @@
   "workers_dev": true,
   "preview_urls": true,
   "observability": {
-    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": false,
+    },
   },
 }
