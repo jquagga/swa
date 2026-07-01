@@ -21,6 +21,7 @@
   interface WeatherAlert {
     features: Array<{
       properties: {
+        id: string;
         severity: string;
         event: string;
         description: string;
@@ -763,7 +764,7 @@
             <p>{alert.properties.instruction}</p>
           </details>
         {/snippet}
-        {#each alerts.features as alert (alert.properties.event + "-" + (alert.properties.effective || ""))}
+        {#each alerts.features as alert (alert.properties.id + "-" + (alert.properties.effective || ""))}
           {@render alertItem(alert)}
         {/each}
       {/if}
