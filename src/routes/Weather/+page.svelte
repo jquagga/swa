@@ -312,7 +312,7 @@
             0.4275 * tempF * Math.pow(mag, 0.16);
     }
 
-    if (tempF < 80.0 || humidity < 40.0) {
+    if (tempF < 80.0) {
       return tempF;
     }
 
