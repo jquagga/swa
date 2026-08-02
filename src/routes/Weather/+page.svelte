@@ -76,7 +76,7 @@
 
   const MAX_RETRIES = 3;
   const GRAPH_HOURS = 25;
-  const USER_AGENT = "https://codeberg.org/jquagga/swa";
+  const USER_AGENT = "https://github.com/jquagga/swa";
 
   const DATASET_CONFIG = {
     TEMPERATURE: {

@@ -117,7 +117,7 @@
   <div>
     <h1 style="text-align: center">Simple Weather</h1>
     <p>
-      <a href="https://codeberg.org/jquagga/swa">Simple Weather App</a> queries the
+      <a href="https://github.com/jquagga/swa">Simple Weather App</a> queries the
       US National Weather Service to provide a responsive weather forecast. Pressing
       the button below will ask for location permission, and provide your forecast
       if you're in the United States.
