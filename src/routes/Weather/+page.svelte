@@ -2,7 +2,11 @@
   import { page } from "$app/state";
   import { DateTime } from "luxon";
   import type { Chart } from "chart.js/auto";
+  import { Map, setWorkerUrl } from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
+  import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+
+  setWorkerUrl(workerUrl);
 
   interface WeatherPoint {
     properties?: {
