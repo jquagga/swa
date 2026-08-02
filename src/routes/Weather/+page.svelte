@@ -21,6 +21,7 @@
   interface WeatherAlert {
     features: Array<{
       properties: {
+        id: string;
         severity: string;
         event: string;
         description: string;
@@ -75,7 +76,7 @@
 
   const MAX_RETRIES = 3;
   const GRAPH_HOURS = 25;
-  const USER_AGENT = "https://github.com/jquagga/swa";
+  const USER_AGENT = "https://codeberg.org/jquagga/swa";
 
   const DATASET_CONFIG = {
     TEMPERATURE: {
@@ -311,7 +312,7 @@
             0.4275 * tempF * Math.pow(mag, 0.16);
     }
 
-    if (tempF < 80.0 || humidity < 40.0) {
+    if (tempF < 80.0) {
       return tempF;
     }
 
@@ -763,7 +764,7 @@
             <p>{alert.properties.instruction}</p>
           </details>
         {/snippet}
-        {#each alerts.features as alert (alert.properties.event + "-" + (alert.properties.effective || ""))}
+        {#each alerts.features as alert (alert.properties.id + "-" + (alert.properties.effective || ""))}
           {@render alertItem(alert)}
         {/each}
       {/if}

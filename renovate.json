@@ -1,3 +1,27 @@
 {
-  "extends": ["github>jquagga/renovate-config", ":pinAllExceptPeerDependencies"]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    "config:semverAllWeekly",
+    "config:js-app",
+    ":automergeStableNonMajor",
+    ":automergeMinor",
+    ":automergeDigest",
+    ":enableVulnerabilityAlerts",
+    "security:openssf-scorecard",
+    ":rebaseStalePrs",
+    ":assignee(jquagga)",
+    ":timezone(America/New_York)",
+    ":npm"
+  ],
+  "labels": ["dependencies"],
+  "rebaseWhen": "conflicted",
+  "suppressNotifications": ["prIgnoreNotification"],
+  "osvVulnerabilityAlerts": true,
+  "pruneStaleBranches": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "vulnerabilityAlerts": {
+    "labels": ["security", "dependencies"],
+    "schedule": ["at any time"]
+  }
 }
