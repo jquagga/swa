@@ -26,7 +26,7 @@ importers:
         version: 2.1.1
       '@sveltejs/adapter-cloudflare':
         specifier: 7.2.9
-        version: 7.2.9(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(wrangler@4.117.0)
+        version: 7.2.9(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(wrangler@4.118.0)
       '@sveltejs/kit':
         specifier: 2.70.2
         version: 2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0))
@@ -58,8 +58,8 @@ importers:
         specifier: 8.2.0
         version: 8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)
       wrangler:
-        specifier: 4.117.0
-        version: 4.117.0
+        specifier: 4.118.0
+        version: 4.118.0
 
 packages:
 
@@ -1454,8 +1454,8 @@ packages:
     resolution: {integrity: sha512-+TvsA6VAVoMC3XDKR5MoC/qlLqDixEfOBysDEKnPIPou/NvoPWCAuXHXMsswwlvmEuvX56lQjvELLyLuzTKvRw==}
     engines: {node: '>=12'}
 
-  wrangler@4.117.0:
-    resolution: {integrity: sha512-pN1Jh9coa5HqtIH2V6sih9KznEtV6G/HeWup0qMRBSLKmT5OGjd8+fUI7TdnHlb3Udv/Z7RgoWyAZaWqBofvTQ==}
+  wrangler@4.118.0:
+    resolution: {integrity: sha512-9pkBw/b8zWqGx2S+oLhgHMR1M/4VOE8SynUFABnGWiSFGlcOQ4xiI/B71Xf66RYP2xzngU37IQFPtUruij3lYw==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -1929,12 +1929,12 @@ snapshots:
     dependencies:
       acorn: 8.18.0
 
-  '@sveltejs/adapter-cloudflare@7.2.9(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(wrangler@4.117.0)':
+  '@sveltejs/adapter-cloudflare@7.2.9(@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(wrangler@4.118.0)':
     dependencies:
       '@cloudflare/workers-types': 4.20260702.1
       '@sveltejs/kit': 2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0))
       worktop: 0.8.0-next.18
-      wrangler: 4.117.0
+      wrangler: 4.118.0
 
   '@sveltejs/kit@2.70.2(@sveltejs/vite-plugin-svelte@7.2.0(svelte@5.56.8)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0)))(svelte@5.56.8)(typescript@7.0.2)(vite@8.2.0(@types/node@25.9.5)(esbuild@0.28.1)(sass-embedded@1.100.0)(sass@1.100.0))':
     dependencies:
@@ -2585,7 +2585,7 @@ snapshots:
       mrmime: 2.0.1
       regexparam: 3.0.0
 
-  wrangler@4.117.0:
+  wrangler@4.118.0:
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260730.1)
