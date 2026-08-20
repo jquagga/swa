@@ -630,10 +630,25 @@
               tileSize: 256,
             });
 
+            mapInstance.addSource("nws_watch_warn", {
+              type: "raster",
+              tiles: [
+                "https://mapservices.weather.noaa.gov/eventdriven/services/WWA/watch_warn_adv/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+              ],
+              tileSize: 256,
+            });
+
             mapInstance.addLayer({
               id: "nws_radar",
               type: "raster",
               source: "nws_radar",
+              paint: {},
+            });
+
+            mapInstance.addLayer({
+              id: "nws_watch_warn",
+              type: "raster",
+              source: "nws_watch_warn",
               paint: {},
             });
           });
