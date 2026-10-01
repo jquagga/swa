@@ -5,3 +5,6 @@ allowBuilds:
   workerd: true
 minimumReleaseAgeExclude:
   - svelte@5.56.0
+  - miniflare@5.20260930.0-alpha
+  - vite@8.3.2
+  - wrangler@4.145.0
