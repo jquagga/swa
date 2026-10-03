@@ -1,5 +1,7 @@
 /// <reference types="@sveltejs/kit" />
-import { build, files, version } from "$service-worker";
+import { version } from "$app/env";
+import { assets, immutable } from "$app/manifest";
+import { resolve } from "$app/paths";
 
 const self = /** @type {ServiceWorkerGlobalScope} */ (
   /** @type {unknown} */ (globalThis.self)
@@ -7,7 +9,13 @@ const self = /** @type {ServiceWorkerGlobalScope} */ (
 
 const CACHE = `cache-${version}`;
 
-const ASSETS = [...build, ...files];
+// `immutable` (Vite output, formerly `build`) and `assets` (static dir,
+// formerly `files`) paths are relative to the base path, so resolve them to
+// absolute pathnames that can be matched against `url.pathname`.
+const ASSETS = [
+  ...immutable.map((entry) => resolve(entry.path)),
+  ...assets.map((entry) => resolve(entry.path)),
+];
 
 // Cached app shell used as the offline fallback for navigations.
 // The home page is prerendered, so it works without network.
@@ -51,7 +59,7 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
     const cache = await caches.open(CACHE);
 
-    // `build`/`files` can always be served from the cache
+    // `immutable`/`assets` can always be served from the cache
     if (ASSETS.includes(url.pathname)) {
       const response = await cache.match(url.pathname);
 
