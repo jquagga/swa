@@ -110,7 +110,7 @@ self.addEventListener("fetch", (event) => {
         !url.search &&
         !url.pathname.startsWith("/geocode")
       ) {
-        await cache.put(event.request, response.clone());
+        cache.put(event.request, response.clone()).catch(() => {});
       }
 
       return response;

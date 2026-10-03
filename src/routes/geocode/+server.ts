@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ url }) => {
     return new Response(JSON.stringify(data), {
       headers: {
         "content-type": "application/json",
-        "cache-control": "public, max-age=86400",
+        "cache-control": "no-store",
       },
     });
   } catch (error) {
