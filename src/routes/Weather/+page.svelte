@@ -2,11 +2,7 @@
   import { page } from "$app/state";
   import { DateTime } from "luxon";
   import type { Chart } from "chart.js/auto";
-  import { Map, setWorkerUrl } from "maplibre-gl";
-  import "maplibre-gl/dist/maplibre-gl.css";
   import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-
-  setWorkerUrl(workerUrl);
 
   interface WeatherPoint {
     properties?: {
@@ -65,6 +61,11 @@
     tempValues: number[];
     apparentTempValues: number[];
     popValues: number[];
+  };
+
+  // ChartDataset plus the custom `unit` field used for tooltip labels.
+  type UnitLineDataset = import("chart.js").ChartDataset<"line", number[]> & {
+    unit?: string;
   };
 
   let point = $state.raw<WeatherPoint>({});
@@ -132,7 +133,9 @@
 
   async function getMapLibreModule(): Promise<typeof import("maplibre-gl")> {
     if (!maplibreglModule) {
+      await import("maplibre-gl/dist/maplibre-gl.css");
       const module = await import("maplibre-gl");
+      module.setWorkerUrl(workerUrl);
       maplibreglModule = module;
     }
 
@@ -145,7 +148,7 @@
   }
 
   function formatTooltipTitle(
-    context: import("chart.js").TooltipItem<any>[],
+    context: import("chart.js").TooltipItem<"line">[],
   ): string {
     try {
       if (!context || context.length === 0) {
@@ -153,10 +156,12 @@
       }
 
       const xValue = context[0].parsed.x;
-      const date = DateTime.fromMillis(xValue);
+      if (typeof xValue === "number") {
+        const date = DateTime.fromMillis(xValue);
 
-      if (date.isValid) {
-        return date.toFormat("EEE, MMM d, h:mm a");
+        if (date.isValid) {
+          return date.toFormat("EEE, MMM d, h:mm a");
+        }
       }
 
       if (context[0].label) {
@@ -176,7 +181,7 @@
   }
 
   function formatTooltipLabel(
-    context: import("chart.js").TooltipItem<any>,
+    context: import("chart.js").TooltipItem<"line">,
   ): string {
     try {
       let label = context.dataset.label || "";
@@ -184,7 +189,7 @@
         label += ": ";
       }
 
-      const unit = context.dataset.unit || "";
+      const unit = (context.dataset as { unit?: string }).unit || "";
       label += context.parsed.y + unit;
       return label;
     } catch (e) {
@@ -215,7 +220,7 @@
     clear: "🌕",
   };
 
-  async function fetchData(url: string): Promise<any> {
+  async function fetchData<T>(url: string): Promise<T> {
     const headers = {
       accept: "application/geo+json",
       "user-agent": USER_AGENT,
@@ -240,7 +245,7 @@
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as T;
 
         return data;
       } catch (error) {
@@ -390,7 +395,9 @@
     hourlyForecastProcessed && hourlyChartData.labels.length > 0,
   );
 
-  function buildChartConfig(chartData: ChartData) {
+  function buildChartConfig(
+    chartData: ChartData,
+  ): import("chart.js").ChartConfiguration<"line", number[], string> {
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
@@ -456,7 +463,7 @@
             borderWidth: 2,
             unit: DATASET_CONFIG.PRECIPITATION.unit,
           },
-        ],
+        ] as UnitLineDataset[],
       },
       options: {
         responsive: true,
@@ -580,10 +587,11 @@
     if (!point.properties) return null;
     const latStr = page.url.searchParams.get("lat");
     const lonStr = page.url.searchParams.get("lon");
-    if (!latStr || !lonStr) return null;
-    const lat = parseFloat(latStr);
-    const lon = parseFloat(lonStr);
-    if (isNaN(lat) || isNaN(lon)) return null;
+    if (!latStr?.trim() || !lonStr?.trim()) return null;
+    const lat = Number(latStr);
+    const lon = Number(lonStr);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
     return { lat, lon };
   });
 
@@ -671,7 +679,7 @@
     longitude: number,
   ): Promise<void> {
     try {
-      point = await fetchData(
+      point = await fetchData<WeatherPoint>(
         `https://api.weather.gov/points/${latitude},${longitude}`,
       );
 
@@ -680,8 +688,8 @@
       }
 
       const [hourlyForecastData, weeklyForecastData] = await Promise.all([
-        fetchData(point.properties.forecastHourly || ""),
-        fetchData(point.properties.forecast || ""),
+        fetchData<ForecastData>(point.properties.forecastHourly || ""),
+        fetchData<ForecastData>(point.properties.forecast || ""),
       ]);
 
       forecastHourly = hourlyForecastData;
@@ -707,7 +715,7 @@
     longitude: number,
   ): Promise<void> {
     try {
-      const alertsData = await fetchData(
+      const alertsData = await fetchData<WeatherAlert>(
         `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
       );
       alerts = alertsData;
@@ -721,14 +729,21 @@
     const lat = page.url.searchParams.get("lat");
     const lon = page.url.searchParams.get("lon");
 
-    if (!lat || !lon) {
+    if (!lat?.trim() || !lon?.trim()) {
       geolocationError = "No location provided. Please go back and try again.";
       isLoading = false;
     } else {
-      const latitude = parseFloat(lat);
-      const longitude = parseFloat(lon);
+      const latitude = Number(lat);
+      const longitude = Number(lon);
 
-      if (isNaN(latitude) || isNaN(longitude)) {
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180
+      ) {
         geolocationError =
           "Invalid location coordinates. Please go back and try again.";
         isLoading = false;
@@ -831,7 +846,7 @@
 
     {#if NWSURL}
       <div style="text-align: center;">
-        <a href={NWSURL}><button>Weather.gov forecast</button></a>
+        <a href={NWSURL} role="button">Weather.gov forecast</a>
       </div>
     {/if}
     <br />

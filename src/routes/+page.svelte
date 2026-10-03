@@ -29,7 +29,7 @@
     const options = {
       enableHighAccuracy: true,
       timeout: 15_000,
-      maximumAge: 3600,
+      maximumAge: 3_600_000,
     };
 
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -58,7 +58,8 @@
     );
   }
 
-  async function handleAddressSearch() {
+  async function handleAddressSearch(event?: SubmitEvent) {
+    event?.preventDefault();
     searchError = null;
 
     if (!address.trim()) {
@@ -81,7 +82,13 @@
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data: any = await response.json();
+      const data: {
+        result?: {
+          addressMatches?: Array<{
+            coordinates?: { x?: number; y?: number };
+          }>;
+        };
+      } = await response.json();
 
       if (
         data.result &&
@@ -124,7 +131,7 @@
     </p>
     <div style="text-align: center;">
       {#if geolocationError}
-        <p style="color: red;">{geolocationError}</p>
+        <p style="color: red;" role="alert">{geolocationError}</p>
       {/if}
       <button
         onclick={handleGeolocate}
@@ -143,29 +150,27 @@
       Searching for Washington, DC will not work but searching for 1600 Pennsylvania
       Ave SE, Washington, DC will.
     </p>
-    <label for="address-input">Street Address:</label>
-    <input
-      id="address-input"
-      type="search"
-      name="address"
-      placeholder="Enter Full Street Address:"
-      aria-label="Street Address"
-      class="container-fluid"
-      bind:value={address}
-    />
-    <br />
+    <form onsubmit={handleAddressSearch}>
+      <label for="address-input">Street Address:</label>
+      <input
+        id="address-input"
+        type="search"
+        name="address"
+        placeholder="Enter Full Street Address:"
+        aria-label="Street Address"
+        class="container-fluid"
+        bind:value={address}
+      />
+      <br />
 
-    <div style="text-align: center;">
-      {#if searchError}
-        <p style="color: red;">{searchError}</p>
-      {/if}
-      <button
-        onclick={handleAddressSearch}
-        disabled={isSearching}
-        class="outline"
-      >
-        {searchButtonText}
-      </button>
-    </div>
+      <div style="text-align: center;">
+        {#if searchError}
+          <p style="color: red;" role="alert">{searchError}</p>
+        {/if}
+        <button type="submit" disabled={isSearching}>
+          {searchButtonText}
+        </button>
+      </div>
+    </form>
   </div>
 </div>
