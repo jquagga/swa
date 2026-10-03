@@ -2,15 +2,16 @@ import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ url }) => {
   const address = url.searchParams.get("address");
+  const trimmed = address?.trim() ?? "";
 
-  if (!address || address.trim().length > 200) {
+  if (!trimmed || trimmed.length > 200) {
     return new Response(JSON.stringify({ error: "Valid address parameter required (max 200 characters)" }), {
       status: 400,
       headers: { "content-type": "application/json" },
     });
   }
 
-  const encodedAddress = encodeURIComponent(address.trim());
+  const encodedAddress = encodeURIComponent(trimmed);
   const geocoderUrl = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodedAddress}&benchmark=4&format=json`;
 
   try {
@@ -33,7 +34,10 @@ export const GET: RequestHandler = async ({ url }) => {
 
     const data = await response.json();
     return new Response(JSON.stringify(data), {
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "public, max-age=86400",
+      },
     });
   } catch (error) {
     if ((error as Error)?.name === "TimeoutError" || (error as Error)?.name === "AbortError") {

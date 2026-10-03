@@ -14,6 +14,7 @@ self.addEventListener("install", (event) => {
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
     await cache.addAll(ASSETS);
+    await self.skipWaiting();
   }
 
   event.waitUntil(addFilesToCache());
@@ -25,6 +26,7 @@ self.addEventListener("activate", (event) => {
     for (const key of await caches.keys()) {
       if (key !== CACHE) await caches.delete(key);
     }
+    await self.clients.claim();
   }
 
   event.waitUntil(deleteOldCaches());
@@ -48,7 +50,9 @@ self.addEventListener("fetch", (event) => {
     }
 
     // for everything else, try the network first, but
-    // fall back to the cache if we're offline
+    // fall back to the cache if we're offline.
+    // Only cache same-origin GETs: third-party API/tile responses are
+    // left to the network so forecasts and radar never go stale.
     try {
       const response = await fetch(event.request);
 
@@ -58,7 +62,10 @@ self.addEventListener("fetch", (event) => {
         throw new Error("invalid response from fetch");
       }
 
-      if (response.status === 200) {
+      if (
+        response.status === 200 &&
+        url.origin === self.location.origin
+      ) {
         cache.put(event.request, response.clone());
       }
 

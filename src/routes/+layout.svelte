@@ -1,5 +1,6 @@
 <script lang="ts">
   import "$lib/main.scss";
+  let { children } = $props();
 </script>
 
-<slot />
+{@render children()}

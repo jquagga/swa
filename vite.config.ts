@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [sveltekit()],
 
   // Configure Vite for better chunk splitting of large libraries
+  // Note: SvelteKit + Vite 8 (Rolldown) ignores manualChunks here and
+  // code-splits via the dynamic import()s in Weather/+page.svelte instead.
+  // Large deps (maplibre-gl, chart.js, luxon) are lazy-loaded on demand.
   build: {
     rollupOptions: {
       output: {
