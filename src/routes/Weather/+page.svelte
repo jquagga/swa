@@ -587,10 +587,10 @@
     if (!point.properties) return null;
     const latStr = page.url.searchParams.get("lat");
     const lonStr = page.url.searchParams.get("lon");
-    if (!latStr || !lonStr) return null;
-    const lat = parseFloat(latStr);
-    const lon = parseFloat(lonStr);
-    if (isNaN(lat) || isNaN(lon)) return null;
+    if (!latStr?.trim() || !lonStr?.trim()) return null;
+    const lat = Number(latStr);
+    const lon = Number(lonStr);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
     return { lat, lon };
   });
@@ -729,16 +729,16 @@
     const lat = page.url.searchParams.get("lat");
     const lon = page.url.searchParams.get("lon");
 
-    if (!lat || !lon) {
+    if (!lat?.trim() || !lon?.trim()) {
       geolocationError = "No location provided. Please go back and try again.";
       isLoading = false;
     } else {
-      const latitude = parseFloat(lat);
-      const longitude = parseFloat(lon);
+      const latitude = Number(lat);
+      const longitude = Number(lon);
 
       if (
-        isNaN(latitude) ||
-        isNaN(longitude) ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
         latitude < -90 ||
         latitude > 90 ||
         longitude < -180 ||
