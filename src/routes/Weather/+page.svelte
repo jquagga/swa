@@ -63,6 +63,11 @@
     popValues: number[];
   };
 
+  // ChartDataset plus the custom `unit` field used for tooltip labels.
+  type UnitLineDataset = import("chart.js").ChartDataset<"line", number[]> & {
+    unit?: string;
+  };
+
   let point = $state.raw<WeatherPoint>({});
   let alerts = $state<WeatherAlert>({ features: [] });
   let forecast = $state<ForecastData>({});
@@ -151,10 +156,12 @@
       }
 
       const xValue = context[0].parsed.x;
-      const date = DateTime.fromMillis(xValue);
+      if (typeof xValue === "number") {
+        const date = DateTime.fromMillis(xValue);
 
-      if (date.isValid) {
-        return date.toFormat("EEE, MMM d, h:mm a");
+        if (date.isValid) {
+          return date.toFormat("EEE, MMM d, h:mm a");
+        }
       }
 
       if (context[0].label) {
@@ -388,7 +395,9 @@
     hourlyForecastProcessed && hourlyChartData.labels.length > 0,
   );
 
-  function buildChartConfig(chartData: ChartData) {
+  function buildChartConfig(
+    chartData: ChartData,
+  ): import("chart.js").ChartConfiguration<"line", number[], string> {
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
@@ -454,7 +463,7 @@
             borderWidth: 2,
             unit: DATASET_CONFIG.PRECIPITATION.unit,
           },
-        ],
+        ] as UnitLineDataset[],
       },
       options: {
         responsive: true,

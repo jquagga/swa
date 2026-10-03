@@ -1,5 +1,7 @@
-# Cloudflare Pages Headers
-# https://developers.cloudflare.com/pages/configuration/headers/
+# Custom headers for Cloudflare Workers static assets.
+# Kept at project root: @sveltejs/adapter-cloudflare picks it up
+# and includes it in the Workers build output.
+# https://developers.cloudflare.com/workers/static-assets/headers/
 
 # Security headers for all routes
 /*
@@ -9,45 +11,18 @@
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
   X-XSS-Protection: 1; mode=block
 
-# Cache static assets with long cache times
-/*.js
+# Hashed SvelteKit build output - safe to cache long-term
+/_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable
 
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.png
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.jpg
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.jpeg
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.svg
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.ico
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.webmanifest
-  Cache-Control: public, max-age=31536000, immutable
-
-# HTML files should be revalidated more frequently
+# HTML app shell should always be revalidated
 /*.html
   Cache-Control: public, max-age=0, must-revalidate
 
-# Service worker needs special handling
+# Web manifest changes must propagate quickly for installability
+/site.webmanifest
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# Service worker must never be cached - otherwise updates get stuck
 /service-worker.js
   Cache-Control: public, max-age=0, must-revalidate
-
-# Font files
-/*.woff2
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.woff
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.ttf
-  Cache-Control: public, max-age=31536000, immutable

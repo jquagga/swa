@@ -9,11 +9,22 @@ const CACHE = `cache-${version}`;
 
 const ASSETS = [...build, ...files];
 
+// Cached app shell used as the offline fallback for navigations.
+// The home page is prerendered, so it works without network.
+const OFFLINE_FALLBACK = "/";
+
 self.addEventListener("install", (event) => {
   // Create a new cache and add all files to it
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
     await cache.addAll(ASSETS);
+    // Cache the app shell separately: a failure here (e.g. offline
+    // first install) must not fail the whole install.
+    try {
+      await cache.add(OFFLINE_FALLBACK);
+    } catch {
+      // ignore - navigation fallback will just miss
+    }
     await self.skipWaiting();
   }
 
@@ -49,10 +60,41 @@ self.addEventListener("fetch", (event) => {
       }
     }
 
+    // Navigations (e.g. /Weather?lat=&lon=) are network-first, but fall
+    // back to the cached app shell when offline so the installed app
+    // still opens instead of showing a browser error page.
+    // Navigations are never cached: query strings would grow the cache
+    // without bound and forecasts must never go stale.
+    if (event.request.mode === "navigate") {
+      try {
+        const response = await fetch(event.request);
+
+        // if we're offline, fetch can return a value that is not a Response
+        // instead of throwing - and we can't pass this non-Response to respondWith
+        if (!(response instanceof Response)) {
+          throw new Error("invalid response from fetch");
+        }
+
+        return response;
+      } catch (err) {
+        const cached =
+          (await cache.match(event.request)) ??
+          (await cache.match(OFFLINE_FALLBACK));
+
+        if (cached) {
+          return cached;
+        }
+
+        throw err;
+      }
+    }
+
     // for everything else, try the network first, but
     // fall back to the cache if we're offline.
-    // Only cache same-origin GETs: third-party API/tile responses are
-    // left to the network so forecasts and radar never go stale.
+    // Only cache versioned same-origin GETs without query strings:
+    // third-party API/tile responses are left to the network so forecasts
+    // and radar never go stale, and /geocode responses are never cached
+    // so address lookups always stay fresh.
     try {
       const response = await fetch(event.request);
 
@@ -64,9 +106,11 @@ self.addEventListener("fetch", (event) => {
 
       if (
         response.status === 200 &&
-        url.origin === self.location.origin
+        url.origin === self.location.origin &&
+        !url.search &&
+        !url.pathname.startsWith("/geocode")
       ) {
-        cache.put(event.request, response.clone());
+        await cache.put(event.request, response.clone());
       }
 
       return response;

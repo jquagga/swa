@@ -3,7 +3,13 @@
   "compilerOptions": {
     "rewriteRelativeImportExtensions": true,
     "allowJs": true,
-    "checkJs": true,
+    // NOTE: checkJs must stay false. src/worker-configuration.d.ts (generated
+    // by `pnpm cf-typegen`) contains `typeof import("../.svelte-kit/cloudflare/_worker")`,
+    // which pulls the entire compiled build output into the program. With
+    // checkJs enabled, svelte-check typechecks that generated JS and fails
+    // with hundreds of errors whenever a build exists in .svelte-kit/.
+    // (exclude cannot prevent this: explicitly imported files bypass it.)
+    "checkJs": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -11,6 +17,23 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "bundler",
-    "types": ["src/worker-configuration.d.ts"],
   },
+  // NOTE: `exclude` here replaces the extended config's `exclude`, so the
+  // service-worker exclusions from .svelte-kit/tsconfig.json are repeated.
+  // Build output must be excluded: with allowJs/checkJs, svelte-check would
+  // otherwise typecheck compiled JS under .svelte-kit/output and fail.
+  "exclude": [
+    "node_modules/**",
+    ".svelte-kit/output/**",
+    ".svelte-kit/cloudflare/**",
+    ".svelte-kit/cloudflare-tmp/**",
+    ".wrangler/**",
+    "build/**",
+    "src/service-worker.js",
+    "src/service-worker/**/*.js",
+    "src/service-worker.ts",
+    "src/service-worker/**/*.ts",
+    "src/service-worker.d.ts",
+    "src/service-worker/**/*.d.ts"
+  ]
 }

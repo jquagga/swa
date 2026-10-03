@@ -1,3 +1,10 @@
 {
-  "extends": ["github>jquagga/renovate-config", "config:js-app"]
+  "extends": ["github>jquagga/renovate-config", "config:js-app"],
+  "packageRules": [
+    {
+      "description": "svelte-check 4.x rejects TypeScript 7; stay on 6.x until the tsgo migration is planned",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    }
+  ]
 }
