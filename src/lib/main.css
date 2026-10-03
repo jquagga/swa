@@ -1,0 +1,30 @@
+@import "@anyblades/pico";
+
+/*
+ * Fallbacks for the Sass-only `colors/utilities` module from `@picocss/pico`.
+ * The CSS-only `@anyblades/pico` build does not ship
+ * `pico-background-<family>-<shade>` / `pico-color-<family>-<shade>` classes,
+ * so define the four shades used in `Weather/+page.svelte` with the exact
+ * Pico v2 palette values.
+ */
+.pico-background-yellow-100,
+.pico-background-yellow-100:is(:hover, :active, :focus) {
+  background-color: #f2df0d;
+  --pico-color: #000;
+  color: #000;
+}
+
+.pico-background-red-500,
+.pico-background-red-500:is(:hover, :active, :focus) {
+  background-color: #d93526;
+  --pico-color: #000;
+  color: #000;
+}
+
+.pico-color-red-500 {
+  color: #d93526;
+}
+
+.pico-color-azure-500 {
+  color: #017fc0;
+}
