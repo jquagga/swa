@@ -14,10 +14,10 @@
     };
     if (!doc.startViewTransition) return;
     return new Promise<void>((resolve) => {
-      doc.startViewTransition(() => {
+      doc.startViewTransition(async () => {
         resolve();
+        await navigation.complete;
       });
-      navigation.complete.catch(() => {});
     });
   });
 

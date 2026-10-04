@@ -19,24 +19,30 @@
   // Simple unique IDs for accessibility (not using $props.id() as this is a page component)
 
   $effect(() => {
+    let disposed = false;
+    let geoStatus: PermissionStatus | null = null;
+
     function checkInstallable() {
       canInstall = !!(window as any).__pwaPrompt;
     }
     function onInstallable() {
       checkInstallable();
     }
-    checkInstallable();
-    window.addEventListener("pwa:installable", onInstallable);
-    window.addEventListener("appinstalled", () => {
+    function onInstalled() {
       canInstall = false;
       (window as any).__pwaPrompt = null;
-    });
+    }
+    checkInstallable();
+    window.addEventListener("pwa:installable", onInstallable);
+    window.addEventListener("appinstalled", onInstalled);
 
     // Probe the Permissions API so we can hint when geolocation is blocked.
     if (typeof navigator !== "undefined" && navigator.permissions?.query) {
       navigator.permissions
         .query({ name: "geolocation" as PermissionName })
         .then((status) => {
+          if (disposed) return;
+          geoStatus = status;
           geoPermission = status.state;
           status.onchange = () => {
             geoPermission = status.state;
@@ -44,7 +50,12 @@
         })
         .catch(() => {});
     }
-    return () => window.removeEventListener("pwa:installable", onInstallable);
+    return () => {
+      disposed = true;
+      if (geoStatus) geoStatus.onchange = null;
+      window.removeEventListener("pwa:installable", onInstallable);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   });
 
   async function handleInstall() {
