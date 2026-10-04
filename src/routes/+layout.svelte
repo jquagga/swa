@@ -25,17 +25,9 @@
     function onSwMessage(event: MessageEvent) {
       if (event.data?.type === "SW_UPDATED") swUpdated = true;
     }
-    function onBeforeInstall(e: Event) {
-      // Stash for the home page install button.
-      e.preventDefault();
-      (window as any).__pwaPrompt = e;
-      window.dispatchEvent(new CustomEvent("pwa:installable"));
-    }
     navigator.serviceWorker?.addEventListener("message", onSwMessage);
-    window.addEventListener("beforeinstallprompt", onBeforeInstall);
     return () => {
       navigator.serviceWorker?.removeEventListener("message", onSwMessage);
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
     };
   });
 

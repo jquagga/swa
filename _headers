@@ -10,7 +10,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=()
   X-XSS-Protection: 1; mode=block
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https://tiles.openfreemap.org https://mapservices.weather.noaa.gov; connect-src 'self' https://api.weather.gov https://tiles.openfreemap.org https://mapservices.weather.noaa.gov https://geocoding.geo.census.gov; style-src 'self' 'unsafe-inline' https://tiles.openfreemap.org; font-src 'self' data:; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; manifest-src 'self'
+  # NOTE: no Content-Security-Policy here — SvelteKit generates it (with
+  # per-build hashes for its inline bootstrap script) via `csp` in
+  # vite.config.ts. A second policy would intersect and re-block the page.
 
 # Hashed SvelteKit build output - safe to cache long-term
 /_app/immutable/*
