@@ -1,8 +1,28 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { DateTime } from "luxon";
-  import type { Chart } from "chart.js/auto";
+  import {
+    Chart,
+    LineController,
+    LineElement,
+    PointElement,
+    LinearScale,
+    CategoryScale,
+    Tooltip,
+    Legend,
+    Filler,
+  } from "chart.js";
   import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+
+  Chart.register(
+    LineController,
+    LineElement,
+    PointElement,
+    LinearScale,
+    CategoryScale,
+    Tooltip,
+    Legend,
+    Filler,
+  );
 
   interface WeatherPoint {
     properties?: {
@@ -58,14 +78,16 @@
 
   type ChartData = {
     labels: string[];
+    isos: string[];
     tempValues: number[];
     apparentTempValues: number[];
     popValues: number[];
   };
 
-  // ChartDataset plus the custom `unit` field used for tooltip labels.
+  // ChartDataset plus the custom `unit`/`isos` fields used for tooltips.
   type UnitLineDataset = import("chart.js").ChartDataset<"line", number[]> & {
     unit?: string;
+    isos?: string[];
   };
 
   let point = $state.raw<WeatherPoint>({});
@@ -75,13 +97,15 @@
   let NWSURL = $state("");
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
+  let isOffline = $state(false);
+  let offlineSavedAt = $state<string | null>(null);
   let hourlyForecastProcessed = $state(false);
-  let chartModule: typeof Chart | null = null;
   let maplibreglModule: typeof import("maplibre-gl") | null = null;
 
   const MAX_RETRIES = 3;
   const GRAPH_HOURS = 25;
   const USER_AGENT = "https://github.com/jquagga/swa";
+  const CACHE_TTL_MS = 60 * 60 * 1000;
 
   const DATASET_CONFIG = {
     TEMPERATURE: {
@@ -98,6 +122,28 @@
     },
   } as const;
 
+  const tooltipTitleFmt = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const hourLabelFmt = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    weekday: "short",
+  });
+
+  function formatIso(iso: string): string {
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return iso;
+    try {
+      return tooltipTitleFmt.format(new Date(ms));
+    } catch {
+      return iso;
+    }
+  }
+
   let locationDisplay = $derived.by(() => {
     if (geolocationError) {
       return geolocationError;
@@ -113,23 +159,6 @@
   });
 
   let showLoading = $derived(isLoading && !point.properties);
-
-  async function getChartConstructor(): Promise<typeof Chart> {
-    if (!chartModule) {
-      const [chartJsModule] = await Promise.all([
-        import("chart.js/auto"),
-        import("chartjs-adapter-luxon"),
-      ]);
-      chartModule = chartJsModule.default as typeof Chart;
-    }
-
-    const ChartCtor = chartModule;
-    if (!ChartCtor) {
-      throw new Error("Chart module failed to load");
-    }
-
-    return ChartCtor;
-  }
 
   async function getMapLibreModule(): Promise<typeof import("maplibre-gl")> {
     if (!maplibreglModule) {
@@ -154,29 +183,15 @@
       if (!context || context.length === 0) {
         return "No data available";
       }
-
-      const xValue = context[0].parsed.x;
-      if (typeof xValue === "number") {
-        const date = DateTime.fromMillis(xValue);
-
-        if (date.isValid) {
-          return date.toFormat("EEE, MMM d, h:mm a");
-        }
-      }
-
-      if (context[0].label) {
-        const fallbackDate = DateTime.fromISO(context[0].label);
-        if (fallbackDate.isValid) {
-          return fallbackDate.toFormat("EEE, MMM d, h:mm a");
-        }
-        return new Date(context[0].label).toLocaleString();
-      }
-
+      const idx = context[0].dataIndex;
+      const iso = (context[0].dataset as unknown as { isos?: string[] }).isos?.[
+        idx
+      ];
+      if (iso) return formatIso(iso);
+      if (context[0].label) return formatIso(context[0].label);
       return "Invalid date";
-    } catch (e) {
-      return context && context[0] && context[0].label
-        ? context[0].label
-        : "Date error";
+    } catch {
+      return context?.[0]?.label ?? "Date error";
     }
   }
 
@@ -192,7 +207,7 @@
       const unit = (context.dataset as { unit?: string }).unit || "";
       label += context.parsed.y + unit;
       return label;
-    } catch (e) {
+    } catch {
       return "Data error";
     }
   }
@@ -265,6 +280,77 @@
     }
 
     throw lastError || new Error("Unknown error occurred during fetch");
+  }
+
+  function cacheKey(latitude: number, longitude: number): string {
+    return `swa:weather:${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+  }
+
+  function saveCached(latitude: number, longitude: number): void {
+    try {
+      localStorage.setItem(
+        cacheKey(latitude, longitude),
+        JSON.stringify({
+          point,
+          alerts,
+          forecast,
+          forecastHourly,
+          NWSURL,
+          savedAt: new Date().toISOString(),
+        }),
+      );
+    } catch {
+      // storage full / private mode — offline fallback just won't exist
+    }
+  }
+
+  function loadCached(
+    latitude: number,
+    longitude: number,
+  ): { savedAt: string } | null {
+    try {
+      const raw = localStorage.getItem(cacheKey(latitude, longitude));
+      if (!raw) return null;
+      const data = JSON.parse(raw) as {
+        point: WeatherPoint;
+        alerts: WeatherAlert;
+        forecast: ForecastData;
+        forecastHourly: ForecastData;
+        NWSURL: string;
+        savedAt: string;
+      };
+      if (!data?.savedAt || !data?.point?.properties) return null;
+      if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
+      point = data.point;
+      alerts = data.alerts ?? { features: [] };
+      forecast = data.forecast ?? {};
+      forecastHourly = data.forecastHourly ?? {};
+      NWSURL = data.NWSURL ?? "";
+      hourlyForecastProcessed = true;
+      isOffline = true;
+      offlineSavedAt = data.savedAt;
+      updateBadge();
+      return { savedAt: data.savedAt };
+    } catch {
+      return null;
+    }
+  }
+
+  function updateBadge(): void {
+    try {
+      const nav = navigator as Navigator & {
+        setAppBadge?: (n: number) => Promise<void>;
+        clearAppBadge?: () => Promise<void>;
+      };
+      const count = alerts.features?.length ?? 0;
+      if (count > 0) {
+        nav.setAppBadge?.(count);
+      } else {
+        nav.clearAppBadge?.();
+      }
+    } catch {
+      // Badging is best-effort
+    }
   }
 
   function processAlertSeverity(alerts: WeatherAlert): void {
@@ -345,10 +431,11 @@
     return heatindexF;
   }
 
-  let hourlyChartData = $derived.by(() => {
+  let hourlyChartData = $derived.by((): ChartData => {
     if (!forecastHourly.properties?.periods) {
       return {
         labels: [],
+        isos: [],
         tempValues: [],
         apparentTempValues: [],
         popValues: [],
@@ -356,6 +443,7 @@
     }
 
     const labels: string[] = [];
+    const isos: string[] = [];
     const tempValues: number[] = [];
     const apparentTempValues: number[] = [];
     const popValues: number[] = [];
@@ -373,22 +461,28 @@
     );
 
     let count = 0;
-    const now = DateTime.now();
+    const nowMs = Date.now();
 
     for (let i = 0; i < periodsWithAppTemp.length && count < GRAPH_HOURS; i++) {
-      if (now > DateTime.fromISO(periodsWithAppTemp[i].endTime)) {
+      if (nowMs > Date.parse(periodsWithAppTemp[i].endTime)) {
         continue;
       }
 
       const period = periodsWithAppTemp[i];
-      labels.push(period.startTime);
+      const ms = Date.parse(period.startTime);
+      labels.push(
+        Number.isFinite(ms)
+          ? hourLabelFmt.format(new Date(ms))
+          : period.startTime,
+      );
+      isos.push(period.startTime);
       tempValues.push(period.temperature);
       popValues.push(period.probabilityOfPrecipitation?.value || 0);
       apparentTempValues.push(Math.round(period.appTemp));
       count++;
     }
 
-    return { labels, tempValues, apparentTempValues, popValues };
+    return { labels, isos, tempValues, apparentTempValues, popValues };
   });
 
   let chartReady = $derived(
@@ -430,6 +524,7 @@
             pointBorderWidth: 1,
             borderWidth: 2,
             unit: DATASET_CONFIG.TEMPERATURE.unit,
+            isos: chartData.isos,
           },
           {
             label: "Feels Like",
@@ -445,6 +540,7 @@
             pointBorderWidth: 1,
             borderWidth: 2,
             unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
+            isos: chartData.isos,
           },
           {
             label: "Chance of Precipitation",
@@ -462,6 +558,7 @@
             pointBorderWidth: 1,
             borderWidth: 2,
             unit: DATASET_CONFIG.PRECIPITATION.unit,
+            isos: chartData.isos,
           },
         ] as UnitLineDataset[],
       },
@@ -477,13 +574,7 @@
         },
         scales: {
           x: {
-            type: "timeseries",
-            time: {
-              displayFormats: {
-                hour: "ha",
-                day: "EEE MMM d",
-              },
-            },
+            type: "category",
             grid: {
               display: true,
               color: "rgba(0, 0, 0, 0.05)",
@@ -552,33 +643,27 @@
 
   function chartAttachment() {
     return (canvas: HTMLCanvasElement) => {
-      let instance: Chart | null = null;
-      let destroyed = false;
+      let instance: Chart<"line", number[], string> | null = null;
 
-      getChartConstructor()
-        .then((ChartCtor) => {
-          if (destroyed) return;
-          instance = new ChartCtor(canvas, buildChartConfig(hourlyChartData));
-        })
-        .catch(console.error);
+      instance = new Chart(canvas, buildChartConfig(hourlyChartData));
 
       $effect(() => {
-        if (instance && !destroyed) {
+        if (instance) {
           const data = hourlyChartData;
           instance.data.labels = data.labels;
           instance.data.datasets[0].data = data.tempValues;
           instance.data.datasets[1].data = data.apparentTempValues;
           instance.data.datasets[2].data = data.popValues;
+          for (const ds of instance.data.datasets) {
+            (ds as unknown as { isos: string[] }).isos = data.isos;
+          }
           instance.update("none");
         }
       });
 
       return () => {
-        destroyed = true;
-        if (instance) {
-          instance.destroy();
-          instance = null;
-        }
+        instance?.destroy();
+        instance = null;
       };
     };
   }
@@ -599,6 +684,7 @@
     return (container: HTMLElement) => {
       let mapInstance: import("maplibre-gl").Map | null = null;
       let destroyed = false;
+      let observer: IntersectionObserver | null = null;
       const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
       function getStyle() {
@@ -613,10 +699,9 @@
         }
       }
 
-      mediaQuery.addEventListener("change", handleStyleChange);
-
-      getMapLibreModule()
-        .then((maplibregl) => {
+      async function initMap() {
+        try {
+          const maplibregl = await getMapLibreModule();
           if (destroyed) return;
 
           mapInstance = new maplibregl.Map({
@@ -660,11 +745,33 @@
               paint: {},
             });
           });
-        })
-        .catch(console.error);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      mediaQuery.addEventListener("change", handleStyleChange);
+
+      // Defer the ~800KB map stack until the user scrolls near it.
+      if ("IntersectionObserver" in window) {
+        observer = new IntersectionObserver(
+          (entries) => {
+            if (entries.some((e) => e.isIntersecting)) {
+              observer?.disconnect();
+              observer = null;
+              void initMap();
+            }
+          },
+          { rootMargin: "400px" },
+        );
+        observer.observe(container);
+      } else {
+        void initMap();
+      }
 
       return () => {
         destroyed = true;
+        observer?.disconnect();
         mediaQuery.removeEventListener("change", handleStyleChange);
         if (mapInstance) {
           mapInstance.remove();
@@ -696,12 +803,15 @@
       forecast = weeklyForecastData;
 
       hourlyForecastProcessed = true;
+      isOffline = false;
+      offlineSavedAt = null;
 
       processForecastEmojis(forecast);
 
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
 
-      fetchAlertsAsync(latitude, longitude);
+      await fetchAlertsAsync(latitude, longitude);
+      saveCached(latitude, longitude);
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error;
@@ -720,6 +830,7 @@
       );
       alerts = alertsData;
       processAlertSeverity(alerts);
+      updateBadge();
     } catch (error) {
       console.error("Error fetching alerts:", error);
     }
@@ -752,6 +863,13 @@
 
         processWeather(latitude, longitude).catch((error) => {
           console.error("Error processing weather data:", error);
+          // Offline-first: fall back to the last cached forecast for this tile.
+          const cached = loadCached(latitude, longitude);
+          if (cached) {
+            geolocationError = null;
+            isLoading = false;
+            return;
+          }
           if (error instanceof Error) {
             if (error.message.includes("HTTP error")) {
               geolocationError =
@@ -781,6 +899,13 @@
     <h1 style="text-align: center;">
       {locationDisplay}
     </h1>
+
+    {#if isOffline}
+      <p role="status" style="text-align: center;">
+        Offline — showing cached forecast{#if offlineSavedAt}
+          from {formatIso(offlineSavedAt)}{/if}.
+      </p>
+    {/if}
 
     <div id="alerts">
       {#if alerts.features?.length}

@@ -12,4 +12,11 @@ export default defineConfig({
       adapter: adapter()
     })
   ],
+  build: {
+    // SvelteKit already code-splits per route; maplibre-gl stays behind a
+    // dynamic import (IntersectionObserver-gated) so it never blocks first
+    // paint. manualChunks is intentionally unset: Vite 8 builds the service
+    // worker with codeSplitting disabled and rejects it there.
+    chunkSizeWarningLimit: 1100
+  }
 });

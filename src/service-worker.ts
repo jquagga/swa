@@ -1,28 +1,35 @@
-/// <reference types="@sveltejs/kit" />
 import { version } from "$app/env";
 import { assets, immutable } from "$app/manifest";
 import { resolve } from "$app/paths";
 
-const self = /** @type {ServiceWorkerGlobalScope} */ (
-  /** @type {unknown} */ (globalThis.self)
-);
+const self = globalThis.self as unknown as ServiceWorkerGlobalScope & {
+  __SWA_VERSION?: string;
+};
 
 const CACHE = `cache-${version}`;
 
-// `immutable` (Vite output, formerly `build`) and `assets` (static dir,
-// formerly `files`) paths are relative to the base path, so resolve them to
-// absolute pathnames that can be matched against `url.pathname`.
+// `immutable` (Vite output) and `assets` (static dir) paths are relative to
+// the base path, so resolve them to absolute pathnames that can be matched
+// against `url.pathname`.
 const ASSETS = [
   ...immutable.map((entry) => resolve(entry.path)),
   ...assets.map((entry) => resolve(entry.path)),
 ];
 
-// Cached app shell used as the offline fallback for navigations.
-// The home page is prerendered, so it works without network.
-const OFFLINE_FALLBACK = "/";
+// Prerendered offline fallback — must exist as a route (see /offline).
+const OFFLINE_FALLBACK = "/offline";
+
+async function broadcast(type: string): Promise<void> {
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  for (const client of clients) {
+    client.postMessage({ type });
+  }
+}
 
 self.addEventListener("install", (event) => {
-  // Create a new cache and add all files to it
   async function addFilesToCache() {
     const cache = await caches.open(CACHE);
     await cache.addAll(ASSETS);
@@ -40,15 +47,29 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  // Remove previous cached data from disk
   async function deleteOldCaches() {
+    // Enable navigation preload where supported for faster navigations.
+    try {
+      if ("navigationPreload" in self.registration) {
+        await self.registration.navigationPreload.enable();
+      }
+    } catch {
+      // ignore — progressive enhancement
+    }
     for (const key of await caches.keys()) {
       if (key !== CACHE) await caches.delete(key);
     }
     await self.clients.claim();
+    await broadcast("SW_UPDATED");
   }
 
   event.waitUntil(deleteOldCaches());
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -69,12 +90,15 @@ self.addEventListener("fetch", (event) => {
     }
 
     // Navigations (e.g. /Weather?lat=&lon=) are network-first, but fall
-    // back to the cached app shell when offline so the installed app
+    // back to the cached offline page when offline so the installed app
     // still opens instead of showing a browser error page.
     // Navigations are never cached: query strings would grow the cache
     // without bound and forecasts must never go stale.
     if (event.request.mode === "navigate") {
       try {
+        // Use the preloaded response when navigation preload is enabled.
+        const preloaded = await (event as FetchEvent).preloadResponse;
+        if (preloaded) return preloaded;
         const response = await fetch(event.request);
 
         // if we're offline, fetch can return a value that is not a Response
@@ -86,8 +110,8 @@ self.addEventListener("fetch", (event) => {
         return response;
       } catch (err) {
         const cached =
-          (await cache.match(event.request)) ??
-          (await cache.match(OFFLINE_FALLBACK));
+          (await cache.match(OFFLINE_FALLBACK)) ??
+          (await cache.match("/"));
 
         if (cached) {
           return cached;
