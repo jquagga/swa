@@ -22,6 +22,30 @@
   });
 
   $effect(() => {
+    // Workaround for the iOS 26/27 status-bar blur in PWA (standalone)
+    // mode: leave 16px of breathing room below the status bar, on top of
+    // any notch/Dynamic Island safe area.
+    const mq = window.matchMedia("(display-mode: standalone)");
+    const isIos =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const apply = () => {
+      const standalone =
+        mq.matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      document.documentElement.classList.toggle(
+        "ios-pwa",
+        isIos && standalone,
+      );
+    };
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => {
+      mq.removeEventListener?.("change", apply);
+    };
+  });
+
+  $effect(() => {
     function onSwMessage(event: MessageEvent) {
       if (event.data?.type === "SW_UPDATED") swUpdated = true;
     }

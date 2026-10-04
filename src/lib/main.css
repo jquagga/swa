@@ -46,6 +46,13 @@
   }
 }
 
+/* iOS/iPadOS PWA (standalone) workaround for the iOS 26/27 status-bar blur:
+ * 16px of breathing room below the status bar, stacked on the notch safe area.
+ * The `ios-pwa` class is toggled from `+layout.svelte`. */
+html.ios-pwa body {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+
 /* Avoid layout shift for the forecast table on slow networks. */
 #grid table {
   content-visibility: auto;
