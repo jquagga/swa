@@ -19,15 +19,58 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "monochrome"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Simple Weather forecast"
+    },
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Simple Weather forecast (mobile)"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Current forecast",
+      "short_name": "Forecast",
+      "description": "Open Simple Weather to find your forecast",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/web-app-manifest-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "theme_color": "#017FC0",
   "background_color": "#ffffff",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
   "scope": "/",
   "id": "/",
+  "start_url": "/",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "handle_links": "preferred",
   "description": "Simple Weather App is a small webpage which provides weather from the US National Weather Service.",
   "categories": ["weather"],
-  "start_url": "/"
+  "prefer_related_applications": false
 }

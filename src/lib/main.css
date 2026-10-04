@@ -28,3 +28,31 @@
 .pico-color-azure-500 {
   color: #017fc0;
 }
+
+/* Modern PWA / UX defaults (2025+ baseline). */
+
+@view-transition {
+  navigation: auto;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Window Controls Overlay: keep content clear of the title bar. */
+@media (display-mode: window-controls-overlay) {
+  body {
+    padding-top: env(titlebar-area-height, 0px);
+  }
+}
+
+/* Avoid layout shift for the forecast table on slow networks. */
+#grid table {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 800px;
+}
+
+/* Full-height map that respects mobile browser chrome. */
+#map {
+  min-height: 50dvh;
+}

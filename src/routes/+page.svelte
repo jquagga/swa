@@ -7,6 +7,8 @@
   let address = $state("");
   let isSearching = $state(false);
   let searchError = $state<string | null>(null);
+  let canInstall = $state(false);
+  let geoPermission = $state<string | null>(null);
 
   // Use $derived for button text
   let geolocateButtonText = $derived(
@@ -15,6 +17,47 @@
   let searchButtonText = $derived(isSearching ? "Searching..." : "Search");
 
   // Simple unique IDs for accessibility (not using $props.id() as this is a page component)
+
+  $effect(() => {
+    function checkInstallable() {
+      canInstall = !!(window as any).__pwaPrompt;
+    }
+    function onInstallable() {
+      checkInstallable();
+    }
+    checkInstallable();
+    window.addEventListener("pwa:installable", onInstallable);
+    window.addEventListener("appinstalled", () => {
+      canInstall = false;
+      (window as any).__pwaPrompt = null;
+    });
+
+    // Probe the Permissions API so we can hint when geolocation is blocked.
+    if (typeof navigator !== "undefined" && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" as PermissionName })
+        .then((status) => {
+          geoPermission = status.state;
+          status.onchange = () => {
+            geoPermission = status.state;
+          };
+        })
+        .catch(() => {});
+    }
+    return () => window.removeEventListener("pwa:installable", onInstallable);
+  });
+
+  async function handleInstall() {
+    const prompt = (window as any).__pwaPrompt;
+    if (!prompt) return;
+    prompt.prompt();
+    try {
+      await prompt.userChoice;
+    } finally {
+      (window as any).__pwaPrompt = null;
+      canInstall = false;
+    }
+  }
 
   async function navigateToWeather(latitude: number, longitude: number) {
     const roundedLat = Math.round(latitude * 10000) / 10000;
@@ -129,7 +172,18 @@
       the button below will ask for location permission, and provide your forecast
       if you're in the United States.
     </p>
+    {#if canInstall}
+      <div style="text-align: center; margin-bottom: 1rem;">
+        <button onclick={handleInstall}>Install app</button>
+      </div>
+    {/if}
     <div style="text-align: center;">
+      {#if geoPermission === "denied"}
+        <p role="note">
+          Location access is blocked in your browser settings — you can still
+          search by address below.
+        </p>
+      {/if}
       {#if geolocationError}
         <p style="color: red;" role="alert">{geolocationError}</p>
       {/if}
