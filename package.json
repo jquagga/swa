@@ -21,13 +21,13 @@
     "@sveltejs/adapter-cloudflare": "8.0.0",
     "@sveltejs/kit": "3.0.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
-    "@types/node": "26.6.3",
+    "@types/node": "26.6.4",
     "picomatch": "4.0.7",
     "svelte": "5.57.1",
     "svelte-check": "4.7.6",
     "typescript": "6.0.3",
     "vite": "8.3.2",
-    "wrangler": "4.145.0"
+    "wrangler": "4.146.0"
   },
   "dependencies": {
     "chart.js": "4.5.1",
