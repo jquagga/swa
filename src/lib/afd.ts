@@ -114,12 +114,14 @@ export function parseAfdProduct(productText: string): AfdBlock[] {
 export function unwrapNwsHardWrap(text: string): string {
   const paragraphs: string[] = [];
   let current = "";
+  let currentIsBullet = false;
 
   function flush(): void {
     if (current) {
       paragraphs.push(current);
       current = "";
     }
+    currentIsBullet = false;
   }
 
   for (const rawLine of text.split(/\r?\n/)) {
@@ -131,9 +133,14 @@ export function unwrapNwsHardWrap(text: string): string {
     if (/^[*-]\s/.test(line)) {
       flush();
       current = line;
+      currentIsBullet = true;
       continue;
     }
-    if (current && current.length >= WRAPPED_LINE_MIN) {
+    if (
+      current &&
+      (current.length >= WRAPPED_LINE_MIN ||
+        (currentIsBullet && /^\s/.test(rawLine)))
+    ) {
       current += ` ${line}`;
     } else {
       flush();
