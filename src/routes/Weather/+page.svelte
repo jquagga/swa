@@ -645,16 +645,16 @@
     switch (severity) {
       case "Severe":
       case "pico-background-yellow-100":
-        return "swa-alert-severe";
+        return "border-l-yellow-500 bg-yellow-400/20";
       case "Extreme":
       case "pico-background-red-500":
-        return "swa-alert-extreme";
+        return "border-l-red-600 bg-red-600/10";
       case "Moderate":
-        return "swa-alert-moderate";
+        return "border-l-orange-500 bg-orange-500/15";
       case "Minor":
-        return "swa-alert-minor";
+        return "border-l-sky-600 bg-sky-600/10";
       default:
-        return "swa-alert-unknown";
+        return "border-l-zinc-400";
     }
   }
 
@@ -1673,12 +1673,13 @@
 </script>
 
 <svelte:boundary>
-  <div class="container-fluid">
-    <div class="swa-toolbar">
-      <a href="/">← New search</a>
-      <span class="spacer"></span>
+  <div class="mx-auto w-full max-w-5xl px-4 sm:px-6">
+    <div class="my-3 flex flex-wrap items-center gap-2">
+      <a href="/" class="font-semibold no-underline">← New search</a>
+      <span class="flex-1"></span>
       <button
         type="button"
+        class="btn"
         onclick={refreshForecast}
         disabled={isLoading}
         aria-label="Refresh forecast"
@@ -1692,7 +1693,7 @@
     </h1>
 
     {#if mapCoords}
-      <p class="swa-meta">
+      <p class="meta">
         {mapCoords.lat.toFixed(4)}, {mapCoords.lon.toFixed(4)}
         {#if fetchedAt}
           • Updated {formatIso(fetchedAt)}
@@ -1704,9 +1705,14 @@
     {/if}
 
     {#if geolocationError}
-      <div class="swa-error-box" role="alert">
-        <p class="swa-error">{geolocationError}</p>
-        <button type="button" onclick={refreshForecast} disabled={isLoading}>
+      <div class="px-5 py-5 text-center" role="alert">
+        <p class="err">{geolocationError}</p>
+        <button
+          type="button"
+          class="btn mt-3"
+          onclick={refreshForecast}
+          disabled={isLoading}
+        >
           Try again
         </button>
       </div>
@@ -1714,49 +1720,65 @@
 
     {#if showLoading}
       <div aria-busy="true" aria-label="Fetching weather data">
-        <div class="swa-skeleton swa-skeleton-hero"></div>
-        <div class="swa-skeleton swa-skeleton-block"></div>
-        <div class="swa-skeleton swa-skeleton-block"></div>
-        <div class="swa-skeleton swa-skeleton-block"></div>
+        <div
+          class="my-4 h-36 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800"
+        ></div>
+        <div
+          class="my-2.5 h-14 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800"
+        ></div>
+        <div
+          class="my-2.5 h-14 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800"
+        ></div>
+        <div
+          class="my-2.5 h-14 animate-pulse rounded-lg bg-zinc-200 motion-reduce:animate-none dark:bg-zinc-800"
+        ></div>
       </div>
     {/if}
 
     {#if currentHero}
-      <section class="swa-hero" aria-label="Current conditions">
-        <div class="swa-hero-top">
-          <span class="swa-hero-icon" aria-hidden="true">
+      <section class="card my-4" aria-label="Current conditions">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="text-4xl leading-none" aria-hidden="true">
             {mapWeatherToEmoji(currentHero.shortForecast)}
           </span>
-          <span class="swa-hero-temp">
+          <span class="text-5xl leading-none font-bold">
             {currentHero.temperature}°{currentHero.temperatureUnit === "°F" ||
             currentHero.temperatureUnit === "F"
               ? ""
               : ` ${currentHero.temperatureUnit}`}
           </span>
           <div>
-            <p class="swa-hero-short">{currentHero.shortForecast}</p>
+            <p class="mt-1 font-semibold">{currentHero.shortForecast}</p>
             {#if currentHero.heatIndex !== null}
-              <p class="swa-hero-feels">Heat index {currentHero.heatIndex}°</p>
+              <p
+                class="text-[0.95rem] text-zinc-500 dark:text-zinc-400"
+              >
+                Heat index {currentHero.heatIndex}°
+              </p>
             {:else if currentHero.windChill !== null}
-              <p class="swa-hero-feels">Wind chill {currentHero.windChill}°</p>
+              <p
+                class="text-[0.95rem] text-zinc-500 dark:text-zinc-400"
+              >
+                Wind chill {currentHero.windChill}°
+              </p>
             {/if}
           </div>
         </div>
-        <ul class="swa-chips">
+        <ul class="m-0 mt-3 flex list-none flex-wrap gap-1.5 p-0">
           {#if currentHero.dailyHighLow}
-            <li>
+            <li class="chip">
               {currentHero.dailyName ?? "Today"}: {currentHero.dailyHighLow}
             </li>
           {/if}
-          <li>Wind {currentHero.windSpeed}</li>
+          <li class="chip">Wind {currentHero.windSpeed}</li>
           {#if currentHero.humidity !== null}
-            <li>Humidity {currentHero.humidity}%</li>
+            <li class="chip">Humidity {currentHero.humidity}%</li>
           {/if}
           {#if currentHero.pop !== null}
-            <li>Precip {currentHero.pop}%</li>
+            <li class="chip">Precip {currentHero.pop}%</li>
           {/if}
           {#if nextSunEvent}
-            <li>
+            <li class="chip">
               {nextSunEvent.kind === "rise" ? "🌅 Sunrise" : "🌇 Sunset"}
               {nextSunEvent.time}
             </li>
@@ -1769,22 +1791,30 @@
       {#if alerts.features?.length}
         <h2>Active alerts ({alerts.features.length})</h2>
         {#each alerts.features as alert (alert.properties.id + "-" + (alert.properties.effective || ""))}
-          <details class="swa-alert {alertTone(alert.properties.severity)}">
-            <summary>
+          <details
+            class="mb-2.5 overflow-hidden rounded-lg border border-l-4 border-zinc-200 dark:border-zinc-800 {alertTone(
+              alert.properties.severity,
+            )}"
+          >
+            <summary
+              class="cursor-pointer list-none px-3 py-2.5 font-bold before:content-['⚠_'] [&::-webkit-details-marker]:hidden"
+            >
               {alert.properties.event}
-              <span class="swa-alert-severity">
+              <span class="ml-2 text-xs font-normal opacity-85">
                 {alertSeverityLabel(alert.properties.severity)}
               </span>
             </summary>
-            <div class="swa-alert-body">
+            <div class="px-3 pb-3">
               {#if alert.properties.effective}
-                <p class="swa-meta">
+                <p class="meta">
                   Effective {formatIso(alert.properties.effective)}
                 </p>
               {/if}
-              <p>{alert.properties.description}</p>
+              <p class="mb-2.5 whitespace-pre-wrap">
+                {alert.properties.description}
+              </p>
               {#if alert.properties.instruction}
-                <p>
+                <p class="mb-0">
                   <strong>What to do:</strong>
                   {alert.properties.instruction}
                 </p>
@@ -1798,7 +1828,7 @@
     {#if chartReady}
       <section aria-labelledby="hourly-heading">
         <h2 id="hourly-heading">Next 24 hours</h2>
-        <div class="swa-chart-wrap">
+        <div class="mt-5 h-[260px] md:h-[340px]">
           <canvas
             id="myChart"
             aria-label="Hourly temperature, heat index, wind chill, and chance of precipitation for the next 24 hours"
@@ -1806,14 +1836,16 @@
           ></canvas>
         </div>
         {#if hourlyHigh !== null && hourlyLow !== null}
-          <p class="swa-chart-caption">
+          <p class="meta mt-1.5">
             High {hourlyHigh}° • Low {hourlyLow}° • Bars show chance of
             precipitation (right axis).
           </p>
         {/if}
-        <details class="swa-hourly-fallback">
-          <summary>Hourly data table (accessible alternative)</summary>
-          <table class="striped">
+        <details>
+          <summary class="cursor-pointer text-sm"
+            >Hourly data table (accessible alternative)</summary
+          >
+          <table class="data-table mt-2 text-[0.85rem]">
             <thead>
               <tr>
                 <th scope="col">Time</th>
@@ -1844,53 +1876,67 @@
     <div id="grid">
       {#if forecast.properties?.periods}
         <h2>7-day forecast</h2>
-        <div class="swa-forecast-grid">
+        <div class="my-4 grid gap-2.5 md:grid-cols-2">
           {#each forecast.properties.periods as period (period.startTime)}
-            <article class="swa-forecast-card">
+            <article
+              class="m-0 rounded-lg border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-900"
+            >
               <div>
-                <span class="swa-forecast-head">
-                  <span class="swa-forecast-icon" aria-hidden="true">
+                <span class="flex flex-wrap items-baseline gap-2">
+                  <span aria-hidden="true">
                     {mapWeatherToEmoji(period.shortForecast)}
                   </span>
-                  <span class="swa-forecast-name">{period.name}</span>
+                  <span class="font-bold">{period.name}</span>
                   <span
-                    class="swa-forecast-temp {period.isDaytime
-                      ? 'pico-color-red-500'
-                      : 'pico-color-azure-500'}"
+                    class="font-bold {period.isDaytime
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-sky-600 dark:text-sky-400'}"
                   >
                     {period.temperature}°{period.temperatureUnit}
                   </span>
                 </span>
-                <p class="swa-forecast-short">{period.shortForecast}</p>
-                <ul class="swa-chips">
-                  <li>Wind {period.windSpeed}</li>
+                <p class="mt-1 mb-2">{period.shortForecast}</p>
+                <ul class="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                  <li class="chip">Wind {period.windSpeed}</li>
                   {#if period.probabilityOfPrecipitation}
-                    <li>
+                    <li class="chip">
                       Precip {period.probabilityOfPrecipitation.value ?? 0}%
                     </li>
                   {/if}
                   {#if period.relativeHumidity?.value != null}
-                    <li>Humidity {period.relativeHumidity.value}%</li>
+                    <li class="chip">
+                      Humidity {period.relativeHumidity.value}%
+                    </li>
                   {/if}
                 </ul>
               </div>
-              <p class="swa-forecast-detail">{period.detailedForecast}</p>
+              <p class="mt-2 text-[0.92rem] whitespace-pre-wrap">
+                {period.detailedForecast}
+              </p>
             </article>
           {/each}
         </div>
       {/if}
     </div>
 
-    <div class="swa-map-wrap">
+    <div class="mt-4">
       {#if mapCoords}
         <h2>Radar</h2>
-        <div class="swa-map-controls">
-          <label>
-            <input type="checkbox" bind:checked={showRadar} />
+        <div class="my-2 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <label class="m-0 flex cursor-pointer items-center gap-1.5">
+            <input
+              type="checkbox"
+              class="size-4 accent-sky-700"
+              bind:checked={showRadar}
+            />
             Radar
           </label>
-          <label>
-            <input type="checkbox" bind:checked={showWatchWarn} />
+          <label class="m-0 flex cursor-pointer items-center gap-1.5">
+            <input
+              type="checkbox"
+              class="size-4 accent-sky-700"
+              bind:checked={showWatchWarn}
+            />
             Watches &amp; warnings
           </label>
         </div>
@@ -1899,85 +1945,117 @@
             id="map"
             role="region"
             aria-label="Weather radar map"
+            class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800"
             {@attach mapAttachment}
           >
             {#if mapError}
-              <div class="swa-map-error" role="alert">{mapError}</div>
+              <div
+                class="absolute inset-0 flex items-center justify-center bg-zinc-100 p-4 text-center dark:bg-zinc-800"
+                role="alert"
+              >
+                {mapError}
+              </div>
             {:else if !mapReady}
-              <div class="swa-map-placeholder" aria-hidden="true">
+              <div
+                class="absolute inset-0 flex items-center justify-center bg-zinc-100 p-4 text-center dark:bg-zinc-800"
+                aria-hidden="true"
+              >
                 Loading radar map…
               </div>
             {/if}
           </div>
         {/key}
-        <ul class="swa-legend" aria-label="Map legend">
-          <li>
-            <span class="swa-legend-radar"></span>Radar reflectivity
+        <ul
+          class="m-0 mt-1.5 flex list-none flex-wrap gap-3 p-0 text-[0.85rem]"
+          aria-label="Map legend"
+        >
+          <li class="m-0 list-none">
+            <span
+              class="mr-1.5 inline-block h-[0.7em] w-[1.6em] rounded-sm border border-sky-700 bg-sky-600/70 align-middle"
+            ></span>Radar reflectivity
           </li>
-          <li>
-            <span class="swa-legend-warn"></span>Watch / warning
+          <li class="m-0 list-none">
+            <span
+              class="mr-1.5 inline-block h-[0.7em] w-[1.6em] rounded-sm border border-red-600 bg-red-600/55 align-middle"
+            ></span>Watch / warning
           </li>
-          <li>
-            <span class="swa-legend-you"></span>Your location
+          <li class="m-0 list-none">
+            <span
+              class="mr-1.5 inline-block size-[0.7em] rounded-full bg-sky-600 align-middle"
+            ></span>Your location
           </li>
         </ul>
-        <p class="swa-map-caption">
+        <p class="meta mt-1.5">
           Radar: NOAA NWS, refreshes about every 5 minutes. Scroll with two
           fingers or Ctrl+scroll; use +/− buttons to zoom.
         </p>
       {/if}
     </div>
-    <br />
 
     {#if NWSURL || officeId}
       <section aria-labelledby="resources-heading">
         <h2 id="resources-heading">Forecast resources</h2>
-        <ul class="swa-resources">
+        <ul class="m-0 my-4 grid list-none gap-2 p-0">
           {#if officeId}
-            <li>
+            <li class="m-0 list-none">
               <details
-                class="swa-afd"
+                class="rounded-lg border border-zinc-200 px-3.5 py-2.5 dark:border-zinc-800 dark:bg-zinc-900"
                 bind:this={afdDetailsEl}
                 ontoggle={(e) => {
                   afdOpen = (e.currentTarget as HTMLDetailsElement).open;
                 }}
               >
-                <summary>Area Forecast Discussion</summary>
-                <div class="swa-afd-body">
+                <summary class="cursor-pointer font-semibold"
+                  >Area Forecast Discussion</summary
+                >
+                <div class="pt-2">
                   {#if afdLoading}
                     <p aria-busy="true">Loading discussion…</p>
                   {:else if afdError}
-                    <p class="swa-error" role="alert">{afdError}</p>
-                    <button type="button" onclick={() => void loadAfd(true)}>
+                    <p class="err" role="alert">{afdError}</p>
+                    <button
+                      type="button"
+                      class="btn mt-2"
+                      onclick={() => void loadAfd(true)}
+                    >
                       Try again
                     </button>
                   {:else if afd?.productText}
                     {#if afd.issuanceTime}
-                      <p class="swa-meta">
+                      <p class="meta">
                         Issued {formatIso(afd.issuanceTime)}
                       </p>
                     {/if}
                     {#if afdBlocks.length > 0}
                       {#each afdBlocks as block, i (i)}
                         {#if block.kind === "hr"}
-                          <hr class="swa-afd-hr" />
+                          <hr
+                            class="my-3.5 border-zinc-200 dark:border-zinc-700"
+                          />
                         {:else if block.kind === "heading"}
-                          <h3 class="swa-afd-heading">{block.text}</h3>
+                          <h3 class="mt-3.5 mb-1.5 text-base font-semibold">
+                            {block.text}
+                          </h3>
                         {:else if block.kind === "list"}
-                          <ul class="swa-afd-list">
+                          <ul
+                            class="mb-2.5 list-disc space-y-1 pl-5 text-[0.92rem]"
+                          >
                             {#each block.items as item, j (j)}
                               <li>{item}</li>
                             {/each}
                           </ul>
                         {:else}
-                          <p class="swa-afd-para">{block.text}</p>
+                          <p class="mb-2.5 text-[0.92rem]">{block.text}</p>
                         {/if}
                       {/each}
                     {:else}
-                      <pre class="swa-afd-text">{afd.productText.trim()}</pre>
+                      <pre
+                        class="mt-2 text-[0.85rem] break-words whitespace-pre-wrap"
+                        >{afd.productText.trim()}</pre
+                      >
                     {/if}
                   {:else}
-                    <p class="swa-meta">
+                    <p class="meta">
                       Open to fetch the latest discussion from the National
                       Weather Service.
                     </p>
@@ -1986,9 +2064,9 @@
               </details>
             </li>
             {#if briefingUrl}
-              <li>
+              <li class="m-0 list-none">
                 <a
-                  class="swa-resource-link"
+                  class="block rounded-lg border border-zinc-200 px-3.5 py-2.5 font-semibold no-underline dark:border-zinc-800"
                   href={briefingUrl}
                   target="_blank"
                   rel="noopener"
@@ -1999,16 +2077,18 @@
             {/if}
           {/if}
           {#if NWSURL}
-            <li>
-              <a class="swa-resource-link" href={NWSURL}>NWS Forecast Page</a>
+            <li class="m-0 list-none">
+              <a
+                class="block rounded-lg border border-zinc-200 px-3.5 py-2.5 font-semibold no-underline dark:border-zinc-800"
+                href={NWSURL}>NWS Forecast Page</a
+              >
             </li>
           {/if}
         </ul>
       </section>
     {/if}
-    <br />
 
-    <p class="swa-center">
+    <p class="mt-6 mb-6 text-center">
       This forecast is generated from the U.S. National Weather Service's
       <a href="https://www.weather.gov/documentation/services-web-api"
         >weather.gov API</a
@@ -2019,9 +2099,9 @@
   </div>
 
   {#snippet failed(error, reset)}
-    <div class="swa-error-box">
-      <p class="swa-error">An error occurred: {(error as Error).message}</p>
-      <button onclick={reset}>Try Again</button>
+    <div class="px-5 py-5 text-center">
+      <p class="err">An error occurred: {(error as Error).message}</p>
+      <button class="btn mt-3" onclick={reset}>Try Again</button>
     </div>
   {/snippet}
 </svelte:boundary>

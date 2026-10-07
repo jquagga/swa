@@ -161,60 +161,61 @@
   }
 </script>
 
-<div class="container">
+<div class="mx-auto w-full max-w-5xl px-4 sm:px-6">
   <div>
-    <h1>Simple Weather</h1>
+    <h1 class="mb-3">Simple Weather</h1>
     <p>
       <a href="https://github.com/jquagga/swa">Simple Weather</a> queries the
       US National Weather Service to provide a responsive weather forecast. Use
       your current location or a full US street address below.
     </p>
-    <div class="swa-options">
-      <section class="swa-option-card" aria-labelledby="geolocate-heading">
-        <h2 id="geolocate-heading">Use my location</h2>
-        <p>
+    <div class="my-4 grid gap-4 md:grid-cols-2">
+      <section class="card" aria-labelledby="geolocate-heading">
+        <h2 id="geolocate-heading" class="mt-0 text-lg">Use my location</h2>
+        <p class="text-sm">
           Asks for location permission and shows your forecast if you're in the
           United States.
         </p>
       {#if geoPermission === "denied"}
-        <p role="note">
+        <p role="note" class="text-sm">
           Location access is blocked in your browser settings — you can still
           search by address.
         </p>
       {/if}
       {#if geolocationError}
-        <p class="swa-error" role="alert">{geolocationError}</p>
+        <p class="err" role="alert">{geolocationError}</p>
       {/if}
-      <button onclick={handleGeolocate} disabled={isGeolocating}>
+      <button class="btn mt-2" onclick={handleGeolocate} disabled={isGeolocating}>
         {geolocateButtonText}
       </button>
       </section>
-      <section class="swa-option-card" aria-labelledby="address-heading">
-        <h2 id="address-heading">Search by address</h2>
-        <p>
+      <section class="card" aria-labelledby="address-heading">
+        <h2 id="address-heading" class="mt-0 text-lg">Search by address</h2>
+        <p class="text-sm">
           Uses the Census Bureau geocoder. <strong>
             A full street address is needed.
           </strong>
           Example: 1600 Pennsylvania Ave SE, Washington, DC.
         </p>
         <form onsubmit={handleAddressSearch}>
-          <label for="address-input">Street Address:</label>
+          <label for="address-input" class="mb-1 block text-sm font-medium"
+            >Street Address:</label
+          >
           <input
             id="address-input"
             type="search"
             name="address"
             placeholder="1600 Pennsylvania Ave SE, Washington, DC"
             aria-label="Street Address"
-            class="container-fluid"
+            class="input"
             bind:value={address}
           />
-          <br />
 
-          <div>
+          <div class="mt-3">
             {#if searchError}
-              <p class="swa-error" role="alert">{searchError}</p>
+              <p class="err" role="alert">{searchError}</p>
             {/if}
-            <button type="submit" disabled={isSearching}>
+            <button class="btn mt-2" type="submit" disabled={isSearching}>
               {searchButtonText}
             </button>
           </div>

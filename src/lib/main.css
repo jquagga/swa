@@ -1,33 +1,4 @@
-@import "@anyblades/pico";
-
-/*
- * Fallbacks for the Sass-only `colors/utilities` module from `@picocss/pico`.
- * The CSS-only `@anyblades/pico` build does not ship
- * `pico-background-<family>-<shade>` / `pico-color-<family>-<shade>` classes,
- * so define the four shades used in `Weather/+page.svelte` with the exact
- * Pico v2 palette values.
- */
-.pico-background-yellow-100,
-.pico-background-yellow-100:is(:hover, :active, :focus) {
-  background-color: #f2df0d;
-  --pico-color: #000;
-  color: #000;
-}
-
-.pico-background-red-500,
-.pico-background-red-500:is(:hover, :active, :focus) {
-  background-color: #d93526;
-  --pico-color: #fff;
-  color: #fff;
-}
-
-.pico-color-red-500 {
-  color: #d93526;
-}
-
-.pico-color-azure-500 {
-  color: #017fc0;
-}
+@import "tailwindcss";
 
 /* Modern PWA / UX defaults (2025+ baseline). */
 
@@ -53,477 +24,72 @@ html.ios-pwa body {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
 }
 
+/* Base typography (replaces Pico's element defaults; Tailwind preflight
+ * leaves headings/links unstyled). Colors use `dark:` utilities elsewhere;
+ * only the scheme-aware body defaults live here. */
+@layer base {
+  body {
+    @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  }
+  h1 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply mt-6 mb-2 text-xl font-bold;
+  }
+  a {
+    @apply text-sky-700 underline decoration-sky-700/40 underline-offset-2 dark:text-sky-400 dark:decoration-sky-400/40;
+  }
+}
+
+/* Reusable patterns (Tailwind component layer — replaces the old `swa-*`
+ * classes and Pico element defaults). Layout/one-off styling stays inline
+ * in markup as utilities. */
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-md bg-sky-700 px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500;
+  }
+  .card {
+    @apply rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900;
+  }
+  .input {
+    @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+  }
+  .chip {
+    @apply rounded-full border border-zinc-200 px-2.5 py-0.5 text-[0.85rem] dark:border-zinc-700;
+  }
+  .meta {
+    @apply text-[0.85rem] text-zinc-500 dark:text-zinc-400;
+  }
+  .err {
+    @apply font-semibold text-red-700 before:content-["⚠_"] dark:text-red-300;
+  }
+  .data-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .data-table th,
+  .data-table td {
+    @apply border border-zinc-200 px-2 py-1.5 text-left align-top dark:border-zinc-700;
+  }
+  .data-table thead th {
+    @apply bg-zinc-100 font-semibold dark:bg-zinc-800;
+  }
+  .data-table tbody th {
+    @apply font-semibold;
+  }
+}
+
+/* Full-height map that respects mobile browser chrome. Border/radius come
+ * from utilities on the element; the id selector keeps the sizing in one
+ * place for the MapLibre container. */
+#map {
+  min-height: 50dvh;
+  min-width: 100%;
+  position: relative;
+}
+
 /* Avoid layout shift for the forecast table on slow networks. */
 #grid table {
   content-visibility: auto;
   contain-intrinsic-size: auto 800px;
-}
-
-/* Full-height map that respects mobile browser chrome. */
-#map {
-  min-height: 50dvh;
-  min-width: 100%;
-  position: relative;
-}
-
-/* Shared utilities (replaces inline style= attributes so CSP style-src
- * can omit 'unsafe-inline'). */
-.swa-center {
-  text-align: center;
-}
-.swa-error {
-  color: #b42318;
-  font-weight: 600;
-}
-.swa-update-banner {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  text-align: center;
-  padding: 0.5rem;
-  background: #017fc0;
-  color: #fff;
-}
-.swa-update-banner button {
-  margin-left: 0.5rem;
-}
-.swa-offline-hero {
-  text-align: center;
-  padding: 2rem 1rem;
-}
-.swa-error-box {
-  text-align: center;
-  padding: 20px;
-}
-/* SvelteKit body wrapper (was an inline style in app.html). */
-.swa-body-contents {
-  display: contents;
-}
-
-/* Top bar (persistent nav). */
-.swa-topbar {
-  border-bottom: 1px solid var(--pico-muted-border-color);
-  margin-bottom: 1rem;
-}
-.swa-topbar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
-}
-.swa-brand {
-  font-weight: 700;
-  text-decoration: none;
-}
-.swa-topbar-links {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-}
-
-/* Current-conditions hero. */
-.swa-hero {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.75rem;
-  padding: 1rem 1.25rem;
-  margin: 1rem 0;
-  background: var(--pico-card-background-color, transparent);
-}
-.swa-hero-top {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.swa-hero-icon {
-  font-size: 2.5rem;
-  line-height: 1;
-}
-.swa-hero-temp {
-  font-size: 2.75rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.swa-hero-feels {
-  opacity: 0.8;
-  font-size: 0.95rem;
-}
-.swa-hero-short {
-  font-weight: 600;
-  margin: 0.25rem 0 0;
-}
-.swa-chips {
-  list-style: none;
-  list-style-type: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0;
-  padding-left: 0;
-  margin: 0.75rem 0 0;
-}
-.swa-chips li {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 999px;
-  padding: 0.15rem 0.6rem;
-  font-size: 0.85rem;
-  margin: 0;
-  list-style: none;
-  list-style-type: none;
-}
-.swa-chips li::marker {
-  content: none;
-}
-.swa-meta {
-  font-size: 0.85rem;
-  opacity: 0.8;
-  margin: 0.5rem 0 0;
-}
-
-/* Toolbar (back / refresh / share). */
-.swa-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin: 0.75rem 0;
-}
-.swa-toolbar .spacer {
-  flex: 1;
-}
-
-/* Alerts: severity scale with safe contrast. */
-.swa-alert {
-  border: 1px solid var(--pico-muted-border-color);
-  border-left-width: 0.4rem;
-  border-radius: 0.5rem;
-  margin-bottom: 0.6rem;
-  overflow: hidden;
-}
-.swa-alert summary {
-  padding: 0.6rem 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-}
-.swa-alert summary::-webkit-details-marker {
-  display: none;
-}
-.swa-alert summary::before {
-  content: "⚠ ";
-}
-.swa-alert-body {
-  padding: 0 0.8rem 0.8rem;
-}
-.swa-alert-body p {
-  white-space: pre-wrap;
-  margin-bottom: 0.6rem;
-}
-.swa-alert-severity {
-  font-weight: 400;
-  font-size: 0.8rem;
-  opacity: 0.85;
-  margin-left: 0.5rem;
-}
-.swa-alert-extreme {
-  border-left-color: #d93526;
-  background: color-mix(in srgb, #d93526 12%, transparent);
-}
-.swa-alert-severe {
-  border-left-color: #b89b00;
-  background: color-mix(in srgb, #f2df0d 22%, transparent);
-}
-.swa-alert-moderate {
-  border-left-color: #c67800;
-  background: color-mix(in srgb, #ff9500 14%, transparent);
-}
-.swa-alert-minor {
-  border-left-color: #017fc0;
-  background: color-mix(in srgb, #017fc0 10%, transparent);
-}
-.swa-alert-unknown {
-  border-left-color: #6b7280;
-}
-
-/* Chart caption + accessible fallback. */
-.swa-chart-caption {
-  font-size: 0.85rem;
-  opacity: 0.85;
-  margin: 0.4rem 0 0;
-}
-.swa-hourly-fallback summary {
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-.swa-hourly-fallback table {
-  font-size: 0.85rem;
-}
-
-/* Forecast resources (AFD / briefing / NWS page). */
-.swa-resources {
-  list-style: none;
-  list-style-type: none;
-  padding: 0;
-  padding-left: 0;
-  margin: 1rem 0;
-  display: grid;
-  gap: 0.5rem;
-}
-.swa-resources > li {
-  list-style: none;
-  list-style-type: none;
-  margin: 0;
-}
-.swa-resources > li::marker {
-  content: none;
-}
-.swa-resource-link {
-  display: block;
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.6rem;
-  padding: 0.6rem 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-.swa-afd {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.6rem;
-  padding: 0.6rem 0.85rem;
-  /* Pico puts margin-bottom on all <details>; the grid gap already spaces
-   * the list, so drop it here. */
-  margin-bottom: 0;
-}
-.swa-afd summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.swa-afd-body {
-  padding-top: 0.5rem;
-}
-.swa-afd-body > :last-child {
-  margin-bottom: 0;
-}
-.swa-afd-body > :first-child {
-  margin-top: 0;
-}
-.swa-afd-heading {
-  font-size: 1rem;
-  margin: 0.9rem 0 0.4rem;
-}
-.swa-afd-para {
-  font-size: 0.92rem;
-  margin: 0 0 0.6rem;
-}
-.swa-afd-list {
-  font-size: 0.92rem;
-  margin: 0 0 0.6rem;
-  padding-left: 1.25rem;
-}
-.swa-afd-list li {
-  list-style: disc;
-  margin-bottom: 0.3rem;
-}
-.swa-afd-hr {
-  margin: 0.9rem 0;
-}
-.swa-afd-text {
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 0.85rem;
-  margin: 0.5rem 0 0;
-}
-
-/* Forecast cards (replaces dense 2-col table on mobile). */
-.swa-forecast-grid {
-  display: grid;
-  gap: 0.6rem;
-  margin: 1rem 0;
-}
-@media (min-width: 768px) {
-  .swa-forecast-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.swa-forecast-card {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.6rem;
-  padding: 0.7rem 0.85rem;
-  margin: 0;
-}
-.swa-forecast-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.swa-forecast-name {
-  font-weight: 700;
-}
-.swa-forecast-temp {
-  font-weight: 700;
-}
-.swa-forecast-short {
-  margin: 0.25rem 0 0.5rem;
-}
-.swa-forecast-detail {
-  white-space: pre-wrap;
-  font-size: 0.92rem;
-}
-
-/* Map. */
-.swa-map-wrap {
-  margin: 1rem 0 0;
-}
-#map {
-  min-height: 50dvh;
-  min-width: 100%;
-  position: relative;
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.6rem;
-  overflow: hidden;
-}
-.swa-map-placeholder,
-.swa-map-error {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1rem;
-  background: var(--pico-muted-background-color, transparent);
-}
-.swa-map-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin: 0.5rem 0;
-  font-size: 0.9rem;
-}
-.swa-map-controls label {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-  margin: 0;
-  cursor: pointer;
-}
-.swa-map-caption {
-  font-size: 0.85rem;
-  opacity: 0.8;
-  margin: 0.4rem 0 0;
-}
-.swa-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-  margin: 0.4rem 0 0;
-  padding: 0;
-  padding-left: 0;
-  list-style: none;
-  list-style-type: none;
-}
-.swa-legend li {
-  list-style: none;
-  list-style-type: none;
-  margin: 0;
-}
-.swa-legend li::marker {
-  content: none;
-}
-.swa-legend span {
-  display: inline-block;
-  width: 1.6em;
-  height: 0.7em;
-  border-radius: 0.2em;
-  margin-right: 0.35em;
-  vertical-align: middle;
-}
-.swa-legend-radar {
-  background: rgba(1, 127, 192, 0.7);
-  border: 1px solid #017fc0;
-}
-.swa-legend-warn {
-  background: rgba(217, 53, 38, 0.55);
-  border: 1px solid #d93526;
-}
-.swa-legend-you {
-  background: #017fc0;
-  width: 0.7em;
-  height: 0.7em;
-  border-radius: 50%;
-}
-
-/* Skeletons (loading state, no layout shift). */
-.swa-skeleton {
-  border-radius: 0.6rem;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, currentColor 8%, transparent),
-    color-mix(in srgb, currentColor 16%, transparent),
-    color-mix(in srgb, currentColor 8%, transparent)
-  );
-  background-size: 200% 100%;
-  animation: swa-shimmer 1.4s infinite;
-  min-height: 1.2em;
-}
-@keyframes swa-shimmer {
-  to {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .swa-skeleton {
-    animation: none;
-  }
-}
-.swa-skeleton-hero {
-  height: 9rem;
-  margin: 1rem 0;
-}
-.swa-skeleton-block {
-  height: 3.5rem;
-  margin: 0.6rem 0;
-}
-
-/* Errors: never color-alone. */
-.swa-error {
-  color: #b42318;
-  font-weight: 600;
-}
-@media (prefers-color-scheme: dark) {
-  .swa-error {
-    color: #ff9d94;
-  }
-}
-.swa-error::before {
-  content: "⚠ ";
-}
-
-/* Landing: recent locations + option cards. */
-.swa-options {
-  display: grid;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-@media (min-width: 768px) {
-  .swa-options {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.swa-option-card {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 0.75rem;
-  padding: 1rem;
-}
-/* Responsive chart height. */
-.swa-chart-wrap {
-  height: 260px;
-  margin: 20px 0 0;
-}
-@media (min-width: 768px) {
-  .swa-chart-wrap {
-    height: 340px;
-  }
 }
