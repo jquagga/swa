@@ -43,7 +43,7 @@ pnpm cf-typegen  # regenerate src/worker-configuration.d.ts
 ```
 
 > [!NOTE]
-> `pnpm check` is the only verification available — there are no test, lint, or format scripts.
+> There are no test, lint, or format scripts. CI verifies `pnpm check` and the `pnpm build` production build.
 
 ## Usage
 
@@ -52,7 +52,7 @@ Pick one of the two options on the home page:
 1. **Use my location** — asks for location permission and navigates to `/Weather?lat=&lon=` (coordinates are rounded to 4 decimals). Shows a hint if geolocation is blocked in the browser.
 2. **Search by address** — a full US street address is required, e.g. `1600 Pennsylvania Ave SE, Washington, DC`. This goes through the same-origin `/geocode` proxy (US Census Bureau geocoder) to avoid CORS.
 
-The app runs in the browser: your location is never sent to us, but it is shared with NWS (to fetch the forecast) and with the Census geocoder (to resolve an address you explicitly search for).
+Geolocation coordinates go directly from your browser to NWS; searched addresses pass through this app's `/geocode` server before being forwarded to the Census geocoder. Coordinates and addresses you look up are shared with NWS (to fetch the forecast) and, for address searches, with the Census geocoder — but never otherwise stored or shared by us.
 
 On `/Weather`:
 
