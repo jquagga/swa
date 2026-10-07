@@ -776,9 +776,23 @@
     if (!coords) return () => {};
     const { lat: latitude, lon: longitude } = coords;
     let mapInstance: import("maplibre-gl").Map | null = null;
+    let markerInstance: import("maplibre-gl").Marker | null = null;
     let destroyed = false;
     let observer: IntersectionObserver | null = null;
+    let refreshTimer: ReturnType<typeof setInterval> | null = null;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    // NWS radar tiles update every ~5 min; bust the tile cache on the same
+    // cadence so the map never sits on a stale sweep.
+    const RADAR_REFRESH_MS = 5 * 60 * 1000;
+    const RADAR_BASE =
+      "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1";
+    const WATCH_WARN_BASE =
+      "https://mapservices.weather.noaa.gov/eventdriven/services/WWA/watch_warn_adv/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1";
+
+    function wmsTiles(base: string): [string] {
+      return [`${base}&_ts=${Math.floor(Date.now() / RADAR_REFRESH_MS)}`];
+    }
 
     function getStyle() {
       return mediaQuery.matches
@@ -786,9 +800,81 @@
         : "https://tiles.openfreemap.org/styles/positron";
     }
 
+    // setStyle() drops all custom sources/layers, so (re-)adding must be
+    // idempotent and run after every style load, not just the first one.
+    function ensureNwsOverlays(): void {
+      const map = mapInstance;
+      if (!map || destroyed || !map.isStyleLoaded()) return;
+      if (!map.getSource("nws_radar")) {
+        map.addSource("nws_radar", {
+          type: "raster",
+          tiles: wmsTiles(RADAR_BASE),
+          tileSize: 256,
+          maxzoom: 12,
+          attribution: "NOAA NWS radar",
+        });
+      }
+      if (!map.getSource("nws_watch_warn")) {
+        map.addSource("nws_watch_warn", {
+          type: "raster",
+          tiles: wmsTiles(WATCH_WARN_BASE),
+          tileSize: 256,
+          maxzoom: 12,
+          attribution: "NOAA NWS alerts",
+        });
+      }
+      if (!map.getLayer("nws_radar")) {
+        map.addLayer({
+          id: "nws_radar",
+          type: "raster",
+          source: "nws_radar",
+          paint: {
+            "raster-opacity": 0.85,
+            "raster-fade-duration": 0,
+          },
+        });
+      }
+      if (!map.getLayer("nws_watch_warn")) {
+        map.addLayer({
+          id: "nws_watch_warn",
+          type: "raster",
+          source: "nws_watch_warn",
+          paint: {
+            "raster-opacity": 0.9,
+            "raster-fade-duration": 0,
+          },
+        });
+      }
+    }
+
+    function refreshRadarTiles(): void {
+      const map = mapInstance;
+      if (!map || destroyed) return;
+      try {
+        for (const [id, base] of [
+          ["nws_radar", RADAR_BASE],
+          ["nws_watch_warn", WATCH_WARN_BASE],
+        ] as const) {
+          const source = map.getSource(id);
+          if (
+            source &&
+            typeof (source as { setTiles?: unknown }).setTiles ===
+              "function"
+          ) {
+            (
+              source as unknown as { setTiles: (t: string[]) => void }
+            ).setTiles(wmsTiles(base));
+          }
+        }
+      } catch (e) {
+        console.warn("Radar refresh failed:", e);
+      }
+    }
+
     function handleStyleChange() {
       if (mapInstance && !destroyed) {
         mapInstance.setStyle(getStyle());
+        // ensureNwsOverlays runs again on the resulting styledata event.
       }
     }
 
@@ -802,42 +888,39 @@
           style: getStyle(),
           center: [longitude, latitude],
           zoom: 7,
-          interactive: false,
+          minZoom: 3,
+          maxZoom: 12,
+          // 2D radar: no pitch/rotate keeps rendering cheap and north-up.
+          dragRotate: false,
+          pitchWithRotate: false,
+          touchPitch: false,
+          // Embedded in a scrollable page: require ctrl/cmd-scroll or
+          // two-finger drag so normal scrolling still works, with zoom
+          // buttons as the discoverable alternative.
+          cooperativeGestures: true,
+          attributionControl: { compact: true },
+          fadeDuration: 0,
+          crossSourceCollisions: false,
+          renderWorldCopies: false,
         });
 
-        mapInstance.on("load", () => {
-          if (!mapInstance || destroyed) return;
+        markerInstance = new maplibregl.Marker({ color: "#D93526" })
+          .setLngLat([longitude, latitude])
+          .addTo(mapInstance);
 
-          mapInstance.addSource("nws_radar", {
-            type: "raster",
-            tiles: [
-              "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-            ],
-            tileSize: 256,
-          });
+        mapInstance.addControl(
+          new maplibregl.NavigationControl({ visualizePitch: false }),
+          "top-right",
+        );
 
-          mapInstance.addSource("nws_watch_warn", {
-            type: "raster",
-            tiles: [
-              "https://mapservices.weather.noaa.gov/eventdriven/services/WWA/watch_warn_adv/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-            ],
-            tileSize: 256,
-          });
-
-          mapInstance.addLayer({
-            id: "nws_radar",
-            type: "raster",
-            source: "nws_radar",
-            paint: {},
-          });
-
-          mapInstance.addLayer({
-            id: "nws_watch_warn",
-            type: "raster",
-            source: "nws_watch_warn",
-            paint: {},
-          });
+        mapInstance.on("load", ensureNwsOverlays);
+        // Fires after every setStyle() (e.g. dark-mode toggle).
+        mapInstance.on("styledata", ensureNwsOverlays);
+        mapInstance.on("error", (e) => {
+          console.warn("Map error:", e.error ?? e);
         });
+
+        refreshTimer = setInterval(refreshRadarTiles, RADAR_REFRESH_MS);
       } catch (e) {
         console.error(e);
       }
@@ -866,6 +949,12 @@
       destroyed = true;
       observer?.disconnect();
       mediaQuery.removeEventListener("change", handleStyleChange);
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      markerInstance?.remove();
+      markerInstance = null;
       if (mapInstance) {
         mapInstance.remove();
         mapInstance = null;
@@ -1120,7 +1209,12 @@
     <div>
       {#if mapCoords}
         {#key mapKey}
-          <div id="map" {@attach mapAttachment}></div>
+          <div
+            id="map"
+            role="region"
+            aria-label="Weather radar map"
+            {@attach mapAttachment}
+          ></div>
         {/key}
       {/if}
     </div>
