@@ -70,7 +70,7 @@
     endTime: string;
     windSpeed: string;
     relativeHumidity: {
-      value: number;
+      value: number | null;
     };
     probabilityOfPrecipitation?: {
       value: number;
@@ -127,6 +127,10 @@
   let mapReady = $state(false);
   let mapError: string | null = $state(null);
   let mapInstanceRef: import("maplibre-gl").Map | null = null;
+  // Monotonic identity for map attachments. Navigation remounts the map
+  // via {#key mapKey} while an older init may still be pending; the stale
+  // attachment must never write shared map state or clear the new map's ref.
+  let mapAttachmentSeq = 0;
   // Monotonic identity for the active coordinate load. Async weather/alert
   // continuations must compare against it and drop stale results so an
   // older request can never overwrite a newer location's state or cache.
@@ -613,7 +617,7 @@
       const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
       const apparentTemp = calculateApparentTemperature(
         period.temperature,
-        period.relativeHumidity.value,
+        period.relativeHumidity.value ?? 0,
         Number.isFinite(windSpeedValue) ? windSpeedValue : 0,
       );
       const ms = Date.parse(period.startTime);
@@ -676,7 +680,7 @@
       feelsLike,
       shortForecast: source.shortForecast,
       windSpeed: source.windSpeed,
-      humidity: source.relativeHumidity.value ?? 0,
+      humidity: source.relativeHumidity.value ?? null,
       pop: source.probabilityOfPrecipitation?.value ?? null,
       isDaytime: source.isDaytime,
       dailyName: daily?.name ?? null,
@@ -690,12 +694,23 @@
     const parsed = parseCoords();
     if (!parsed.ok) return;
     const requestId = ++weatherRequestId;
+    // Same coordinates: the {#key mapKey} attachment is not remounted, so
+    // preserve the working radar instead of covering it with the loading
+    // placeholder that clearLocationState would otherwise re-arm.
+    const prevMapReady = mapReady;
+    const prevMapError = mapError;
     clearLocationState();
+    mapReady = prevMapReady;
+    mapError = prevMapError;
     geolocationError = null;
     isLoading = true;
     try {
       await processWeather(parsed.latitude, parsed.longitude, requestId);
     } catch (error) {
+      // A newer location request may have started while the refresh was
+      // pending; never let this stale failure overwrite its data, error,
+      // or loading state.
+      if (!isCurrentRequest(requestId)) return;
       console.error("Error refreshing weather data:", error);
       const cached = loadCached(parsed.latitude, parsed.longitude);
       if (!cached) {
@@ -957,6 +972,11 @@
     const coords = mapCoords;
     if (!coords) return () => {};
     const { lat: latitude, lon: longitude } = coords;
+    const attachmentId = ++mapAttachmentSeq;
+    let loaded = false;
+    function isCurrentAttachment(): boolean {
+      return !destroyed && attachmentId === mapAttachmentSeq;
+    }
     let mapInstance: import("maplibre-gl").Map | null = null;
     let markerInstance: import("maplibre-gl").Marker | null = null;
     let destroyed = false;
@@ -1087,7 +1107,7 @@
     async function initMap() {
       try {
         const maplibregl = await getMapLibreModule();
-        if (destroyed) return;
+        if (!isCurrentAttachment()) return;
 
         mapInstance = new maplibregl.Map({
           container,
@@ -1120,6 +1140,8 @@
         );
 
         mapInstance.on("load", () => {
+          if (!isCurrentAttachment()) return;
+          loaded = true;
           ensureNwsOverlays();
           mapReady = true;
           mapInstanceRef = mapInstance;
@@ -1128,11 +1150,20 @@
         mapInstance.on("styledata", ensureNwsOverlays);
         mapInstance.on("error", (e) => {
           console.warn("Map error:", e.error ?? e);
+          // Surface failures that happen before first load (bad style URL,
+          // blocked tiles) instead of leaving the loading placeholder up.
+          // Post-load tile errors stay log-only so transient blips don't
+          // wipe out a working map.
+          if (isCurrentAttachment() && !loaded) {
+            mapError =
+              "Radar map failed to load. Your forecast above is still current.";
+          }
         });
         mapInstanceRef = mapInstance;
 
         refreshTimer = setInterval(refreshRadarTiles, RADAR_REFRESH_MS);
       } catch (e) {
+        if (!isCurrentAttachment()) return;
         console.error(e);
         mapError =
           "Radar map failed to load. Your forecast above is still current.";
@@ -1168,11 +1199,16 @@
       }
       markerInstance?.remove();
       markerInstance = null;
+      const ownMap = mapInstance;
       if (mapInstance) {
         mapInstance.remove();
         mapInstance = null;
       }
-      mapInstanceRef = null;
+      // Only clear the shared ref if it still points at this attachment's
+      // map; a remounted attachment may have already stored its own.
+      if (mapInstanceRef === ownMap) {
+        mapInstanceRef = null;
+      }
     };
   }
 
@@ -1445,7 +1481,9 @@
             <li>{currentHero.dailyName ?? "Today"}: {currentHero.dailyHighLow}</li>
           {/if}
           <li>Wind {currentHero.windSpeed}</li>
-          <li>Humidity {currentHero.humidity}%</li>
+          {#if currentHero.humidity !== null}
+            <li>Humidity {currentHero.humidity}%</li>
+          {/if}
           {#if currentHero.pop !== null}
             <li>Precip {currentHero.pop}%</li>
           {/if}
@@ -1546,7 +1584,7 @@
                   {#if period.probabilityOfPrecipitation}
                     <li>Precip {period.probabilityOfPrecipitation.value ?? 0}%</li>
                   {/if}
-                  {#if period.relativeHumidity}
+                  {#if period.relativeHumidity?.value != null}
                     <li>Humidity {period.relativeHumidity.value}%</li>
                   {/if}
                 </ul>
