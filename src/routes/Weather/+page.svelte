@@ -37,6 +37,7 @@
     properties?: {
       cwa?: string;
       forecastOffice?: string;
+      timeZone?: string;
       astronomicalData?: {
         sunrise?: string;
         sunset?: string;
@@ -155,9 +156,17 @@
   let gridData = $state.raw<GridpointData>({});
   let NWSURL = $state("");
   let afd = $state.raw<AfdProduct | null>(null);
-  let afdLoading = $state(false);
+  // Office with an in-flight AFD request; at most one request per office is
+  // ever started (see loadAfd).
+  let afdLoadingOffice = $state<string | null>(null);
+  let afdLoading = $derived(afdLoadingOffice !== null);
   let afdError = $state<string | null>(null);
   let afdFetchedOffice = $state<string | null>(null);
+  // User-visible open state of the AFD accordion, tracked so an office
+  // change while it is open can restore it and load the new discussion
+  // (a remounted <details> emits no toggle event on its own).
+  let afdOpen = $state(false);
+  let afdDetailsEl: HTMLDetailsElement | null = $state(null);
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let isOffline = $state(false);
@@ -223,12 +232,33 @@
     minute: "2-digit",
   });
 
-  function formatSunTime(iso: string | undefined): string | null {
+  // Format sun times in the forecast location's timezone (from /points),
+  // falling back to the device timezone when it is missing or invalid.
+  let sunTimeFormatter = $derived.by(() => {
+    const tz = point.properties?.timeZone?.trim();
+    if (tz) {
+      try {
+        return new Intl.DateTimeFormat("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZone: tz,
+        });
+      } catch {
+        // Unknown timezone — fall through to the device default below.
+      }
+    }
+    return sunTimeFmt;
+  });
+
+  function formatSunTime(
+    iso: string | undefined,
+    formatter: Intl.DateTimeFormat,
+  ): string | null {
     if (!iso) return null;
     const ms = Date.parse(iso);
     if (!Number.isFinite(ms)) return null;
     try {
-      return sunTimeFmt.format(new Date(ms));
+      return formatter.format(new Date(ms));
     } catch {
       return null;
     }
@@ -271,15 +301,16 @@
   let nextSunEvent = $derived.by(() => {
     const astro = point.properties?.astronomicalData;
     if (!astro) return null;
+    const formatter = sunTimeFormatter;
     const now = nowMs;
     const sunriseMs = astro.sunrise ? Date.parse(astro.sunrise) : NaN;
     const sunsetMs = astro.sunset ? Date.parse(astro.sunset) : NaN;
     if (Number.isFinite(sunriseMs) && now < sunriseMs) {
-      const time = formatSunTime(astro.sunrise);
+      const time = formatSunTime(astro.sunrise, formatter);
       return time ? { kind: "rise" as const, time } : null;
     }
     if (Number.isFinite(sunsetMs) && now < sunsetMs) {
-      const time = formatSunTime(astro.sunset);
+      const time = formatSunTime(astro.sunset, formatter);
       return time ? { kind: "set" as const, time } : null;
     }
     return null;
@@ -1421,6 +1452,15 @@
     return () => clearInterval(timer);
   });
 
+  $effect(() => {
+    // Load the discussion when the accordion opens, and when the office
+    // changes while it is open: navigating remounts the <details> (still
+    // open per afdOpen) without emitting a toggle event.
+    if (!officeId || !afdOpen) return;
+    if (afdDetailsEl && !afdDetailsEl.open) afdDetailsEl.open = true;
+    void loadAfd(true);
+  });
+
   function isCurrentRequest(requestId: number): boolean {
     return requestId === weatherRequestId;
   }
@@ -1432,7 +1472,7 @@
     gridData = {};
     NWSURL = "";
     afd = null;
-    afdLoading = false;
+    afdLoadingOffice = null;
     afdError = null;
     afdFetchedOffice = null;
     hourlyForecastProcessed = false;
@@ -1498,24 +1538,31 @@
 
   // Lazily fetch the latest Area Forecast Discussion for this office when
   // the accordion opens. Cached per office so toggling never refetches;
-  // a failed load retries on the next open.
+  // a failed load retries on the next open. The requesting office is
+  // captured up front and rechecked before committing: a late response
+  // from a previous office is dropped, and only one request per office is
+  // ever in flight so a failed retry can't hide a loaded discussion.
   async function loadAfd(isOpen: boolean): Promise<void> {
     if (!isOpen || !officeId) return;
-    if (afdFetchedOffice === officeId && (afd || afdLoading)) return;
-    afdLoading = true;
+    if (afdFetchedOffice === officeId && afd) return;
+    if (afdLoadingOffice === officeId) return;
+    const requestOffice = officeId;
+    afdLoadingOffice = requestOffice;
     afdError = null;
     try {
       const data = await fetchData<AfdProduct>(
-        `https://api.weather.gov/products/types/AFD/locations/${officeId}/latest`,
+        `https://api.weather.gov/products/types/AFD/locations/${requestOffice}/latest`,
       );
+      if (officeId !== requestOffice) return;
       afd = data;
-      afdFetchedOffice = officeId;
+      afdFetchedOffice = requestOffice;
     } catch (error) {
+      if (officeId !== requestOffice) return;
       console.error("Error fetching AFD:", error);
       afdError =
         "Unable to load the Area Forecast Discussion. Please try again.";
     } finally {
-      afdLoading = false;
+      if (afdLoadingOffice === requestOffice) afdLoadingOffice = null;
     }
   }
 
@@ -1890,8 +1937,10 @@
             <li>
               <details
                 class="swa-afd"
-                ontoggle={(e) =>
-                  void loadAfd((e.currentTarget as HTMLDetailsElement).open)}
+                bind:this={afdDetailsEl}
+                ontoggle={(e) => {
+                  afdOpen = (e.currentTarget as HTMLDetailsElement).open;
+                }}
               >
                 <summary>Area Forecast Discussion</summary>
                 <div class="swa-afd-body">
