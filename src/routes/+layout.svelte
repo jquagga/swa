@@ -81,7 +81,7 @@
   <div
     class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
   >
-    <a href="/" class="font-bold no-underline">Simple Weather</a>
+    <a href="/" class="text-lg font-bold no-underline">Simple Weather</a>
     <nav class="flex gap-3 text-sm" aria-label="Site">
       <a
         href="https://www.weather.gov/documentation/services-web-api"

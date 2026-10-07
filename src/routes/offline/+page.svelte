@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
 </script>
 
-<div class="mx-auto w-full max-w-5xl px-4 text-center sm:px-6">
+<div class="shell text-center">
   <h1>You're offline</h1>
   <p class="mx-auto max-w-prose py-8">
     Simple Weather needs a connection to fetch fresh forecasts, but your last
