@@ -1,28 +1,33 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import {
-    Chart,
-    LineController,
-    LineElement,
-    PointElement,
-    LinearScale,
-    CategoryScale,
-    Tooltip,
-    Legend,
-    Filler,
+  import type {
+    Chart as ChartInstance,
+    ChartConfiguration,
+    ChartDataset,
+    TooltipItem,
   } from "chart.js";
   import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
-  Chart.register(
-    LineController,
-    LineElement,
-    PointElement,
-    LinearScale,
-    CategoryScale,
-    Tooltip,
-    Legend,
-    Filler,
-  );
+  // Chart.js is lazy-loaded on first chart render so the Weather page's
+  // initial JS stays small. Registered once, then reused.
+  let chartLib: typeof import("chart.js") | null = null;
+  async function ensureChartLib(): Promise<typeof import("chart.js")> {
+    if (!chartLib) {
+      const mod = await import("chart.js");
+      mod.Chart.register(
+        mod.LineController,
+        mod.LineElement,
+        mod.PointElement,
+        mod.LinearScale,
+        mod.CategoryScale,
+        mod.Tooltip,
+        mod.Legend,
+        mod.Filler,
+      );
+      chartLib = mod;
+    }
+    return chartLib;
+  }
 
   interface WeatherPoint {
     properties?: {
@@ -85,14 +90,14 @@
   };
 
   // ChartDataset plus the custom `unit`/`isos` fields used for tooltips.
-  type UnitLineDataset = import("chart.js").ChartDataset<"line", number[]> & {
+  type UnitLineDataset = ChartDataset<"line", number[]> & {
     unit?: string;
     isos?: string[];
   };
 
   let point = $state.raw<WeatherPoint>({});
-  let alerts = $state<WeatherAlert>({ features: [] });
-  let forecast = $state<ForecastData>({});
+  let alerts = $state.raw<WeatherAlert>({ features: [] });
+  let forecast = $state.raw<ForecastData>({});
   let forecastHourly = $state.raw<ForecastData>({});
   let NWSURL = $state("");
   let geolocationError = $state<string | null>(null);
@@ -106,6 +111,8 @@
   const GRAPH_HOURS = 25;
   const USER_AGENT = "https://github.com/jquagga/swa";
   const CACHE_TTL_MS = 60 * 60 * 1000;
+  const MAX_CACHED_TILES = 10;
+  const CACHE_INDEX_KEY = "swa:weather:index";
 
   const DATASET_CONFIG = {
     TEMPERATURE: {
@@ -176,9 +183,7 @@
     return maplibre;
   }
 
-  function formatTooltipTitle(
-    context: import("chart.js").TooltipItem<"line">[],
-  ): string {
+  function formatTooltipTitle(context: TooltipItem<"line">[]): string {
     try {
       if (!context || context.length === 0) {
         return "No data available";
@@ -195,9 +200,7 @@
     }
   }
 
-  function formatTooltipLabel(
-    context: import("chart.js").TooltipItem<"line">,
-  ): string {
+  function formatTooltipLabel(context: TooltipItem<"line">): string {
     try {
       let label = context.dataset.label || "";
       if (label) {
@@ -288,8 +291,9 @@
 
   function saveCached(latitude: number, longitude: number): void {
     try {
+      const key = cacheKey(latitude, longitude);
       localStorage.setItem(
-        cacheKey(latitude, longitude),
+        key,
         JSON.stringify({
           point,
           alerts,
@@ -299,6 +303,17 @@
           savedAt: new Date().toISOString(),
         }),
       );
+      // Bound the cache: keep an LRU index so many tiles don't grow
+      // localStorage without bound.
+      const rawIndex = localStorage.getItem(CACHE_INDEX_KEY);
+      const index: string[] = rawIndex ? (JSON.parse(rawIndex) as string[]) : [];
+      const next = [key, ...index.filter((k) => k !== key)].slice(
+        0,
+        MAX_CACHED_TILES,
+      );
+      const evicted = index.filter((k) => !next.includes(k));
+      for (const k of evicted) localStorage.removeItem(k);
+      localStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(next));
     } catch {
       // storage full / private mode — offline fallback just won't exist
     }
@@ -353,21 +368,15 @@
     }
   }
 
-  function processAlertSeverity(alerts: WeatherAlert): void {
-    if (!alerts.features) return;
-
-    alerts.features.forEach((alert) => {
-      switch (alert.properties.severity) {
-        case "Severe":
-          alert.properties.severity = "pico-background-yellow-100";
-          break;
-        case "Extreme":
-          alert.properties.severity = "pico-background-red-500";
-          break;
-        default:
-          alert.properties.severity = "primary";
-      }
-    });
+  function alertTone(severity: string): string {
+    switch (severity) {
+      case "Severe":
+        return "pico-background-yellow-100";
+      case "Extreme":
+        return "pico-background-red-500";
+      default:
+        return "primary";
+    }
   }
 
   function mapWeatherToEmoji(description: string): string {
@@ -378,14 +387,6 @@
       }
     }
     return description;
-  }
-
-  function processForecastEmojis(forecast: ForecastData): void {
-    if (!forecast.properties?.periods) return;
-
-    forecast.properties.periods.forEach((period) => {
-      period.shortForecast = mapWeatherToEmoji(period.shortForecast);
-    });
   }
 
   function calculateApparentTemperature(
@@ -448,27 +449,23 @@
     const apparentTempValues: number[] = [];
     const popValues: number[] = [];
 
-    const periodsWithAppTemp = forecastHourly.properties.periods.map(
-      (period) => {
-        const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
-        const apparentTemp = calculateApparentTemperature(
-          period.temperature,
-          period.relativeHumidity.value,
-          windSpeedValue,
-        );
-        return { ...period, appTemp: apparentTemp };
-      },
-    );
-
-    let count = 0;
+    // Filter to upcoming periods first so apparent-temp math only runs
+    // for the GRAPH_HOURS actually displayed.
     const nowMs = Date.now();
+    const upcoming: WeatherPeriod[] = [];
+    for (const period of forecastHourly.properties.periods) {
+      if (upcoming.length >= GRAPH_HOURS) break;
+      if (nowMs > Date.parse(period.endTime)) continue;
+      upcoming.push(period);
+    }
 
-    for (let i = 0; i < periodsWithAppTemp.length && count < GRAPH_HOURS; i++) {
-      if (nowMs > Date.parse(periodsWithAppTemp[i].endTime)) {
-        continue;
-      }
-
-      const period = periodsWithAppTemp[i];
+    for (const period of upcoming) {
+      const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
+      const apparentTemp = calculateApparentTemperature(
+        period.temperature,
+        period.relativeHumidity.value,
+        Number.isFinite(windSpeedValue) ? windSpeedValue : 0,
+      );
       const ms = Date.parse(period.startTime);
       labels.push(
         Number.isFinite(ms)
@@ -478,8 +475,7 @@
       isos.push(period.startTime);
       tempValues.push(period.temperature);
       popValues.push(period.probabilityOfPrecipitation?.value || 0);
-      apparentTempValues.push(Math.round(period.appTemp));
-      count++;
+      apparentTempValues.push(Math.round(apparentTemp));
     }
 
     return { labels, isos, tempValues, apparentTempValues, popValues };
@@ -491,7 +487,7 @@
 
   function buildChartConfig(
     chartData: ChartData,
-  ): import("chart.js").ChartConfiguration<"line", number[], string> {
+  ): ChartConfiguration<"line", number[], string> {
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
@@ -641,30 +637,40 @@
     };
   }
 
-  function chartAttachment() {
-    return (canvas: HTMLCanvasElement) => {
-      let instance: Chart<"line", number[], string> | null = null;
+  function chartAttachment(canvas: HTMLCanvasElement) {
+    let instance: ChartInstance<"line", number[], string> | null = null;
+    let destroyed = false;
 
-      instance = new Chart(canvas, buildChartConfig(hourlyChartData));
+    async function init() {
+      try {
+        const lib = await ensureChartLib();
+        if (destroyed) return;
+        instance = new lib.Chart(canvas, buildChartConfig(hourlyChartData));
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
-      $effect(() => {
-        if (instance) {
-          const data = hourlyChartData;
-          instance.data.labels = data.labels;
-          instance.data.datasets[0].data = data.tempValues;
-          instance.data.datasets[1].data = data.apparentTempValues;
-          instance.data.datasets[2].data = data.popValues;
-          for (const ds of instance.data.datasets) {
-            (ds as unknown as { isos: string[] }).isos = data.isos;
-          }
-          instance.update("none");
+    void init();
+
+    $effect(() => {
+      if (instance) {
+        const data = hourlyChartData;
+        instance.data.labels = data.labels;
+        instance.data.datasets[0].data = data.tempValues;
+        instance.data.datasets[1].data = data.apparentTempValues;
+        instance.data.datasets[2].data = data.popValues;
+        for (const ds of instance.data.datasets) {
+          (ds as unknown as { isos: string[] }).isos = data.isos;
         }
-      });
+        instance.update("none");
+      }
+    });
 
-      return () => {
-        instance?.destroy();
-        instance = null;
-      };
+    return () => {
+      destroyed = true;
+      instance?.destroy();
+      instance = null;
     };
   }
 
@@ -680,104 +686,105 @@
     return { lat, lon };
   });
 
-  function mapAttachment(latitude: number, longitude: number) {
-    return (container: HTMLElement) => {
-      let mapInstance: import("maplibre-gl").Map | null = null;
-      let destroyed = false;
-      let observer: IntersectionObserver | null = null;
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  function mapAttachment(container: HTMLElement) {
+    const coords = mapCoords;
+    if (!coords) return () => {};
+    const { lat: latitude, lon: longitude } = coords;
+    let mapInstance: import("maplibre-gl").Map | null = null;
+    let destroyed = false;
+    let observer: IntersectionObserver | null = null;
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-      function getStyle() {
-        return mediaQuery.matches
-          ? "https://tiles.openfreemap.org/styles/dark"
-          : "https://tiles.openfreemap.org/styles/positron";
+    function getStyle() {
+      return mediaQuery.matches
+        ? "https://tiles.openfreemap.org/styles/dark"
+        : "https://tiles.openfreemap.org/styles/positron";
+    }
+
+    function handleStyleChange() {
+      if (mapInstance && !destroyed) {
+        mapInstance.setStyle(getStyle());
       }
+    }
 
-      function handleStyleChange() {
-        if (mapInstance && !destroyed) {
-          mapInstance.setStyle(getStyle());
-        }
-      }
+    async function initMap() {
+      try {
+        const maplibregl = await getMapLibreModule();
+        if (destroyed) return;
 
-      async function initMap() {
-        try {
-          const maplibregl = await getMapLibreModule();
-          if (destroyed) return;
+        mapInstance = new maplibregl.Map({
+          container,
+          style: getStyle(),
+          center: [longitude, latitude],
+          zoom: 7,
+          interactive: false,
+        });
 
-          mapInstance = new maplibregl.Map({
-            container,
-            style: getStyle(),
-            center: [longitude, latitude],
-            zoom: 7,
-            interactive: false,
+        mapInstance.on("load", () => {
+          if (!mapInstance || destroyed) return;
+
+          mapInstance.addSource("nws_radar", {
+            type: "raster",
+            tiles: [
+              "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+            ],
+            tileSize: 256,
           });
 
-          mapInstance.on("load", () => {
-            if (!mapInstance || destroyed) return;
-
-            mapInstance.addSource("nws_radar", {
-              type: "raster",
-              tiles: [
-                "https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-              ],
-              tileSize: 256,
-            });
-
-            mapInstance.addSource("nws_watch_warn", {
-              type: "raster",
-              tiles: [
-                "https://mapservices.weather.noaa.gov/eventdriven/services/WWA/watch_warn_adv/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
-              ],
-              tileSize: 256,
-            });
-
-            mapInstance.addLayer({
-              id: "nws_radar",
-              type: "raster",
-              source: "nws_radar",
-              paint: {},
-            });
-
-            mapInstance.addLayer({
-              id: "nws_watch_warn",
-              type: "raster",
-              source: "nws_watch_warn",
-              paint: {},
-            });
+          mapInstance.addSource("nws_watch_warn", {
+            type: "raster",
+            tiles: [
+              "https://mapservices.weather.noaa.gov/eventdriven/services/WWA/watch_warn_adv/MapServer/WMSServer?bbox={bbox-epsg-3857}&format=image/png&service=WMS&version=1.1.1&request=GetMap&srs=EPSG:3857&transparent=true&styles=default&width=256&height=256&layers=1",
+            ],
+            tileSize: 256,
           });
-        } catch (e) {
-          console.error(e);
-        }
+
+          mapInstance.addLayer({
+            id: "nws_radar",
+            type: "raster",
+            source: "nws_radar",
+            paint: {},
+          });
+
+          mapInstance.addLayer({
+            id: "nws_watch_warn",
+            type: "raster",
+            source: "nws_watch_warn",
+            paint: {},
+          });
+        });
+      } catch (e) {
+        console.error(e);
       }
+    }
 
-      mediaQuery.addEventListener("change", handleStyleChange);
+    mediaQuery.addEventListener("change", handleStyleChange);
 
-      // Defer the ~800KB map stack until the user scrolls near it.
-      if ("IntersectionObserver" in window) {
-        observer = new IntersectionObserver(
-          (entries) => {
-            if (entries.some((e) => e.isIntersecting)) {
-              observer?.disconnect();
-              observer = null;
-              void initMap();
-            }
-          },
-          { rootMargin: "400px" },
-        );
-        observer.observe(container);
-      } else {
-        void initMap();
+    // Defer the ~800KB map stack until the user scrolls near it.
+    if ("IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            observer?.disconnect();
+            observer = null;
+            void initMap();
+          }
+        },
+        { rootMargin: "400px" },
+      );
+      observer.observe(container);
+    } else {
+      void initMap();
+    }
+
+    return () => {
+      destroyed = true;
+      observer?.disconnect();
+      mediaQuery.removeEventListener("change", handleStyleChange);
+      if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
       }
-
-      return () => {
-        destroyed = true;
-        observer?.disconnect();
-        mediaQuery.removeEventListener("change", handleStyleChange);
-        if (mapInstance) {
-          mapInstance.remove();
-          mapInstance = null;
-        }
-      };
     };
   }
 
@@ -794,9 +801,15 @@
         throw new Error("Invalid location data received");
       }
 
+      const hourlyUrl = point.properties.forecastHourly;
+      const forecastUrl = point.properties.forecast;
+      if (!hourlyUrl || !forecastUrl) {
+        throw new Error("Invalid location data received");
+      }
+
       const [hourlyForecastData, weeklyForecastData] = await Promise.all([
-        fetchData<ForecastData>(point.properties.forecastHourly || ""),
-        fetchData<ForecastData>(point.properties.forecast || ""),
+        fetchData<ForecastData>(hourlyUrl),
+        fetchData<ForecastData>(forecastUrl),
       ]);
 
       forecastHourly = hourlyForecastData;
@@ -806,12 +819,14 @@
       isOffline = false;
       offlineSavedAt = null;
 
-      processForecastEmojis(forecast);
-
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
 
-      await fetchAlertsAsync(latitude, longitude);
+      // Paint the forecast now; alerts resolve independently so a slow
+      // alerts endpoint never delays the forecast or cache.
       saveCached(latitude, longitude);
+      void fetchAlertsAsync(latitude, longitude).then(() => {
+        saveCached(latitude, longitude);
+      });
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error;
@@ -829,79 +844,100 @@
         `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
       );
       alerts = alertsData;
-      processAlertSeverity(alerts);
       updateBadge();
     } catch (error) {
       console.error("Error fetching alerts:", error);
     }
   }
 
-  {
+  function parseCoords():
+    | { ok: true; latitude: number; longitude: number }
+    | { ok: false; reason: string } {
     const lat = page.url.searchParams.get("lat");
     const lon = page.url.searchParams.get("lon");
 
     if (!lat?.trim() || !lon?.trim()) {
-      geolocationError = "No location provided. Please go back and try again.";
-      isLoading = false;
-    } else {
-      const latitude = Number(lat);
-      const longitude = Number(lon);
-
-      if (
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude) ||
-        latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180
-      ) {
-        geolocationError =
-          "Invalid location coordinates. Please go back and try again.";
-        isLoading = false;
-      } else {
-        isLoading = true;
-
-        processWeather(latitude, longitude).catch((error) => {
-          console.error("Error processing weather data:", error);
-          // Offline-first: fall back to the last cached forecast for this tile.
-          const cached = loadCached(latitude, longitude);
-          if (cached) {
-            geolocationError = null;
-            isLoading = false;
-            return;
-          }
-          if (error instanceof Error) {
-            if (error.message.includes("HTTP error")) {
-              geolocationError =
-                "Unable to fetch weather data. The service may be temporarily unavailable.";
-            } else if (
-              error.message.includes("NetworkError") ||
-              error.message.includes("Failed to fetch")
-            ) {
-              geolocationError =
-                "Network error. Please check your internet connection and try again.";
-            } else {
-              geolocationError = `Error: ${error.message}`;
-            }
-          } else {
-            geolocationError =
-              "Failed to process weather data. Please try again.";
-          }
-          isLoading = false;
-        });
-      }
+      return {
+        ok: false,
+        reason: "No location provided. Please go back and try again.",
+      };
     }
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return {
+        ok: false,
+        reason: "Invalid location coordinates. Please go back and try again.",
+      };
+    }
+    return { ok: true, latitude, longitude };
   }
+
+  $effect(() => {
+    // Track only the URL: re-fetch when ?lat/?lon change via client nav.
+    const parsed = parseCoords();
+    let cancelled = false;
+
+    if (!parsed.ok) {
+      geolocationError = parsed.reason;
+      isLoading = false;
+      return;
+    }
+
+    const { latitude, longitude } = parsed;
+    isLoading = true;
+
+    processWeather(latitude, longitude).catch((error) => {
+      if (cancelled) return;
+      console.error("Error processing weather data:", error);
+      // Offline-first: fall back to the last cached forecast for this tile.
+      const cached = loadCached(latitude, longitude);
+      if (cached) {
+        geolocationError = null;
+        isLoading = false;
+        return;
+      }
+      if (error instanceof Error) {
+        if (error.message.includes("HTTP error")) {
+          geolocationError =
+            "Unable to fetch weather data. The service may be temporarily unavailable.";
+        } else if (
+          error.message.includes("NetworkError") ||
+          error.message.includes("Failed to fetch")
+        ) {
+          geolocationError =
+            "Network error. Please check your internet connection and try again.";
+        } else {
+          geolocationError = `Error: ${error.message}`;
+        }
+      } else {
+        geolocationError =
+          "Failed to process weather data. Please try again.";
+      }
+      isLoading = false;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
 </script>
 
 <svelte:boundary>
   <div class="container-fluid">
-    <h1 style="text-align: center;">
+    <h1 class="swa-center">
       {locationDisplay}
     </h1>
 
     {#if isOffline}
-      <p role="status" style="text-align: center;">
+      <p role="status" class="swa-center">
         Offline — showing cached forecast{#if offlineSavedAt}
           from {formatIso(offlineSavedAt)}{/if}.
       </p>
@@ -914,8 +950,7 @@
             <!-- svelte-ignore a11y_no_redundant_roles -->
             <summary
               role="button"
-              style="text-align: center;"
-              class={alert.properties.severity}
+              class="swa-center {alertTone(alert.properties.severity)}"
             >
               {alert.properties.event}
             </summary>
@@ -929,16 +964,20 @@
       {/if}
     </div>
 
-    <div style="height: 300px; margin: 20px 0;">
-      <canvas id="myChart" {@attach chartReady && chartAttachment()}></canvas>
-    </div>
+    {#if chartReady}
+      <div class="swa-chart-wrap">
+        <canvas id="myChart" {@attach chartAttachment}></canvas>
+      </div>
+    {/if}
 
     <div id="grid">
       {#if forecast.properties?.periods}
         {#snippet forecastRow(period: WeatherPeriod)}
           <tr>
             <td>
-              <b>{period.name}</b><br />{period.shortForecast}
+              <b>{period.name}</b><br />{mapWeatherToEmoji(
+                period.shortForecast,
+              )}
               {#if period.isDaytime}
                 <span class="pico-color-red-500">{period.temperature}</span>
               {:else}
@@ -950,7 +989,7 @@
         {/snippet}
         <table class="striped">
           <tbody>
-            {#each forecast.properties.periods as period (period.name)}
+            {#each forecast.properties.periods as period (period.startTime)}
               {@render forecastRow(period)}
             {/each}
           </tbody>
@@ -961,22 +1000,20 @@
     </div>
 
     <div>
-      <div
-        id="map"
-        style="min-width: 100%; min-height: 50vh; position: relative"
-        {@attach mapCoords && mapAttachment(mapCoords.lat, mapCoords.lon)}
-      ></div>
+      {#if mapCoords}
+        <div id="map" {@attach mapAttachment}></div>
+      {/if}
     </div>
     <br />
 
     {#if NWSURL}
-      <div style="text-align: center;">
+      <div class="swa-center">
         <a href={NWSURL} role="button">Weather.gov forecast</a>
       </div>
     {/if}
     <br />
 
-    <p style="text-align: center;">
+    <p class="swa-center">
       This forecast is generated from the U.S. National Weather Service's
       <a href="https://www.weather.gov/documentation/services-web-api"
         >weather.gov API</a
@@ -987,8 +1024,8 @@
   </div>
 
   {#snippet failed(error, reset)}
-    <div style="text-align: center; padding: 20px;">
-      <p style="color: red;">An error occurred: {(error as Error).message}</p>
+    <div class="swa-error-box">
+      <p class="swa-error">An error occurred: {(error as Error).message}</p>
       <button onclick={reset}>Try Again</button>
     </div>
   {/snippet}

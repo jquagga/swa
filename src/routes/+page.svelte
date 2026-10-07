@@ -83,6 +83,8 @@
     );
   }
 
+  let searchController: AbortController | null = null;
+
   async function handleAddressSearch(event?: SubmitEvent) {
     event?.preventDefault();
     searchError = null;
@@ -92,12 +94,15 @@
       return;
     }
 
+    // Cancel any in-flight search so rapid submits don't race.
+    searchController?.abort();
+    const controller = new AbortController();
+    searchController = controller;
     isSearching = true;
 
     try {
       const url = `/geocode?address=${encodeURIComponent(address.trim())}`;
 
-      const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(url, { signal: controller.signal });
@@ -137,24 +142,35 @@
           "Address not found. Please check the address and try again.";
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        // Superseded by a newer submit, or timed out. Only report timeouts
+        // for the still-active request.
+        if (searchController === controller) {
+          searchError = "Unable to geocode the address. Please try again.";
+        }
+        return;
+      }
       console.error("Error geocoding address:", error);
       searchError = "Unable to geocode the address. Please try again.";
     } finally {
-      isSearching = false;
+      if (searchController === controller) {
+        isSearching = false;
+        searchController = null;
+      }
     }
   }
 </script>
 
 <div class="container">
   <div>
-    <h1 style="text-align: center">Simple Weather</h1>
+    <h1 class="swa-center">Simple Weather</h1>
     <p>
       <a href="https://github.com/jquagga/swa">Simple Weather App</a> queries the
       US National Weather Service to provide a responsive weather forecast. Pressing
       the button below will ask for location permission, and provide your forecast
       if you're in the United States.
     </p>
-    <div style="text-align: center;">
+    <div class="swa-center">
       {#if geoPermission === "denied"}
         <p role="note">
           Location access is blocked in your browser settings — you can still
@@ -162,17 +178,17 @@
         </p>
       {/if}
       {#if geolocationError}
-        <p style="color: red;" role="alert">{geolocationError}</p>
+        <p class="swa-error" role="alert">{geolocationError}</p>
       {/if}
       <button
         onclick={handleGeolocate}
         disabled={isGeolocating}
-        style="text-align: center;"
+        class="swa-center"
       >
         {geolocateButtonText}
       </button>
     </div>
-    <h2 style="text-align: center;">OR:</h2>
+    <h2 class="swa-center">OR:</h2>
     <p>
       Alternatively, you can utilize the Census Bureau geocoding search and this
       will query the forecast for that address. <strong>
@@ -194,9 +210,9 @@
       />
       <br />
 
-      <div style="text-align: center;">
+      <div class="swa-center">
         {#if searchError}
-          <p style="color: red;" role="alert">{searchError}</p>
+          <p class="swa-error" role="alert">{searchError}</p>
         {/if}
         <button type="submit" disabled={isSearching}>
           {searchButtonText}

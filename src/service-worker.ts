@@ -11,10 +11,10 @@ const CACHE = `cache-${version}`;
 // `immutable` (Vite output) and `assets` (static dir) paths are relative to
 // the base path, so resolve them to absolute pathnames that can be matched
 // against `url.pathname`.
-const ASSETS = [
+const ASSETS = new Set([
   ...immutable.map((entry) => resolve(entry.path)),
   ...assets.map((entry) => resolve(entry.path)),
-];
+]);
 
 // Prerendered offline fallback — must exist as a route (see /offline).
 const OFFLINE_FALLBACK = "/offline";
@@ -81,7 +81,7 @@ self.addEventListener("fetch", (event) => {
     const cache = await caches.open(CACHE);
 
     // `immutable`/`assets` can always be served from the cache
-    if (ASSETS.includes(url.pathname)) {
+    if (ASSETS.has(url.pathname)) {
       const response = await cache.match(url.pathname);
 
       if (response) {

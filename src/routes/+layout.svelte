@@ -65,12 +65,9 @@
 </script>
 
 {#if showUpdate}
-  <div
-    role="status"
-    style="position: sticky; top: 0; z-index: 50; text-align: center; padding: 0.5rem; background: #017fc0; color: #fff;"
-  >
+  <div role="status" class="swa-update-banner">
     A new version is available.
-    <button onclick={reload} style="margin-left: 0.5rem;">Update</button>
+    <button onclick={reload}>Update</button>
   </div>
 {/if}
 

@@ -37,9 +37,10 @@ export default defineConfig({
             "https://mapservices.weather.noaa.gov",
             "https://geocoding.geo.census.gov"
           ],
-          // 'unsafe-inline' covers style *attributes* (used throughout the
-          // markup); SvelteKit hashes Svelte-generated inline <style> itself.
-          "style-src": ["self", "unsafe-inline", "https://tiles.openfreemap.org"],
+          // No 'unsafe-inline': all app styles live in main.css / Svelte
+          // <style> blocks (SvelteKit hashes the latter). JS-set styles
+          // via CSSOM (MapLibre/Chart.js) are still allowed by CSP.
+          "style-src": ["self", "https://tiles.openfreemap.org"],
           "font-src": ["self", "data:"],
           "script-src": ["self", "wasm-unsafe-eval"],
           "worker-src": ["self", "blob:"],
