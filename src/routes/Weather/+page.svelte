@@ -42,6 +42,7 @@
       };
       forecastHourly?: string;
       forecast?: string;
+      forecastGridData?: string;
     };
     detail?: string;
   }
@@ -84,11 +85,36 @@
     };
   }
 
+  interface GridValueEntry {
+    validTime: string;
+    value: number | null;
+  }
+
+  interface GridQuantLayer {
+    uom: string;
+    values: GridValueEntry[];
+  }
+
+  interface GridpointProperties {
+    temperature?: GridQuantLayer;
+    heatIndex?: GridQuantLayer;
+    windChill?: GridQuantLayer;
+    relativeHumidity?: GridQuantLayer;
+    probabilityOfPrecipitation?: GridQuantLayer;
+    windSpeed?: GridQuantLayer;
+    [key: string]: unknown;
+  }
+
+  interface GridpointData {
+    properties?: GridpointProperties;
+  }
+
   type ChartData = {
     labels: string[];
     isos: string[];
     tempValues: number[];
-    apparentTempValues: number[];
+    heatIndexValues: (number | null)[];
+    windChillValues: (number | null)[];
     popValues: number[];
     windLabels: string[];
     humidityValues: number[];
@@ -113,7 +139,7 @@
   let point = $state.raw<WeatherPoint>({});
   let alerts = $state.raw<WeatherAlert>({ features: [] });
   let forecast = $state.raw<ForecastData>({});
-  let forecastHourly = $state.raw<ForecastData>({});
+  let gridData = $state.raw<GridpointData>({});
   let NWSURL = $state("");
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
@@ -143,13 +169,18 @@
   const MAX_CACHED_TILES = 10;
   const CACHE_INDEX_KEY = "swa:weather:index";
   const CACHE_KEY_PREFIX = "swa:weather:";
+  const CACHE_VERSION = 2;
 
   const DATASET_CONFIG = {
     TEMPERATURE: {
       unit: "°F",
       defaultPointRadius: 3,
     },
-    APPARENT_TEMPERATURE: {
+    HEAT_INDEX: {
+      unit: "°F",
+      defaultPointRadius: 3,
+    },
+    WIND_CHILL: {
       unit: "°F",
       defaultPointRadius: 3,
     },
@@ -391,10 +422,11 @@
   function saveCached(latitude: number, longitude: number): void {
     const key = cacheKey(latitude, longitude);
     const payload = JSON.stringify({
+      v: CACHE_VERSION,
       point,
       alerts,
       forecast,
-      forecastHourly,
+      gridData,
       NWSURL,
       savedAt: new Date().toISOString(),
     });
@@ -448,20 +480,23 @@
       const raw = localStorage.getItem(key);
       if (!raw) return null;
       const data = JSON.parse(raw) as {
+        v?: number;
         point: WeatherPoint;
         alerts: WeatherAlert;
         forecast: ForecastData;
-        forecastHourly: ForecastData;
+        gridData: GridpointData;
         NWSURL: string;
         savedAt: string;
       };
       if (!data?.savedAt || !data?.point?.properties) return null;
+      if (data.v !== CACHE_VERSION) return null;
+      if (!data?.gridData?.properties) return null;
       if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
       normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
       point = data.point;
       alerts = data.alerts ?? { features: [] };
       forecast = data.forecast ?? {};
-      forecastHourly = data.forecastHourly ?? {};
+      gridData = data.gridData ?? {};
       NWSURL = data.NWSURL ?? "";
       hourlyForecastProcessed = true;
       isOffline = true;
@@ -537,106 +572,167 @@
     return description;
   }
 
-  function calculateApparentTemperature(
-    tempF: number,
-    humidity: number,
-    windSpeedMph: number,
-  ): number {
-    // "Feels like" decision flow:
-    //   tempF <= 51 → wind chill (accounts for wind cooling)
-    //   tempF >= 80 && humidity >= 40 → heat index (accounts for humidity)
-    //   otherwise → return actual temperature
-    if (tempF <= 51) {
-      const mag = windSpeedMph * 1.15;
-      return mag <= 3
-        ? tempF
-        : 35.74 +
-            0.6215 * tempF -
-            35.75 * Math.pow(mag, 0.16) +
-            0.4275 * tempF * Math.pow(mag, 0.16);
+  function celsiusToFahrenheit(celsius: number): number {
+    return (celsius * 9) / 5 + 32;
+  }
+
+  function convertGridTemperature(value: number | null, uom: string): number | null {
+    if (value == null) return null;
+    // Gridpoint temps arrive as wmoUnit:degC; pass through if already F.
+    if (uom.includes("degF") || uom === "F") return value;
+    return celsiusToFahrenheit(value);
+  }
+
+  function convertGridWindSpeed(value: number | null, uom: string): number | null {
+    if (value == null) return null;
+    if (uom.includes("km_h") || uom.includes("km/h")) return value * 0.621371;
+    if (uom.includes("m_s") || uom.includes("m/s")) return value * 2.23694;
+    return value;
+  }
+
+  interface GridInterval {
+    startMs: number;
+    endMs: number;
+    value: number | null;
+  }
+
+  function parseIsoDurationMs(duration: string): number | null {
+    // Supports the NWS subset: PnD / PTnH / PTnM / PnDTnHnM.
+    const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/.exec(duration);
+    if (!match) return null;
+    const days = Number(match[1] ?? 0);
+    const hours = Number(match[2] ?? 0);
+    const minutes = Number(match[3] ?? 0);
+    if (!days && !hours && !minutes) return null;
+    return ((days * 24 + hours) * 60 + minutes) * 60 * 1000;
+  }
+
+  function parseValidTime(validTime: string): { startMs: number; endMs: number } | null {
+    const parts = validTime.split("/");
+    if (parts.length !== 2) return null;
+    const startMs = Date.parse(parts[0]);
+    if (!Number.isFinite(startMs)) return null;
+    let endMs: number;
+    if (parts[1].startsWith("P")) {
+      const durationMs = parseIsoDurationMs(parts[1]);
+      if (durationMs == null) return null;
+      endMs = startMs + durationMs;
+    } else {
+      endMs = Date.parse(parts[1]);
+      if (!Number.isFinite(endMs)) return null;
     }
+    if (!(endMs > startMs)) return null;
+    return { startMs, endMs };
+  }
 
-    if (tempF < 80.0) {
-      return tempF;
+  function expandLayerIntervals(layer: GridQuantLayer | undefined): GridInterval[] {
+    if (!layer?.values) return [];
+    const intervals: GridInterval[] = [];
+    for (const entry of layer.values) {
+      const parsed = parseValidTime(entry.validTime);
+      if (!parsed) continue;
+      intervals.push({ ...parsed, value: entry.value });
     }
+    intervals.sort((a, b) => a.startMs - b.startMs);
+    return intervals;
+  }
 
-    const t2 = Math.pow(tempF, 2);
-    const h2 = Math.pow(humidity, 2);
-    const heatindexF =
-      -42.379 +
-      2.04901523 * tempF +
-      10.14333127 * humidity -
-      0.22475541 * tempF * humidity -
-      6.83783e-3 * t2 -
-      5.481717e-2 * h2 +
-      1.22874e-3 * t2 * humidity +
-      8.5282e-4 * tempF * h2 -
-      1.99e-6 * t2 * h2;
-
-    if (heatindexF < tempF) {
-      return tempF;
+  function lookupIntervalValue(intervals: GridInterval[], slotStartMs: number): number | null {
+    for (const interval of intervals) {
+      if (slotStartMs < interval.startMs) break;
+      if (slotStartMs < interval.endMs) return interval.value;
     }
-
-    return heatindexF;
+    return null;
   }
 
   let hourlyChartData = $derived.by((): ChartData => {
-    if (!forecastHourly.properties?.periods) {
-      return {
-        labels: [],
-        isos: [],
-        tempValues: [],
-        apparentTempValues: [],
-        popValues: [],
-        windLabels: [],
-        humidityValues: [],
-      };
-    }
+    const empty: ChartData = {
+      labels: [],
+      isos: [],
+      tempValues: [],
+      heatIndexValues: [],
+      windChillValues: [],
+      popValues: [],
+      windLabels: [],
+      humidityValues: [],
+    };
+    const props = gridData.properties;
+    const tempLayer = props?.temperature;
+    if (!tempLayer) return empty;
+
+    const tempIntervals = expandLayerIntervals(tempLayer);
+    const heatIntervals = expandLayerIntervals(props?.heatIndex);
+    const chillIntervals = expandLayerIntervals(props?.windChill);
+    const popIntervals = expandLayerIntervals(props?.probabilityOfPrecipitation);
+    const humidityIntervals = expandLayerIntervals(props?.relativeHumidity);
+    const windIntervals = expandLayerIntervals(props?.windSpeed);
+    const HOUR_MS = 60 * 60 * 1000;
 
     const labels: string[] = [];
     const isos: string[] = [];
     const tempValues: number[] = [];
-    const apparentTempValues: number[] = [];
+    const heatIndexValues: (number | null)[] = [];
+    const windChillValues: (number | null)[] = [];
     const popValues: number[] = [];
     const windLabels: string[] = [];
     const humidityValues: number[] = [];
 
-    // Filter to upcoming periods first so apparent-temp math only runs
-    // for the GRAPH_HOURS actually displayed.
     const nowMs = Date.now();
-    const upcoming: WeatherPeriod[] = [];
-    for (const period of forecastHourly.properties.periods) {
-      if (upcoming.length >= GRAPH_HOURS) break;
-      if (nowMs > Date.parse(period.endTime)) continue;
-      upcoming.push(period);
-    }
+    const tempUom = tempLayer.uom ?? "";
+    const heatUom = props?.heatIndex?.uom ?? "";
+    const chillUom = props?.windChill?.uom ?? "";
+    const windUom = props?.windSpeed?.uom ?? "";
 
-    for (const period of upcoming) {
-      const windSpeedValue = parseFloat(period.windSpeed.split(" ")[0]);
-      const apparentTemp = calculateApparentTemperature(
-        period.temperature,
-        period.relativeHumidity.value ?? 0,
-        Number.isFinite(windSpeedValue) ? windSpeedValue : 0,
-      );
-      const ms = Date.parse(period.startTime);
-      labels.push(
-        Number.isFinite(ms)
-          ? hourLabelFmt.format(new Date(ms))
-          : period.startTime,
-      );
-      isos.push(period.startTime);
-      tempValues.push(period.temperature);
-      popValues.push(period.probabilityOfPrecipitation?.value ?? 0);
-      apparentTempValues.push(Math.round(apparentTemp));
-      windLabels.push(period.windSpeed);
-      humidityValues.push(period.relativeHumidity.value ?? 0);
+    // Temperature intervals are step functions held constant over
+    // validTime; split multi-hour intervals into hourly slots, then look
+    // up the covering value in each companion layer per slot.
+    for (const interval of tempIntervals) {
+      for (
+        let slotStart = interval.startMs;
+        slotStart < interval.endMs && labels.length < GRAPH_HOURS;
+        slotStart += HOUR_MS
+      ) {
+        const slotEnd = slotStart + HOUR_MS;
+        if (nowMs >= slotEnd) continue;
+        if (interval.value == null) continue;
+        const tempF = convertGridTemperature(interval.value, tempUom);
+        if (tempF == null) continue;
+        const rawHeat = lookupIntervalValue(heatIntervals, slotStart);
+        const rawChill = lookupIntervalValue(chillIntervals, slotStart);
+        const heatF =
+          rawHeat == null
+            ? null
+            : convertGridTemperature(rawHeat, heatUom);
+        const chillF =
+          rawChill == null
+            ? null
+            : convertGridTemperature(rawChill, chillUom);
+        const pop = lookupIntervalValue(popIntervals, slotStart) ?? 0;
+        const humidity = lookupIntervalValue(humidityIntervals, slotStart) ?? 0;
+        const rawWind = lookupIntervalValue(windIntervals, slotStart);
+        const windMph =
+          rawWind == null ? null : convertGridWindSpeed(rawWind, windUom);
+        const date = new Date(slotStart);
+        labels.push(hourLabelFmt.format(date));
+        isos.push(date.toISOString());
+        tempValues.push(Math.round(tempF));
+        heatIndexValues.push(heatF == null ? null : Math.round(heatF));
+        windChillValues.push(chillF == null ? null : Math.round(chillF));
+        popValues.push(Math.round(pop));
+        windLabels.push(
+          windMph == null ? "—" : `${Math.round(windMph)} mph`,
+        );
+        humidityValues.push(Math.round(humidity));
+      }
+      if (labels.length >= GRAPH_HOURS) break;
     }
 
     return {
       labels,
       isos,
       tempValues,
-      apparentTempValues,
+      heatIndexValues,
+      windChillValues,
       popValues,
       windLabels,
       humidityValues,
@@ -659,28 +755,21 @@
   );
 
   let currentHero = $derived.by(() => {
-    const hourly = forecastHourly.properties?.periods?.[0];
     const daily = forecast.properties?.periods?.[0];
-    if (!hourly && !daily) return null;
-    const source = hourly ?? daily;
-    if (!source) return null;
-    const windSpeedValue = parseFloat(source.windSpeed.split(" ")[0]);
-    const feelsLike = Math.round(
-      calculateApparentTemperature(
-        source.temperature,
-        source.relativeHumidity.value ?? 0,
-        Number.isFinite(windSpeedValue) ? windSpeedValue : 0,
-      ),
-    );
+    const hasHourly = hourlyChartData.tempValues.length > 0;
+    if (!hasHourly && !daily) return null;
+    const heatIndex = hasHourly ? (hourlyChartData.heatIndexValues[0] ?? null) : null;
+    const windChill = hasHourly ? (hourlyChartData.windChillValues[0] ?? null) : null;
     return {
-      temperature: source.temperature,
-      temperatureUnit: source.temperatureUnit || "°F",
-      feelsLike,
-      shortForecast: source.shortForecast,
-      windSpeed: source.windSpeed,
-      humidity: source.relativeHumidity.value ?? null,
-      pop: source.probabilityOfPrecipitation?.value ?? null,
-      isDaytime: source.isDaytime,
+      temperature: hasHourly ? hourlyChartData.tempValues[0] : (daily?.temperature ?? 0),
+      temperatureUnit: "F",
+      heatIndex,
+      windChill,
+      shortForecast: daily?.shortForecast ?? "",
+      windSpeed: hasHourly ? hourlyChartData.windLabels[0] : (daily?.windSpeed ?? "—"),
+      humidity: hasHourly ? hourlyChartData.humidityValues[0] : (daily?.relativeHumidity.value ?? null),
+      pop: hasHourly ? hourlyChartData.popValues[0] : (daily?.probabilityOfPrecipitation?.value ?? null),
+      isDaytime: daily?.isDaytime ?? true,
       dailyName: daily?.name ?? null,
       dailyHighLow: daily
         ? `${daily.isDaytime ? "High" : "Low"} ${daily.temperature}°`
@@ -723,8 +812,12 @@
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
     );
-    const apparentTempPointRadius = getPointRadius(
-      DATASET_CONFIG.APPARENT_TEMPERATURE.defaultPointRadius,
+    const heatPointRadius = getPointRadius(
+      DATASET_CONFIG.HEAT_INDEX.defaultPointRadius,
+      chartData.labels.length,
+    );
+    const chillPointRadius = getPointRadius(
+      DATASET_CONFIG.WIND_CHILL.defaultPointRadius,
       chartData.labels.length,
     );
     // Neutral grid works in both light and dark mode (previous
@@ -750,27 +843,55 @@
       winds: chartData.windLabels,
       humidities: chartData.humidityValues,
     };
-    const feelsDataset: UnitLineDataset = {
-      type: "line" as const,
-      label: "Feels Like",
-      data: chartData.apparentTempValues,
-      borderColor: "#475569",
-      backgroundColor: "transparent",
-      borderDash: [6, 4],
-      tension: 0.4,
-      yAxisID: "y",
-      pointRadius: apparentTempPointRadius,
-      pointHoverRadius: apparentTempPointRadius + 3,
-      pointBackgroundColor: "#475569",
-      pointBorderColor: "#475569",
-      pointBorderWidth: 1,
-      pointStyle: "rectRot",
-      borderWidth: 2,
-      unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
-      isos: chartData.isos,
-      winds: chartData.windLabels,
-      humidities: chartData.humidityValues,
-    };
+    const feelsDatasets: UnitLineDataset[] = [];
+    if (chartData.heatIndexValues.some((v) => v != null)) {
+      feelsDatasets.push({
+        type: "line" as const,
+        label: "Heat Index",
+        data: chartData.heatIndexValues as number[],
+        borderColor: "#C2410C",
+        backgroundColor: "transparent",
+        borderDash: [6, 4],
+        tension: 0.4,
+        yAxisID: "y",
+        pointRadius: heatPointRadius,
+        pointHoverRadius: heatPointRadius + 3,
+        pointBackgroundColor: "#C2410C",
+        pointBorderColor: "#C2410C",
+        pointBorderWidth: 1,
+        pointStyle: "rectRot",
+        borderWidth: 2,
+        spanGaps: false,
+        unit: DATASET_CONFIG.HEAT_INDEX.unit,
+        isos: chartData.isos,
+        winds: chartData.windLabels,
+        humidities: chartData.humidityValues,
+      });
+    }
+    if (chartData.windChillValues.some((v) => v != null)) {
+      feelsDatasets.push({
+        type: "line" as const,
+        label: "Wind Chill",
+        data: chartData.windChillValues as number[],
+        borderColor: "#017FC0",
+        backgroundColor: "transparent",
+        borderDash: [6, 4],
+        tension: 0.4,
+        yAxisID: "y",
+        pointRadius: chillPointRadius,
+        pointHoverRadius: chillPointRadius + 3,
+        pointBackgroundColor: "#017FC0",
+        pointBorderColor: "#017FC0",
+        pointBorderWidth: 1,
+        pointStyle: "rectRot",
+        borderWidth: 2,
+        spanGaps: false,
+        unit: DATASET_CONFIG.WIND_CHILL.unit,
+        isos: chartData.isos,
+        winds: chartData.windLabels,
+        humidities: chartData.humidityValues,
+      });
+    }
     const popDataset: UnitBarDataset = {
       type: "bar" as const,
       label: "Chance of Precipitation",
@@ -795,7 +916,7 @@
         labels: chartData.labels,
         datasets: [
           tempDataset as never,
-          feelsDataset as never,
+          ...(feelsDatasets as never[]),
           popDataset as never,
         ],
       },
@@ -914,33 +1035,13 @@
       // Read hourlyChartData unconditionally so this effect subscribes to it
       // even on runs before `instance` exists; otherwise late forecast
       // updates would never rerun the effect and the chart would go stale.
+      // The dataset list is dynamic (heat index / wind chill appear only
+      // when NWS provides them), so sync the full config each run.
       const data = hourlyChartData;
       if (instance) {
-        instance.data.labels = data.labels;
-        if (instance.data.datasets[0]) {
-          instance.data.datasets[0].data = data.tempValues as never;
-          Object.assign(instance.data.datasets[0], {
-            isos: data.isos,
-            winds: data.windLabels,
-            humidities: data.humidityValues,
-          });
-        }
-        if (instance.data.datasets[1]) {
-          instance.data.datasets[1].data = data.apparentTempValues as never;
-          Object.assign(instance.data.datasets[1], {
-            isos: data.isos,
-            winds: data.windLabels,
-            humidities: data.humidityValues,
-          });
-        }
-        if (instance.data.datasets[2]) {
-          instance.data.datasets[2].data = data.popValues as never;
-          Object.assign(instance.data.datasets[2], {
-            isos: data.isos,
-            winds: data.windLabels,
-            humidities: data.humidityValues,
-          });
-        }
+        const next = buildChartConfig(data);
+        instance.data.labels = next.data.labels;
+        instance.data.datasets = next.data.datasets;
         instance.update("none");
       }
     });
@@ -1239,7 +1340,7 @@
     point = {};
     alerts = { features: [] };
     forecast = {};
-    forecastHourly = {};
+    gridData = {};
     NWSURL = "";
     hourlyForecastProcessed = false;
     isOffline = false;
@@ -1265,19 +1366,19 @@
       }
       point = pointData;
 
-      const hourlyUrl = pointData.properties.forecastHourly;
+      const gridUrl = pointData.properties.forecastGridData;
       const forecastUrl = pointData.properties.forecast;
-      if (!hourlyUrl || !forecastUrl) {
+      if (!gridUrl || !forecastUrl) {
         throw new Error("Invalid location data received");
       }
 
-      const [hourlyForecastData, weeklyForecastData] = await Promise.all([
-        fetchData<ForecastData>(hourlyUrl),
+      const [gridpointData, weeklyForecastData] = await Promise.all([
+        fetchData<GridpointData>(gridUrl),
         fetchData<ForecastData>(forecastUrl),
       ]);
       if (!isCurrentRequest(requestId)) return;
 
-      forecastHourly = hourlyForecastData;
+      gridData = gridpointData;
       forecast = weeklyForecastData;
 
       hourlyForecastProcessed = true;
@@ -1472,7 +1573,11 @@
           </span>
           <div>
             <p class="swa-hero-short">{currentHero.shortForecast}</p>
-            <p class="swa-hero-feels">Feels like {currentHero.feelsLike}°</p>
+            {#if currentHero.heatIndex !== null}
+              <p class="swa-hero-feels">Heat index {currentHero.heatIndex}°</p>
+            {:else if currentHero.windChill !== null}
+              <p class="swa-hero-feels">Wind chill {currentHero.windChill}°</p>
+            {/if}
           </div>
         </div>
         <ul class="swa-chips">
@@ -1528,7 +1633,7 @@
         <div class="swa-chart-wrap">
           <canvas
             id="myChart"
-            aria-label="Hourly temperature, feels-like, and chance of precipitation for the next 24 hours"
+            aria-label="Hourly temperature, heat index, wind chill, and chance of precipitation for the next 24 hours"
             {@attach chartAttachment}
           ></canvas>
         </div>
@@ -1545,7 +1650,8 @@
               <tr>
                 <th scope="col">Time</th>
                 <th scope="col">Temp</th>
-                <th scope="col">Feels like</th>
+                <th scope="col">Heat index</th>
+                <th scope="col">Wind chill</th>
                 <th scope="col">Precip</th>
               </tr>
             </thead>
@@ -1556,7 +1662,8 @@
                     >{formatIso(hourlyChartData.isos[i] ?? label)}</th
                   >
                   <td>{hourlyChartData.tempValues[i]}°</td>
-                  <td>{hourlyChartData.apparentTempValues[i]}°</td>
+                  <td>{hourlyChartData.heatIndexValues[i] ?? "—"}{hourlyChartData.heatIndexValues[i] != null ? "°" : ""}</td>
+                  <td>{hourlyChartData.windChillValues[i] ?? "—"}{hourlyChartData.windChillValues[i] != null ? "°" : ""}</td>
                   <td>{hourlyChartData.popValues[i]}%</td>
                 </tr>
               {/each}
