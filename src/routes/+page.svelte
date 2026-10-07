@@ -165,7 +165,7 @@
   <div>
     <h1>Simple Weather</h1>
     <p>
-      <a href="https://github.com/jquagga/swa">Simple Weather App</a> queries the
+      <a href="https://github.com/jquagga/swa">Simple Weather</a> queries the
       US National Weather Service to provide a responsive weather forecast. Use
       your current location or a full US street address below.
     </p>

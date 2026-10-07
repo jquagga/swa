@@ -401,10 +401,7 @@
     try {
       // Merge the stored index with any legacy keys already in storage so
       // pre-index entries are managed, then free space *before* writing.
-      const merged = [
-        key,
-        ...readCacheIndex().filter((k) => k !== key),
-      ];
+      const merged = [key, ...readCacheIndex().filter((k) => k !== key)];
       for (const k of discoverCacheKeys()) {
         if (!merged.includes(k)) merged.push(k);
       }
@@ -435,7 +432,8 @@
     if (!alerts.features) return;
     for (const alert of alerts.features) {
       const s = alert.properties.severity;
-      if (s === "pico-background-yellow-100") alert.properties.severity = "Severe";
+      if (s === "pico-background-yellow-100")
+        alert.properties.severity = "Severe";
       else if (s === "pico-background-red-500")
         alert.properties.severity = "Extreme";
     }
@@ -714,8 +712,7 @@
       console.error("Error refreshing weather data:", error);
       const cached = loadCached(parsed.latitude, parsed.longitude);
       if (!cached) {
-        geolocationError =
-          "Unable to refresh weather data. Please try again.";
+        geolocationError = "Unable to refresh weather data. Please try again.";
       }
       isLoading = false;
     }
@@ -796,7 +793,11 @@
       type: "bar" as const,
       data: {
         labels: chartData.labels,
-        datasets: [tempDataset as never, feelsDataset as never, popDataset as never],
+        datasets: [
+          tempDataset as never,
+          feelsDataset as never,
+          popDataset as never,
+        ],
       },
       options: {
         responsive: true,
@@ -1084,12 +1085,11 @@
           const source = map.getSource(id);
           if (
             source &&
-            typeof (source as { setTiles?: unknown }).setTiles ===
-              "function"
+            typeof (source as { setTiles?: unknown }).setTiles === "function"
           ) {
-            (
-              source as unknown as { setTiles: (t: string[]) => void }
-            ).setTiles(wmsTiles(base));
+            (source as unknown as { setTiles: (t: string[]) => void }).setTiles(
+              wmsTiles(base),
+            );
           }
         }
       } catch (e) {
@@ -1398,8 +1398,7 @@
           geolocationError = `Error: ${error.message}`;
         }
       } else {
-        geolocationError =
-          "Failed to process weather data. Please try again.";
+        geolocationError = "Failed to process weather data. Please try again.";
       }
       isLoading = false;
     });
@@ -1478,7 +1477,9 @@
         </div>
         <ul class="swa-chips">
           {#if currentHero.dailyHighLow}
-            <li>{currentHero.dailyName ?? "Today"}: {currentHero.dailyHighLow}</li>
+            <li>
+              {currentHero.dailyName ?? "Today"}: {currentHero.dailyHighLow}
+            </li>
           {/if}
           <li>Wind {currentHero.windSpeed}</li>
           {#if currentHero.humidity !== null}
@@ -1504,11 +1505,16 @@
             </summary>
             <div class="swa-alert-body">
               {#if alert.properties.effective}
-                <p class="swa-meta">Effective {formatIso(alert.properties.effective)}</p>
+                <p class="swa-meta">
+                  Effective {formatIso(alert.properties.effective)}
+                </p>
               {/if}
               <p>{alert.properties.description}</p>
               {#if alert.properties.instruction}
-                <p><strong>What to do:</strong> {alert.properties.instruction}</p>
+                <p>
+                  <strong>What to do:</strong>
+                  {alert.properties.instruction}
+                </p>
               {/if}
             </div>
           </details>
@@ -1546,7 +1552,9 @@
             <tbody>
               {#each hourlyChartData.labels as label, i (hourlyChartData.isos[i] ?? label)}
                 <tr>
-                  <th scope="row">{formatIso(hourlyChartData.isos[i] ?? label)}</th>
+                  <th scope="row"
+                    >{formatIso(hourlyChartData.isos[i] ?? label)}</th
+                  >
                   <td>{hourlyChartData.tempValues[i]}°</td>
                   <td>{hourlyChartData.apparentTempValues[i]}°</td>
                   <td>{hourlyChartData.popValues[i]}%</td>
@@ -1582,7 +1590,9 @@
                 <ul class="swa-chips">
                   <li>Wind {period.windSpeed}</li>
                   {#if period.probabilityOfPrecipitation}
-                    <li>Precip {period.probabilityOfPrecipitation.value ?? 0}%</li>
+                    <li>
+                      Precip {period.probabilityOfPrecipitation.value ?? 0}%
+                    </li>
                   {/if}
                   {#if period.relativeHumidity?.value != null}
                     <li>Humidity {period.relativeHumidity.value}%</li>
@@ -1657,7 +1667,7 @@
         >weather.gov API</a
       >
       using this
-      <a href="https://github.com/jquagga/swa">Simple Weather App</a>.
+      <a href="https://github.com/jquagga/swa">Simple Weather</a> app.
     </p>
   </div>
 

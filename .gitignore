@@ -28,5 +28,5 @@ vite.config.ts.timestamp-*
 /worker-configuration.d.ts
 
 tsconfig.tsbuildinfo
-.agent/*
+.agents/*
 .opencode/*
