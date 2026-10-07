@@ -65,16 +65,24 @@
 </script>
 
 {#if showUpdate}
-  <div role="status" class="swa-update-banner">
+  <div
+    role="status"
+    class="sticky top-0 z-50 bg-sky-700 px-2 py-2 text-center text-sm text-white"
+  >
     A new version is available.
-    <button onclick={reload}>Update</button>
+    <button
+      class="ml-2 cursor-pointer font-semibold underline underline-offset-2"
+      onclick={reload}>Update</button
+    >
   </div>
 {/if}
 
-<header class="swa-topbar">
-  <div class="container swa-topbar-inner">
-    <a href="/" class="swa-brand">Simple Weather</a>
-    <nav class="swa-topbar-links" aria-label="Site">
+<header class="mb-4 border-b border-zinc-200 dark:border-zinc-800">
+  <div
+    class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
+  >
+    <a href="/" class="font-bold no-underline">Simple Weather</a>
+    <nav class="flex gap-3 text-sm" aria-label="Site">
       <a
         href="https://www.weather.gov/documentation/services-web-api"
         rel="external noopener"
