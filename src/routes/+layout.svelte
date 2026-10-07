@@ -71,4 +71,19 @@
   </div>
 {/if}
 
+<header class="swa-topbar">
+  <div class="container swa-topbar-inner">
+    <a href="/" class="swa-brand">Simple Weather</a>
+    <nav class="swa-topbar-links" aria-label="Site">
+      <a
+        href="https://www.weather.gov/documentation/services-web-api"
+        rel="external noopener"
+      >
+        NWS API
+      </a>
+      <a href="https://github.com/jquagga/swa" rel="external noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
 {@render children()}

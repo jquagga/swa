@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import type {
     Chart as ChartInstance,
@@ -17,6 +18,8 @@
       mod.Chart.register(
         mod.LineController,
         mod.LineElement,
+        mod.BarController,
+        mod.BarElement,
         mod.PointElement,
         mod.LinearScale,
         mod.CategoryScale,
@@ -87,12 +90,24 @@
     tempValues: number[];
     apparentTempValues: number[];
     popValues: number[];
+    windLabels: string[];
+    humidityValues: number[];
   };
 
   // ChartDataset plus the custom `unit`/`isos` fields used for tooltips.
+  // `winds`/`humidities` feed the tooltip footer without extra lookups.
   type UnitLineDataset = ChartDataset<"line", number[]> & {
     unit?: string;
     isos?: string[];
+    winds?: string[];
+    humidities?: number[];
+  };
+
+  type UnitBarDataset = ChartDataset<"bar", number[]> & {
+    unit?: string;
+    isos?: string[];
+    winds?: string[];
+    humidities?: number[];
   };
 
   let point = $state.raw<WeatherPoint>({});
@@ -106,6 +121,12 @@
   let offlineSavedAt = $state<string | null>(null);
   let hourlyForecastProcessed = $state(false);
   let maplibreglModule: typeof import("maplibre-gl") | null = null;
+  let fetchedAt: string | null = $state(null);
+  let showRadar = $state(true);
+  let showWatchWarn = $state(true);
+  let mapReady = $state(false);
+  let mapError: string | null = $state(null);
+  let mapInstanceRef: import("maplibre-gl").Map | null = null;
   // Monotonic identity for the active coordinate load. Async weather/alert
   // continuations must compare against it and drop stale results so an
   // older request can never overwrite a newer location's state or cache.
@@ -188,7 +209,9 @@
     return maplibre;
   }
 
-  function formatTooltipTitle(context: TooltipItem<"line">[]): string {
+  function formatTooltipTitle(
+    context: TooltipItem<"line">[] | TooltipItem<"bar">[],
+  ): string {
     try {
       if (!context || context.length === 0) {
         return "No data available";
@@ -205,7 +228,9 @@
     }
   }
 
-  function formatTooltipLabel(context: TooltipItem<"line">): string {
+  function formatTooltipLabel(
+    context: TooltipItem<"line"> | TooltipItem<"bar">,
+  ): string {
     try {
       let label = context.dataset.label || "";
       if (label) {
@@ -217,6 +242,27 @@
       return label;
     } catch {
       return "Data error";
+    }
+  }
+
+  function formatTooltipFooter(
+    context: TooltipItem<"line">[] | TooltipItem<"bar">[],
+  ): string {
+    try {
+      if (!context || context.length === 0) return "";
+      const idx = context[0].dataIndex;
+      const ds = context[0].dataset as unknown as {
+        winds?: string[];
+        humidities?: number[];
+      };
+      const wind = ds.winds?.[idx];
+      const humidity = ds.humidities?.[idx];
+      const parts: string[] = [];
+      if (wind) parts.push(`Wind ${wind}`);
+      if (typeof humidity === "number") parts.push(`Humidity ${humidity}%`);
+      return parts.join(" • ");
+    } catch {
+      return "";
     }
   }
 
@@ -418,6 +464,7 @@
       hourlyForecastProcessed = true;
       isOffline = true;
       offlineSavedAt = data.savedAt;
+      fetchedAt = data.savedAt;
       updateBadge();
       promoteCacheKey(key);
       return { savedAt: data.savedAt };
@@ -444,15 +491,37 @@
   }
 
   function alertTone(severity: string): string {
+    // Legacy cache compat: previous versions stored the CSS class.
     switch (severity) {
       case "Severe":
       case "pico-background-yellow-100":
-        return "pico-background-yellow-100";
+        return "swa-alert-severe";
       case "Extreme":
       case "pico-background-red-500":
-        return "pico-background-red-500";
+        return "swa-alert-extreme";
+      case "Moderate":
+        return "swa-alert-moderate";
+      case "Minor":
+        return "swa-alert-minor";
       default:
-        return "primary";
+        return "swa-alert-unknown";
+    }
+  }
+
+  function alertSeverityLabel(severity: string): string {
+    switch (severity) {
+      case "pico-background-yellow-100":
+        return "Severe";
+      case "pico-background-red-500":
+        return "Extreme";
+      case "Extreme":
+      case "Severe":
+      case "Moderate":
+      case "Minor":
+      case "Unknown":
+        return severity;
+      default:
+        return severity || "Unknown";
     }
   }
 
@@ -517,6 +586,8 @@
         tempValues: [],
         apparentTempValues: [],
         popValues: [],
+        windLabels: [],
+        humidityValues: [],
       };
     }
 
@@ -525,6 +596,8 @@
     const tempValues: number[] = [];
     const apparentTempValues: number[] = [];
     const popValues: number[] = [];
+    const windLabels: string[] = [];
+    const humidityValues: number[] = [];
 
     // Filter to upcoming periods first so apparent-temp math only runs
     // for the GRAPH_HOURS actually displayed.
@@ -551,20 +624,89 @@
       );
       isos.push(period.startTime);
       tempValues.push(period.temperature);
-      popValues.push(period.probabilityOfPrecipitation?.value || 0);
+      popValues.push(period.probabilityOfPrecipitation?.value ?? 0);
       apparentTempValues.push(Math.round(apparentTemp));
+      windLabels.push(period.windSpeed);
+      humidityValues.push(period.relativeHumidity.value ?? 0);
     }
 
-    return { labels, isos, tempValues, apparentTempValues, popValues };
+    return {
+      labels,
+      isos,
+      tempValues,
+      apparentTempValues,
+      popValues,
+      windLabels,
+      humidityValues,
+    };
   });
 
   let chartReady = $derived(
     hourlyForecastProcessed && hourlyChartData.labels.length > 0,
   );
 
-  function buildChartConfig(
-    chartData: ChartData,
-  ): ChartConfiguration<"line", number[], string> {
+  let hourlyHigh = $derived(
+    hourlyChartData.tempValues.length > 0
+      ? Math.max(...hourlyChartData.tempValues)
+      : null,
+  );
+  let hourlyLow = $derived(
+    hourlyChartData.tempValues.length > 0
+      ? Math.min(...hourlyChartData.tempValues)
+      : null,
+  );
+
+  let currentHero = $derived.by(() => {
+    const hourly = forecastHourly.properties?.periods?.[0];
+    const daily = forecast.properties?.periods?.[0];
+    if (!hourly && !daily) return null;
+    const source = hourly ?? daily;
+    if (!source) return null;
+    const windSpeedValue = parseFloat(source.windSpeed.split(" ")[0]);
+    const feelsLike = Math.round(
+      calculateApparentTemperature(
+        source.temperature,
+        source.relativeHumidity.value ?? 0,
+        Number.isFinite(windSpeedValue) ? windSpeedValue : 0,
+      ),
+    );
+    return {
+      temperature: source.temperature,
+      temperatureUnit: source.temperatureUnit || "°F",
+      feelsLike,
+      shortForecast: source.shortForecast,
+      windSpeed: source.windSpeed,
+      humidity: source.relativeHumidity.value ?? 0,
+      pop: source.probabilityOfPrecipitation?.value ?? null,
+      isDaytime: source.isDaytime,
+      dailyName: daily?.name ?? null,
+      dailyHighLow: daily
+        ? `${daily.isDaytime ? "High" : "Low"} ${daily.temperature}°`
+        : null,
+    };
+  });
+
+  async function refreshForecast(): Promise<void> {
+    const parsed = parseCoords();
+    if (!parsed.ok) return;
+    const requestId = ++weatherRequestId;
+    clearLocationState();
+    geolocationError = null;
+    isLoading = true;
+    try {
+      await processWeather(parsed.latitude, parsed.longitude, requestId);
+    } catch (error) {
+      console.error("Error refreshing weather data:", error);
+      const cached = loadCached(parsed.latitude, parsed.longitude);
+      if (!cached) {
+        geolocationError =
+          "Unable to refresh weather data. Please try again.";
+      }
+      isLoading = false;
+    }
+  }
+
+  function buildChartConfig(chartData: ChartData): ChartConfiguration {
     const tempPointRadius = getPointRadius(
       DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
@@ -573,67 +715,73 @@
       DATASET_CONFIG.APPARENT_TEMPERATURE.defaultPointRadius,
       chartData.labels.length,
     );
-    const precipPointRadius = getPointRadius(
-      DATASET_CONFIG.PRECIPITATION.defaultPointRadius,
-      chartData.labels.length,
-    );
+    // Neutral grid works in both light and dark mode (previous
+    // rgba(0,0,0,0.05) was invisible in dark mode).
+    const gridColor = "rgba(127, 127, 127, 0.25)";
+
+    const tempDataset: UnitLineDataset = {
+      type: "line" as const,
+      label: "Temperature",
+      data: chartData.tempValues,
+      borderColor: "#B42318",
+      backgroundColor: "rgba(180, 35, 24, 0.08)",
+      tension: 0.4,
+      yAxisID: "y",
+      pointRadius: tempPointRadius,
+      pointHoverRadius: tempPointRadius + 3,
+      pointBackgroundColor: "#B42318",
+      pointBorderColor: "#B42318",
+      pointBorderWidth: 1,
+      borderWidth: 2.5,
+      unit: DATASET_CONFIG.TEMPERATURE.unit,
+      isos: chartData.isos,
+      winds: chartData.windLabels,
+      humidities: chartData.humidityValues,
+    };
+    const feelsDataset: UnitLineDataset = {
+      type: "line" as const,
+      label: "Feels Like",
+      data: chartData.apparentTempValues,
+      borderColor: "#475569",
+      backgroundColor: "transparent",
+      borderDash: [6, 4],
+      tension: 0.4,
+      yAxisID: "y",
+      pointRadius: apparentTempPointRadius,
+      pointHoverRadius: apparentTempPointRadius + 3,
+      pointBackgroundColor: "#475569",
+      pointBorderColor: "#475569",
+      pointBorderWidth: 1,
+      pointStyle: "rectRot",
+      borderWidth: 2,
+      unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
+      isos: chartData.isos,
+      winds: chartData.windLabels,
+      humidities: chartData.humidityValues,
+    };
+    const popDataset: UnitBarDataset = {
+      type: "bar" as const,
+      label: "Chance of Precipitation",
+      data: chartData.popValues,
+      backgroundColor: "rgba(1, 127, 192, 0.45)",
+      hoverBackgroundColor: "rgba(1, 127, 192, 0.65)",
+      borderColor: "rgba(1, 127, 192, 0.9)",
+      borderWidth: 1,
+      borderRadius: 3,
+      yAxisID: "y1",
+      barPercentage: 0.6,
+      categoryPercentage: 0.7,
+      unit: DATASET_CONFIG.PRECIPITATION.unit,
+      isos: chartData.isos,
+      winds: chartData.windLabels,
+      humidities: chartData.humidityValues,
+    };
 
     return {
-      type: "line" as const,
+      type: "bar" as const,
       data: {
         labels: chartData.labels,
-        datasets: [
-          {
-            label: "Temperature",
-            data: chartData.tempValues,
-            borderColor: "#D93526",
-            backgroundColor: "rgba(217, 53, 38, 0.1)",
-            tension: 0.4,
-            yAxisID: "y",
-            pointRadius: tempPointRadius,
-            pointHoverRadius: tempPointRadius + 3,
-            pointBackgroundColor: "#D93526",
-            pointBorderColor: "#D93526",
-            pointBorderWidth: 1,
-            borderWidth: 2,
-            unit: DATASET_CONFIG.TEMPERATURE.unit,
-            isos: chartData.isos,
-          },
-          {
-            label: "Feels Like",
-            data: chartData.apparentTempValues,
-            borderColor: "#FF9500",
-            backgroundColor: "rgba(255, 149, 0, 0.1)",
-            tension: 0.4,
-            yAxisID: "y",
-            pointRadius: apparentTempPointRadius,
-            pointHoverRadius: apparentTempPointRadius + 3,
-            pointBackgroundColor: "#FF9500",
-            pointBorderColor: "#FF9500",
-            pointBorderWidth: 1,
-            borderWidth: 2,
-            unit: DATASET_CONFIG.APPARENT_TEMPERATURE.unit,
-            isos: chartData.isos,
-          },
-          {
-            label: "Chance of Precipitation",
-            data: chartData.popValues,
-            borderColor: "#017FC0",
-            backgroundColor: "rgba(1, 127, 192, 0.2)",
-            showLine: true,
-            fill: true,
-            tension: 0.4,
-            yAxisID: "y1",
-            pointRadius: precipPointRadius,
-            pointHoverRadius: precipPointRadius + 3,
-            pointBackgroundColor: "#017FC0",
-            pointBorderColor: "#017FC0",
-            pointBorderWidth: 1,
-            borderWidth: 2,
-            unit: DATASET_CONFIG.PRECIPITATION.unit,
-            isos: chartData.isos,
-          },
-        ] as UnitLineDataset[],
+        datasets: [tempDataset as never, feelsDataset as never, popDataset as never],
       },
       options: {
         responsive: true,
@@ -648,12 +796,15 @@
         scales: {
           x: {
             type: "category",
+            stacked: false,
             grid: {
               display: true,
-              color: "rgba(0, 0, 0, 0.05)",
+              color: gridColor,
             },
             ticks: {
               maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 9,
               autoSkipPadding: 10,
             },
           },
@@ -662,14 +813,15 @@
             beginAtZero: false,
             grace: "5%",
             ticks: {
-              callback: function (value: number | string) {
+              callback: function (value: string | number) {
                 return String(value) + "°";
               },
               padding: 8,
+              maxTicksLimit: 6,
             },
             grid: {
               display: true,
-              color: "rgba(0, 0, 0, 0.05)",
+              color: gridColor,
             },
             title: {
               display: false,
@@ -677,9 +829,19 @@
           },
           y1: {
             type: "linear",
-            display: false,
+            display: true,
+            position: "right" as const,
             min: 0,
             max: 100,
+            ticks: {
+              callback: function (value: string | number) {
+                return String(value) + "%";
+              },
+              maxTicksLimit: 5,
+            },
+            grid: {
+              display: false,
+            },
           },
         },
         plugins: {
@@ -694,14 +856,16 @@
             },
           },
           tooltip: {
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
             titleColor: "#fff",
             bodyColor: "#fff",
+            footerColor: "#cbd5e1",
             padding: 12,
             displayColors: true,
             callbacks: {
-              title: formatTooltipTitle,
-              label: formatTooltipLabel,
+              title: formatTooltipTitle as never,
+              label: formatTooltipLabel as never,
+              footer: formatTooltipFooter as never,
             },
           },
         },
@@ -715,7 +879,7 @@
   }
 
   function chartAttachment(canvas: HTMLCanvasElement) {
-    let instance: ChartInstance<"line", number[], string> | null = null;
+    let instance: ChartInstance | null = null;
     let destroyed = false;
 
     async function init() {
@@ -737,11 +901,29 @@
       const data = hourlyChartData;
       if (instance) {
         instance.data.labels = data.labels;
-        instance.data.datasets[0].data = data.tempValues;
-        instance.data.datasets[1].data = data.apparentTempValues;
-        instance.data.datasets[2].data = data.popValues;
-        for (const ds of instance.data.datasets) {
-          (ds as unknown as { isos: string[] }).isos = data.isos;
+        if (instance.data.datasets[0]) {
+          instance.data.datasets[0].data = data.tempValues as never;
+          Object.assign(instance.data.datasets[0], {
+            isos: data.isos,
+            winds: data.windLabels,
+            humidities: data.humidityValues,
+          });
+        }
+        if (instance.data.datasets[1]) {
+          instance.data.datasets[1].data = data.apparentTempValues as never;
+          Object.assign(instance.data.datasets[1], {
+            isos: data.isos,
+            winds: data.windLabels,
+            humidities: data.humidityValues,
+          });
+        }
+        if (instance.data.datasets[2]) {
+          instance.data.datasets[2].data = data.popValues as never;
+          Object.assign(instance.data.datasets[2], {
+            isos: data.isos,
+            winds: data.windLabels,
+            humidities: data.humidityValues,
+          });
         }
         instance.update("none");
       }
@@ -845,6 +1027,30 @@
           },
         });
       }
+      applyOverlayVisibility();
+    }
+
+    function applyOverlayVisibility(): void {
+      const map = mapInstance;
+      if (!map || destroyed) return;
+      try {
+        if (map.getLayer("nws_radar")) {
+          map.setLayoutProperty(
+            "nws_radar",
+            "visibility",
+            showRadar ? "visible" : "none",
+          );
+        }
+        if (map.getLayer("nws_watch_warn")) {
+          map.setLayoutProperty(
+            "nws_watch_warn",
+            "visibility",
+            showWatchWarn ? "visible" : "none",
+          );
+        }
+      } catch (e) {
+        console.warn("Overlay toggle failed:", e);
+      }
     }
 
     function refreshRadarTiles(): void {
@@ -904,7 +1110,7 @@
           renderWorldCopies: false,
         });
 
-        markerInstance = new maplibregl.Marker({ color: "#D93526" })
+        markerInstance = new maplibregl.Marker({ color: "#017FC0" })
           .setLngLat([longitude, latitude])
           .addTo(mapInstance);
 
@@ -913,16 +1119,23 @@
           "top-right",
         );
 
-        mapInstance.on("load", ensureNwsOverlays);
+        mapInstance.on("load", () => {
+          ensureNwsOverlays();
+          mapReady = true;
+          mapInstanceRef = mapInstance;
+        });
         // Fires after every setStyle() (e.g. dark-mode toggle).
         mapInstance.on("styledata", ensureNwsOverlays);
         mapInstance.on("error", (e) => {
           console.warn("Map error:", e.error ?? e);
         });
+        mapInstanceRef = mapInstance;
 
         refreshTimer = setInterval(refreshRadarTiles, RADAR_REFRESH_MS);
       } catch (e) {
         console.error(e);
+        mapError =
+          "Radar map failed to load. Your forecast above is still current.";
       }
     }
 
@@ -959,8 +1172,28 @@
         mapInstance.remove();
         mapInstance = null;
       }
+      mapInstanceRef = null;
     };
   }
+
+  function toggleOverlay(id: "nws_radar" | "nws_watch_warn", visible: boolean) {
+    const map = mapInstanceRef;
+    if (!map) return;
+    try {
+      if (map.getLayer(id)) {
+        map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+      }
+    } catch (e) {
+      console.warn("Overlay toggle failed:", e);
+    }
+  }
+
+  $effect(() => {
+    toggleOverlay("nws_radar", showRadar);
+  });
+  $effect(() => {
+    toggleOverlay("nws_watch_warn", showWatchWarn);
+  });
 
   function isCurrentRequest(requestId: number): boolean {
     return requestId === weatherRequestId;
@@ -975,6 +1208,9 @@
     hourlyForecastProcessed = false;
     isOffline = false;
     offlineSavedAt = null;
+    fetchedAt = null;
+    mapReady = false;
+    mapError = null;
   }
 
   async function processWeather(
@@ -1011,6 +1247,7 @@
       hourlyForecastProcessed = true;
       isOffline = false;
       offlineSavedAt = null;
+      fetchedAt = new Date().toISOString();
       geolocationError = null;
 
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
@@ -1139,83 +1376,232 @@
 
 <svelte:boundary>
   <div class="container-fluid">
-    <h1 class="swa-center">
+    <div class="swa-toolbar">
+      <a href="/">← New search</a>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        onclick={refreshForecast}
+        disabled={isLoading}
+        aria-label="Refresh forecast"
+      >
+        ↻ Refresh
+      </button>
+    </div>
+
+    <h1>
       {locationDisplay}
     </h1>
 
-    {#if isOffline}
-      <p role="status" class="swa-center">
-        Offline — showing cached forecast{#if offlineSavedAt}
-          from {formatIso(offlineSavedAt)}{/if}.
+    {#if mapCoords}
+      <p class="swa-meta">
+        {mapCoords.lat.toFixed(4)}, {mapCoords.lon.toFixed(4)}
+        {#if fetchedAt}
+          • Updated {formatIso(fetchedAt)}
+        {/if}
+        {#if isOffline}
+          • Offline — showing cached forecast
+        {/if}
       </p>
+    {/if}
+
+    {#if geolocationError}
+      <div class="swa-error-box" role="alert">
+        <p class="swa-error">{geolocationError}</p>
+        <button type="button" onclick={refreshForecast} disabled={isLoading}>
+          Try again
+        </button>
+      </div>
+    {/if}
+
+    {#if showLoading}
+      <div aria-busy="true" aria-label="Fetching weather data">
+        <div class="swa-skeleton swa-skeleton-hero"></div>
+        <div class="swa-skeleton swa-skeleton-block"></div>
+        <div class="swa-skeleton swa-skeleton-block"></div>
+        <div class="swa-skeleton swa-skeleton-block"></div>
+      </div>
+    {/if}
+
+    {#if currentHero}
+      <section class="swa-hero" aria-label="Current conditions">
+        <div class="swa-hero-top">
+          <span class="swa-hero-icon" aria-hidden="true">
+            {mapWeatherToEmoji(currentHero.shortForecast)}
+          </span>
+          <span class="swa-hero-temp">
+            {currentHero.temperature}°{currentHero.temperatureUnit === "°F" ||
+            currentHero.temperatureUnit === "F"
+              ? ""
+              : ` ${currentHero.temperatureUnit}`}
+          </span>
+          <div>
+            <p class="swa-hero-short">{currentHero.shortForecast}</p>
+            <p class="swa-hero-feels">Feels like {currentHero.feelsLike}°</p>
+          </div>
+        </div>
+        <ul class="swa-chips">
+          {#if currentHero.dailyHighLow}
+            <li>{currentHero.dailyName ?? "Today"}: {currentHero.dailyHighLow}</li>
+          {/if}
+          <li>Wind {currentHero.windSpeed}</li>
+          <li>Humidity {currentHero.humidity}%</li>
+          {#if currentHero.pop !== null}
+            <li>Precip {currentHero.pop}%</li>
+          {/if}
+        </ul>
+      </section>
     {/if}
 
     <div id="alerts">
       {#if alerts.features?.length}
-        {#snippet alertItem(alert: WeatherAlert["features"][number])}
-          <details>
-            <!-- svelte-ignore a11y_no_redundant_roles -->
-            <summary
-              role="button"
-              class="swa-center {alertTone(alert.properties.severity)}"
-            >
-              {alert.properties.event}
-            </summary>
-            <p>{alert.properties.description}</p>
-            <p>{alert.properties.instruction}</p>
-          </details>
-        {/snippet}
+        <h2>Active alerts ({alerts.features.length})</h2>
         {#each alerts.features as alert (alert.properties.id + "-" + (alert.properties.effective || ""))}
-          {@render alertItem(alert)}
+          <details class="swa-alert {alertTone(alert.properties.severity)}">
+            <summary>
+              {alert.properties.event}
+              <span class="swa-alert-severity">
+                {alertSeverityLabel(alert.properties.severity)}
+              </span>
+            </summary>
+            <div class="swa-alert-body">
+              {#if alert.properties.effective}
+                <p class="swa-meta">Effective {formatIso(alert.properties.effective)}</p>
+              {/if}
+              <p>{alert.properties.description}</p>
+              {#if alert.properties.instruction}
+                <p><strong>What to do:</strong> {alert.properties.instruction}</p>
+              {/if}
+            </div>
+          </details>
         {/each}
       {/if}
     </div>
 
     {#if chartReady}
-      <div class="swa-chart-wrap">
-        <canvas id="myChart" {@attach chartAttachment}></canvas>
-      </div>
+      <section aria-labelledby="hourly-heading">
+        <h2 id="hourly-heading">Next 24 hours</h2>
+        <div class="swa-chart-wrap">
+          <canvas
+            id="myChart"
+            aria-label="Hourly temperature, feels-like, and chance of precipitation for the next 24 hours"
+            {@attach chartAttachment}
+          ></canvas>
+        </div>
+        {#if hourlyHigh !== null && hourlyLow !== null}
+          <p class="swa-chart-caption">
+            High {hourlyHigh}° • Low {hourlyLow}° • Bars show chance of
+            precipitation (right axis).
+          </p>
+        {/if}
+        <details class="swa-hourly-fallback">
+          <summary>Hourly data table (accessible alternative)</summary>
+          <table class="striped">
+            <thead>
+              <tr>
+                <th scope="col">Time</th>
+                <th scope="col">Temp</th>
+                <th scope="col">Feels like</th>
+                <th scope="col">Precip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each hourlyChartData.labels as label, i (hourlyChartData.isos[i] ?? label)}
+                <tr>
+                  <th scope="row">{formatIso(hourlyChartData.isos[i] ?? label)}</th>
+                  <td>{hourlyChartData.tempValues[i]}°</td>
+                  <td>{hourlyChartData.apparentTempValues[i]}°</td>
+                  <td>{hourlyChartData.popValues[i]}%</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </details>
+      </section>
     {/if}
 
     <div id="grid">
       {#if forecast.properties?.periods}
-        {#snippet forecastRow(period: WeatherPeriod)}
-          <tr>
-            <td>
-              <b>{period.name}</b><br />{mapWeatherToEmoji(
-                period.shortForecast,
-              )}
-              {#if period.isDaytime}
-                <span class="pico-color-red-500">{period.temperature}</span>
-              {:else}
-                <span class="pico-color-azure-500">{period.temperature}</span>
-              {/if}
-            </td>
-            <td>{period.detailedForecast}</td>
-          </tr>
-        {/snippet}
-        <table class="striped">
-          <tbody>
-            {#each forecast.properties.periods as period (period.startTime)}
-              {@render forecastRow(period)}
-            {/each}
-          </tbody>
-        </table>
-      {:else if showLoading}
-        <span aria-busy="true">Fetching weather data...</span>
+        <h2>7-day forecast</h2>
+        <div class="swa-forecast-grid">
+          {#each forecast.properties.periods as period (period.startTime)}
+            <article class="swa-forecast-card">
+              <div>
+                <span class="swa-forecast-head">
+                  <span class="swa-forecast-icon" aria-hidden="true">
+                    {mapWeatherToEmoji(period.shortForecast)}
+                  </span>
+                  <span class="swa-forecast-name">{period.name}</span>
+                  <span
+                    class="swa-forecast-temp {period.isDaytime
+                      ? 'pico-color-red-500'
+                      : 'pico-color-azure-500'}"
+                  >
+                    {period.temperature}°{period.temperatureUnit}
+                  </span>
+                </span>
+                <p class="swa-forecast-short">{period.shortForecast}</p>
+                <ul class="swa-chips">
+                  <li>Wind {period.windSpeed}</li>
+                  {#if period.probabilityOfPrecipitation}
+                    <li>Precip {period.probabilityOfPrecipitation.value ?? 0}%</li>
+                  {/if}
+                  {#if period.relativeHumidity}
+                    <li>Humidity {period.relativeHumidity.value}%</li>
+                  {/if}
+                </ul>
+              </div>
+              <p class="swa-forecast-detail">{period.detailedForecast}</p>
+            </article>
+          {/each}
+        </div>
       {/if}
     </div>
 
-    <div>
+    <div class="swa-map-wrap">
       {#if mapCoords}
+        <h2>Radar</h2>
+        <div class="swa-map-controls">
+          <label>
+            <input type="checkbox" bind:checked={showRadar} />
+            Radar
+          </label>
+          <label>
+            <input type="checkbox" bind:checked={showWatchWarn} />
+            Watches &amp; warnings
+          </label>
+        </div>
         {#key mapKey}
           <div
             id="map"
             role="region"
             aria-label="Weather radar map"
             {@attach mapAttachment}
-          ></div>
+          >
+            {#if mapError}
+              <div class="swa-map-error" role="alert">{mapError}</div>
+            {:else if !mapReady}
+              <div class="swa-map-placeholder" aria-hidden="true">
+                Loading radar map…
+              </div>
+            {/if}
+          </div>
         {/key}
+        <ul class="swa-legend" aria-label="Map legend">
+          <li>
+            <span class="swa-legend-radar"></span>Radar reflectivity
+          </li>
+          <li>
+            <span class="swa-legend-warn"></span>Watch / warning
+          </li>
+          <li>
+            <span class="swa-legend-you"></span>Your location
+          </li>
+        </ul>
+        <p class="swa-map-caption">
+          Radar: NOAA NWS, refreshes about every 5 minutes. Scroll with two
+          fingers or Ctrl+scroll; use +/− buttons to zoom.
+        </p>
       {/if}
     </div>
     <br />

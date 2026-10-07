@@ -15,6 +15,41 @@
   );
   let searchButtonText = $derived(isSearching ? "Searching..." : "Search");
 
+  interface RecentLocation {
+    key: string;
+    lat: string;
+    lon: string;
+    label: string;
+  }
+
+  let recentLocations = $state<RecentLocation[]>([]);
+
+  $effect(() => {
+    try {
+      const raw = localStorage.getItem("swa:weather:index");
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(parsed)) return;
+      const prefix = "swa:weather:";
+      recentLocations = parsed
+        .filter((k): k is string => typeof k === "string")
+        .filter((k) => k.startsWith(prefix) && k !== "swa:weather:index")
+        .slice(0, 6)
+        .map((k) => {
+          const coords = k.slice(prefix.length);
+          const [lat, lon] = coords.split(",");
+          return {
+            key: k,
+            lat: lat?.trim() ?? "",
+            lon: lon?.trim() ?? "",
+            label: `${lat?.trim() ?? "?"}, ${lon?.trim() ?? "?"}`,
+          };
+        })
+        .filter((r) => r.lat && r.lon);
+    } catch {
+      // storage unavailable — no recents
+    }
+  });
+
   // Simple unique IDs for accessibility (not using $props.id() as this is a page component)
 
   $effect(() => {
@@ -163,61 +198,77 @@
 
 <div class="container">
   <div>
-    <h1 class="swa-center">Simple Weather</h1>
+    <h1>Simple Weather</h1>
     <p>
       <a href="https://github.com/jquagga/swa">Simple Weather App</a> queries the
-      US National Weather Service to provide a responsive weather forecast. Pressing
-      the button below will ask for location permission, and provide your forecast
-      if you're in the United States.
+      US National Weather Service to provide a responsive weather forecast. Use
+      your current location or a full US street address below.
     </p>
-    <div class="swa-center">
+    {#if recentLocations.length > 0}
+      <section aria-label="Recent forecasts">
+        <h2>Recent forecasts</h2>
+        <ul class="swa-recent">
+          {#each recentLocations as recent (recent.key)}
+            <li>
+              <a href={`/Weather?lat=${recent.lat}&lon=${recent.lon}`}>
+                {recent.label}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+    <div class="swa-options">
+      <section class="swa-option-card" aria-labelledby="geolocate-heading">
+        <h2 id="geolocate-heading">Use my location</h2>
+        <p>
+          Asks for location permission and shows your forecast if you're in the
+          United States.
+        </p>
       {#if geoPermission === "denied"}
         <p role="note">
           Location access is blocked in your browser settings — you can still
-          search by address below.
+          search by address.
         </p>
       {/if}
       {#if geolocationError}
         <p class="swa-error" role="alert">{geolocationError}</p>
       {/if}
-      <button
-        onclick={handleGeolocate}
-        disabled={isGeolocating}
-        class="swa-center"
-      >
+      <button onclick={handleGeolocate} disabled={isGeolocating}>
         {geolocateButtonText}
       </button>
-    </div>
-    <h2 class="swa-center">OR:</h2>
-    <p>
-      Alternatively, you can utilize the Census Bureau geocoding search and this
-      will query the forecast for that address. <strong>
-        A full street address is needed.
-      </strong>
-      Searching for Washington, DC will not work but searching for 1600 Pennsylvania
-      Ave SE, Washington, DC will.
-    </p>
-    <form onsubmit={handleAddressSearch}>
-      <label for="address-input">Street Address:</label>
-      <input
-        id="address-input"
-        type="search"
-        name="address"
-        placeholder="Enter Full Street Address:"
-        aria-label="Street Address"
-        class="container-fluid"
-        bind:value={address}
-      />
-      <br />
+      </section>
+      <section class="swa-option-card" aria-labelledby="address-heading">
+        <h2 id="address-heading">Search by address</h2>
+        <p>
+          Uses the Census Bureau geocoder. <strong>
+            A full street address is needed.
+          </strong>
+          Example: 1600 Pennsylvania Ave SE, Washington, DC.
+        </p>
+        <form onsubmit={handleAddressSearch}>
+          <label for="address-input">Street Address:</label>
+          <input
+            id="address-input"
+            type="search"
+            name="address"
+            placeholder="1600 Pennsylvania Ave SE, Washington, DC"
+            aria-label="Street Address"
+            class="container-fluid"
+            bind:value={address}
+          />
+          <br />
 
-      <div class="swa-center">
-        {#if searchError}
-          <p class="swa-error" role="alert">{searchError}</p>
-        {/if}
-        <button type="submit" disabled={isSearching}>
-          {searchButtonText}
-        </button>
-      </div>
-    </form>
+          <div>
+            {#if searchError}
+              <p class="swa-error" role="alert">{searchError}</p>
+            {/if}
+            <button type="submit" disabled={isSearching}>
+              {searchButtonText}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   </div>
 </div>
