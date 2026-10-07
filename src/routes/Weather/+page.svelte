@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import { parseAfdProduct } from "#lib/afd.js";
   import type {
     Chart as ChartInstance,
     ChartConfiguration,
@@ -34,6 +35,12 @@
 
   interface WeatherPoint {
     properties?: {
+      cwa?: string;
+      forecastOffice?: string;
+      astronomicalData?: {
+        sunrise?: string;
+        sunset?: string;
+      };
       relativeLocation?: {
         properties: {
           city: string;
@@ -109,6 +116,12 @@
     properties?: GridpointProperties;
   }
 
+  interface AfdProduct {
+    issuanceTime?: string;
+    productName?: string;
+    productText?: string;
+  }
+
   type ChartData = {
     labels: string[];
     isos: string[];
@@ -141,6 +154,10 @@
   let forecast = $state.raw<ForecastData>({});
   let gridData = $state.raw<GridpointData>({});
   let NWSURL = $state("");
+  let afd = $state.raw<AfdProduct | null>(null);
+  let afdLoading = $state(false);
+  let afdError = $state<string | null>(null);
+  let afdFetchedOffice = $state<string | null>(null);
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let isOffline = $state(false);
@@ -201,6 +218,21 @@
     hour: "numeric",
     weekday: "short",
   });
+  const sunTimeFmt = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  function formatSunTime(iso: string | undefined): string | null {
+    if (!iso) return null;
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return null;
+    try {
+      return sunTimeFmt.format(new Date(ms));
+    } catch {
+      return null;
+    }
+  }
 
   function formatIso(iso: string): string {
     const ms = Date.parse(iso);
@@ -227,6 +259,56 @@
   });
 
   let showLoading = $derived(isLoading && !point.properties);
+
+  // Re-evaluated clock so the "next" sun event flips over at sunrise /
+  // sunset even on long-open pages (tick only recomputes cheap deriveds).
+  let nowMs = $state(Date.now());
+
+  // Only the next sun event: sunrise while it is still upcoming, otherwise
+  // today's sunset while the sun is up. After sunset the next sunrise is
+  // tomorrow's, which the points response doesn't include, so nothing shows
+  // rather than a stale time.
+  let nextSunEvent = $derived.by(() => {
+    const astro = point.properties?.astronomicalData;
+    if (!astro) return null;
+    const now = nowMs;
+    const sunriseMs = astro.sunrise ? Date.parse(astro.sunrise) : NaN;
+    const sunsetMs = astro.sunset ? Date.parse(astro.sunset) : NaN;
+    if (Number.isFinite(sunriseMs) && now < sunriseMs) {
+      const time = formatSunTime(astro.sunrise);
+      return time ? { kind: "rise" as const, time } : null;
+    }
+    if (Number.isFinite(sunsetMs) && now < sunsetMs) {
+      const time = formatSunTime(astro.sunset);
+      return time ? { kind: "set" as const, time } : null;
+    }
+    return null;
+  });
+
+  // WFO identifier (e.g. "TOP") driving the AFD product location and the
+  // office briefing download. Prefer `cwa`, fall back to the trailing
+  // segment of the forecastOffice URL.
+  let officeId = $derived.by(() => {
+    const cwa = point.properties?.cwa?.trim();
+    if (cwa) return cwa.toUpperCase();
+    const url = point.properties?.forecastOffice;
+    if (url) {
+      const id = url.split("/").filter(Boolean).pop();
+      if (id) return id.toUpperCase();
+    }
+    return null;
+  });
+
+  let briefingUrl = $derived(
+    officeId
+      ? `https://api.weather.gov/offices/${officeId}/briefing/download/latest`
+      : null,
+  );
+
+  // Parsed AFD blocks (paragraphs / lists / dividers) for readable rendering.
+  let afdBlocks = $derived(
+    afd?.productText ? parseAfdProduct(afd.productText) : [],
+  );
 
   async function getMapLibreModule(): Promise<typeof import("maplibre-gl")> {
     if (!maplibreglModule) {
@@ -1332,6 +1414,13 @@
     toggleOverlay("nws_watch_warn", showWatchWarn);
   });
 
+  $effect(() => {
+    const timer = setInterval(() => {
+      nowMs = Date.now();
+    }, 60_000);
+    return () => clearInterval(timer);
+  });
+
   function isCurrentRequest(requestId: number): boolean {
     return requestId === weatherRequestId;
   }
@@ -1342,6 +1431,10 @@
     forecast = {};
     gridData = {};
     NWSURL = "";
+    afd = null;
+    afdLoading = false;
+    afdError = null;
+    afdFetchedOffice = null;
     hourlyForecastProcessed = false;
     isOffline = false;
     offlineSavedAt = null;
@@ -1403,8 +1496,30 @@
     }
   }
 
-  async function fetchAlertsAsync(
-    latitude: number,
+  // Lazily fetch the latest Area Forecast Discussion for this office when
+  // the accordion opens. Cached per office so toggling never refetches;
+  // a failed load retries on the next open.
+  async function loadAfd(isOpen: boolean): Promise<void> {
+    if (!isOpen || !officeId) return;
+    if (afdFetchedOffice === officeId && (afd || afdLoading)) return;
+    afdLoading = true;
+    afdError = null;
+    try {
+      const data = await fetchData<AfdProduct>(
+        `https://api.weather.gov/products/types/AFD/locations/${officeId}/latest`,
+      );
+      afd = data;
+      afdFetchedOffice = officeId;
+    } catch (error) {
+      console.error("Error fetching AFD:", error);
+      afdError =
+        "Unable to load the Area Forecast Discussion. Please try again.";
+    } finally {
+      afdLoading = false;
+    }
+  }
+
+  async function fetchAlertsAsync(    latitude: number,
     longitude: number,
     requestId: number,
   ): Promise<void> {
@@ -1593,6 +1708,12 @@
           {#if currentHero.pop !== null}
             <li>Precip {currentHero.pop}%</li>
           {/if}
+          {#if nextSunEvent}
+            <li>
+              {nextSunEvent.kind === "rise" ? "🌅 Sunrise" : "🌇 Sunset"}
+              {nextSunEvent.time}
+            </li>
+          {/if}
         </ul>
       </section>
     {/if}
@@ -1761,10 +1882,80 @@
     </div>
     <br />
 
-    {#if NWSURL}
-      <div class="swa-center">
-        <a href={NWSURL} role="button">Weather.gov forecast</a>
-      </div>
+    {#if NWSURL || officeId}
+      <section aria-labelledby="resources-heading">
+        <h2 id="resources-heading">Forecast resources</h2>
+        <ul class="swa-resources">
+          {#if officeId}
+            <li>
+              <details
+                class="swa-afd"
+                ontoggle={(e) =>
+                  void loadAfd((e.currentTarget as HTMLDetailsElement).open)}
+              >
+                <summary>Area Forecast Discussion</summary>
+                <div class="swa-afd-body">
+                  {#if afdLoading}
+                    <p aria-busy="true">Loading discussion…</p>
+                  {:else if afdError}
+                    <p class="swa-error" role="alert">{afdError}</p>
+                    <button type="button" onclick={() => void loadAfd(true)}>
+                      Try again
+                    </button>
+                  {:else if afd?.productText}
+                    {#if afd.issuanceTime}
+                      <p class="swa-meta">
+                        Issued {formatIso(afd.issuanceTime)}
+                      </p>
+                    {/if}
+                    {#if afdBlocks.length > 0}
+                      {#each afdBlocks as block, i (i)}
+                        {#if block.kind === "hr"}
+                          <hr class="swa-afd-hr" />
+                        {:else if block.kind === "heading"}
+                          <h3 class="swa-afd-heading">{block.text}</h3>
+                        {:else if block.kind === "list"}
+                          <ul class="swa-afd-list">
+                            {#each block.items as item, j (j)}
+                              <li>{item}</li>
+                            {/each}
+                          </ul>
+                        {:else}
+                          <p class="swa-afd-para">{block.text}</p>
+                        {/if}
+                      {/each}
+                    {:else}
+                      <pre class="swa-afd-text">{afd.productText.trim()}</pre>
+                    {/if}
+                  {:else}
+                    <p class="swa-meta">
+                      Open to fetch the latest discussion from the National
+                      Weather Service.
+                    </p>
+                  {/if}
+                </div>
+              </details>
+            </li>
+            {#if briefingUrl}
+              <li>
+                <a
+                  class="swa-resource-link"
+                  href={briefingUrl}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Weather Briefing (PDF)
+                </a>
+              </li>
+            {/if}
+          {/if}
+          {#if NWSURL}
+            <li>
+              <a class="swa-resource-link" href={NWSURL}>NWS Forecast Page</a>
+            </li>
+          {/if}
+        </ul>
+      </section>
     {/if}
     <br />
 

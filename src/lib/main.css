@@ -260,6 +260,80 @@ html.ios-pwa body {
   font-size: 0.85rem;
 }
 
+/* Forecast resources (AFD / briefing / NWS page). */
+.swa-resources {
+  list-style: none;
+  list-style-type: none;
+  padding: 0;
+  padding-left: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.swa-resources > li {
+  list-style: none;
+  list-style-type: none;
+  margin: 0;
+}
+.swa-resources > li::marker {
+  content: none;
+}
+.swa-resource-link {
+  display: block;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.swa-afd {
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  /* Pico puts margin-bottom on all <details>; the grid gap already spaces
+   * the list, so drop it here. */
+  margin-bottom: 0;
+}
+.swa-afd summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.swa-afd-body {
+  padding-top: 0.5rem;
+}
+.swa-afd-body > :last-child {
+  margin-bottom: 0;
+}
+.swa-afd-body > :first-child {
+  margin-top: 0;
+}
+.swa-afd-heading {
+  font-size: 1rem;
+  margin: 0.9rem 0 0.4rem;
+}
+.swa-afd-para {
+  font-size: 0.92rem;
+  margin: 0 0 0.6rem;
+}
+.swa-afd-list {
+  font-size: 0.92rem;
+  margin: 0 0 0.6rem;
+  padding-left: 1.25rem;
+}
+.swa-afd-list li {
+  list-style: disc;
+  margin-bottom: 0.3rem;
+}
+.swa-afd-hr {
+  margin: 0.9rem 0;
+}
+.swa-afd-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
 /* Forecast cards (replaces dense 2-col table on mobile). */
 .swa-forecast-grid {
   display: grid;
