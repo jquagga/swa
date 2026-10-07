@@ -10,9 +10,9 @@
 ## Features
 
 - Use your current location (Geolocation API) or a full US street address (US Census geocoder)
-- Current conditions hero with temperature, feels-like, wind, humidity, and precipitation chance
+- Current conditions hero with temperature, heat index / wind chill (when NWS provides them), wind, humidity, and precipitation chance
 - Active NWS alerts with app-badge count, plus radar and watch/warning map overlays
-- Next ~24 hours chart (temperature / feels-like / precipitation chance) with an accessible data-table fallback
+- Next ~24 hours chart (temperature / heat index / wind chill / precipitation chance) with an accessible data-table fallback
 - 7-day forecast cards and NOAA NWS radar (OpenFreeMap basemap, dark-mode aware)
 - PWA with offline fallback: last forecast per location is cached in `localStorage`, service worker serves `/offline` when unreachable
 
@@ -63,7 +63,7 @@ On `/Weather`:
 ## How it works
 
 - Fully client-rendered SvelteKit app (`ssr = false`, `prerender = true`) deployed to Cloudflare Workers via `@sveltejs/adapter-cloudflare`.
-- `/Weather` fetches `api.weather.gov` directly from the browser: `points/{lat},{lon}` → `forecast` + `forecastHourly` (in parallel, alerts resolve independently so a slow alerts endpoint never blocks the forecast).
+- `/Weather` fetches `api.weather.gov` directly from the browser: `points/{lat},{lon}` → `forecast` (7-day text) + `forecastGridData` (raw gridpoint numbers for the hourly chart: temperature, heat index, wind chill, precipitation chance, humidity, wind — converted from metric to US units, in parallel; alerts resolve independently so a slow alerts endpoint never blocks the forecast).
 - `src/routes/geocode/+server.ts` is a thin proxy to `geocoding.geo.census.gov` (10s timeout, `address` required, ≤200 chars) returning plain `Response` JSON.
 - Chart.js is tree-shaken (`chart.js` core only, no `chart.js/auto`, dates via `Intl.DateTimeFormat` + category scale); MapLibre GL JS is lazy-loaded behind an `IntersectionObserver` with its worker via `?worker&url` + `setWorkerUrl`.
 - Last forecast per 4-decimal tile is cached in `localStorage` (1h TTL, max 10 tiles) for the offline fallback; the service worker is network-first for navigations (falls back to prerendered `/offline`) and never caches `/geocode` or `?` URLs so forecasts stay fresh.
