@@ -106,6 +106,10 @@
   let offlineSavedAt = $state<string | null>(null);
   let hourlyForecastProcessed = $state(false);
   let maplibreglModule: typeof import("maplibre-gl") | null = null;
+  // Monotonic identity for the active coordinate load. Async weather/alert
+  // continuations must compare against it and drop stale results so an
+  // older request can never overwrite a newer location's state or cache.
+  let weatherRequestId = 0;
 
   const MAX_RETRIES = 3;
   const GRAPH_HOURS = 25;
@@ -113,6 +117,7 @@
   const CACHE_TTL_MS = 60 * 60 * 1000;
   const MAX_CACHED_TILES = 10;
   const CACHE_INDEX_KEY = "swa:weather:index";
+  const CACHE_KEY_PREFIX = "swa:weather:";
 
   const DATASET_CONFIG = {
     TEMPERATURE: {
@@ -286,36 +291,103 @@
   }
 
   function cacheKey(latitude: number, longitude: number): string {
-    return `swa:weather:${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+    return `${CACHE_KEY_PREFIX}${latitude.toFixed(4)},${longitude.toFixed(4)}`;
   }
 
-  function saveCached(latitude: number, longitude: number): void {
+  function readCacheIndex(): string[] {
     try {
-      const key = cacheKey(latitude, longitude);
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          point,
-          alerts,
-          forecast,
-          forecastHourly,
-          NWSURL,
-          savedAt: new Date().toISOString(),
-        }),
-      );
-      // Bound the cache: keep an LRU index so many tiles don't grow
-      // localStorage without bound.
-      const rawIndex = localStorage.getItem(CACHE_INDEX_KEY);
-      const index: string[] = rawIndex ? (JSON.parse(rawIndex) as string[]) : [];
-      const next = [key, ...index.filter((k) => k !== key)].slice(
-        0,
-        MAX_CACHED_TILES,
-      );
-      const evicted = index.filter((k) => !next.includes(k));
+      const raw = localStorage.getItem(CACHE_INDEX_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter((k): k is string => typeof k === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function discoverCacheKeys(): string[] {
+    const keys: string[] = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(CACHE_KEY_PREFIX) && k !== CACHE_INDEX_KEY) {
+          keys.push(k);
+        }
+      }
+    } catch {
+      // storage unavailable — treat as empty
+    }
+    return keys;
+  }
+
+  function promoteCacheKey(key: string): void {
+    try {
+      const merged = [key, ...readCacheIndex().filter((k) => k !== key)];
+      // Include any legacy/discovered keys not yet in the index so they
+      // stay managed, then keep only the most-recent entries.
+      for (const k of discoverCacheKeys()) {
+        if (!merged.includes(k)) merged.push(k);
+      }
+      const next = merged.slice(0, MAX_CACHED_TILES);
+      const evicted = merged.filter((k) => !next.includes(k));
       for (const k of evicted) localStorage.removeItem(k);
       localStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(next));
     } catch {
+      // best-effort only
+    }
+  }
+
+  function saveCached(latitude: number, longitude: number): void {
+    const key = cacheKey(latitude, longitude);
+    const payload = JSON.stringify({
+      point,
+      alerts,
+      forecast,
+      forecastHourly,
+      NWSURL,
+      savedAt: new Date().toISOString(),
+    });
+    try {
+      // Merge the stored index with any legacy keys already in storage so
+      // pre-index entries are managed, then free space *before* writing.
+      const merged = [
+        key,
+        ...readCacheIndex().filter((k) => k !== key),
+      ];
+      for (const k of discoverCacheKeys()) {
+        if (!merged.includes(k)) merged.push(k);
+      }
+      const next = merged.slice(0, MAX_CACHED_TILES);
+      const evicted = merged.filter((k) => !next.includes(k));
+      for (const k of evicted) localStorage.removeItem(k);
+      try {
+        localStorage.setItem(key, payload);
+      } catch {
+        // Still no room (e.g. legacy entries were large): drop the oldest
+        // managed entry and retry once before giving up.
+        const fallback = next.filter((k) => k !== key);
+        const oldest = fallback[fallback.length - 1];
+        if (!oldest) throw new Error("cache full");
+        localStorage.removeItem(oldest);
+        localStorage.setItem(key, payload);
+        next.splice(next.indexOf(oldest), 1);
+      }
+      localStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(next));
+    } catch {
       // storage full / private mode — offline fallback just won't exist
+    }
+  }
+
+  function normalizeCachedAlertSeverity(alerts: WeatherAlert): void {
+    // Previous versions cached the CSS class in `severity`; map it back to
+    // the raw NWS severity so `alertTone` keeps working after upgrade.
+    if (!alerts.features) return;
+    for (const alert of alerts.features) {
+      const s = alert.properties.severity;
+      if (s === "pico-background-yellow-100") alert.properties.severity = "Severe";
+      else if (s === "pico-background-red-500")
+        alert.properties.severity = "Extreme";
     }
   }
 
@@ -324,7 +396,8 @@
     longitude: number,
   ): { savedAt: string } | null {
     try {
-      const raw = localStorage.getItem(cacheKey(latitude, longitude));
+      const key = cacheKey(latitude, longitude);
+      const raw = localStorage.getItem(key);
       if (!raw) return null;
       const data = JSON.parse(raw) as {
         point: WeatherPoint;
@@ -336,6 +409,7 @@
       };
       if (!data?.savedAt || !data?.point?.properties) return null;
       if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
+      normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
       point = data.point;
       alerts = data.alerts ?? { features: [] };
       forecast = data.forecast ?? {};
@@ -345,6 +419,7 @@
       isOffline = true;
       offlineSavedAt = data.savedAt;
       updateBadge();
+      promoteCacheKey(key);
       return { savedAt: data.savedAt };
     } catch {
       return null;
@@ -371,8 +446,10 @@
   function alertTone(severity: string): string {
     switch (severity) {
       case "Severe":
+      case "pico-background-yellow-100":
         return "pico-background-yellow-100";
       case "Extreme":
+      case "pico-background-red-500":
         return "pico-background-red-500";
       default:
         return "primary";
@@ -654,8 +731,11 @@
     void init();
 
     $effect(() => {
+      // Read hourlyChartData unconditionally so this effect subscribes to it
+      // even on runs before `instance` exists; otherwise late forecast
+      // updates would never rerun the effect and the chart would go stale.
+      const data = hourlyChartData;
       if (instance) {
-        const data = hourlyChartData;
         instance.data.labels = data.labels;
         instance.data.datasets[0].data = data.tempValues;
         instance.data.datasets[1].data = data.apparentTempValues;
@@ -674,8 +754,9 @@
     };
   }
 
+  // Derived from the URL only (not from loaded point data) so the map can
+  // mount in parallel with the forecast and be keyed/recreated per location.
   let mapCoords = $derived.by(() => {
-    if (!point.properties) return null;
     const latStr = page.url.searchParams.get("lat");
     const lonStr = page.url.searchParams.get("lon");
     if (!latStr?.trim() || !lonStr?.trim()) return null;
@@ -685,6 +766,10 @@
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
     return { lat, lon };
   });
+
+  let mapKey = $derived(
+    mapCoords ? `${mapCoords.lat.toFixed(4)},${mapCoords.lon.toFixed(4)}` : "",
+  );
 
   function mapAttachment(container: HTMLElement) {
     const coords = mapCoords;
@@ -788,21 +873,39 @@
     };
   }
 
+  function isCurrentRequest(requestId: number): boolean {
+    return requestId === weatherRequestId;
+  }
+
+  function clearLocationState(): void {
+    point = {};
+    alerts = { features: [] };
+    forecast = {};
+    forecastHourly = {};
+    NWSURL = "";
+    hourlyForecastProcessed = false;
+    isOffline = false;
+    offlineSavedAt = null;
+  }
+
   async function processWeather(
     latitude: number,
     longitude: number,
+    requestId: number,
   ): Promise<void> {
     try {
-      point = await fetchData<WeatherPoint>(
+      const pointData = await fetchData<WeatherPoint>(
         `https://api.weather.gov/points/${latitude},${longitude}`,
       );
+      if (!isCurrentRequest(requestId)) return;
 
-      if (!point.properties) {
+      if (!pointData.properties) {
         throw new Error("Invalid location data received");
       }
+      point = pointData;
 
-      const hourlyUrl = point.properties.forecastHourly;
-      const forecastUrl = point.properties.forecast;
+      const hourlyUrl = pointData.properties.forecastHourly;
+      const forecastUrl = pointData.properties.forecast;
       if (!hourlyUrl || !forecastUrl) {
         throw new Error("Invalid location data received");
       }
@@ -811,6 +914,7 @@
         fetchData<ForecastData>(hourlyUrl),
         fetchData<ForecastData>(forecastUrl),
       ]);
+      if (!isCurrentRequest(requestId)) return;
 
       forecastHourly = hourlyForecastData;
       forecast = weeklyForecastData;
@@ -818,33 +922,39 @@
       hourlyForecastProcessed = true;
       isOffline = false;
       offlineSavedAt = null;
+      geolocationError = null;
 
       NWSURL = `https://forecast.weather.gov/MapClick.php?lat=${latitude}&lon=${longitude}`;
 
       // Paint the forecast now; alerts resolve independently so a slow
       // alerts endpoint never delays the forecast or cache.
       saveCached(latitude, longitude);
-      void fetchAlertsAsync(latitude, longitude).then(() => {
-        saveCached(latitude, longitude);
-      });
+      void fetchAlertsAsync(latitude, longitude, requestId);
     } catch (error) {
       console.error("Error in processWeather:", error);
       throw error;
     } finally {
-      isLoading = false;
+      if (isCurrentRequest(requestId)) {
+        isLoading = false;
+      }
     }
   }
 
   async function fetchAlertsAsync(
     latitude: number,
     longitude: number,
+    requestId: number,
   ): Promise<void> {
     try {
       const alertsData = await fetchData<WeatherAlert>(
         `https://api.weather.gov/alerts/active?status=actual&message_type=alert,update&point=${latitude},${longitude}`,
       );
+      // Drop stale responses and never cache alerts under the wrong tile:
+      // only the still-active request may commit and re-save its own tile.
+      if (!isCurrentRequest(requestId)) return;
       alerts = alertsData;
       updateBadge();
+      saveCached(latitude, longitude);
     } catch (error) {
       console.error("Error fetching alerts:", error);
     }
@@ -883,19 +993,27 @@
   $effect(() => {
     // Track only the URL: re-fetch when ?lat/?lon change via client nav.
     const parsed = parseCoords();
+    const requestId = ++weatherRequestId;
     let cancelled = false;
 
     if (!parsed.ok) {
+      clearLocationState();
       geolocationError = parsed.reason;
       isLoading = false;
       return;
     }
 
     const { latitude, longitude } = parsed;
+    // A new valid load replaces the previous location: clear stale
+    // forecast/alerts and any prior error so old data never persists
+    // beside the loading indicator, and clear the error up front so a
+    // prior failure can't stick as the heading after success.
+    clearLocationState();
+    geolocationError = null;
     isLoading = true;
 
-    processWeather(latitude, longitude).catch((error) => {
-      if (cancelled) return;
+    processWeather(latitude, longitude, requestId).catch((error) => {
+      if (cancelled || !isCurrentRequest(requestId)) return;
       console.error("Error processing weather data:", error);
       // Offline-first: fall back to the last cached forecast for this tile.
       const cached = loadCached(latitude, longitude);
@@ -1001,7 +1119,9 @@
 
     <div>
       {#if mapCoords}
-        <div id="map" {@attach mapAttachment}></div>
+        {#key mapKey}
+          <div id="map" {@attach mapAttachment}></div>
+        {/key}
       {/if}
     </div>
     <br />
