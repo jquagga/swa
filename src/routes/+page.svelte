@@ -163,11 +163,10 @@
 
 <div class="mx-auto w-full max-w-5xl px-4 sm:px-6">
   <div>
-    <h1 class="mb-3">Simple Weather</h1>
     <p>
-      <a href="https://github.com/jquagga/swa">Simple Weather</a> queries the
-      US National Weather Service to provide a responsive weather forecast. Use
-      your current location or a full US street address below.
+      Simple Weather queries the US National Weather Service to provide a
+      responsive weather forecast. Use your current location or a full US street
+      address below.
     </p>
     <div class="my-4 grid gap-4 md:grid-cols-2">
       <section class="card" aria-labelledby="geolocate-heading">
@@ -176,18 +175,22 @@
           Asks for location permission and shows your forecast if you're in the
           United States.
         </p>
-      {#if geoPermission === "denied"}
-        <p role="note" class="text-sm">
-          Location access is blocked in your browser settings — you can still
-          search by address.
-        </p>
-      {/if}
-      {#if geolocationError}
-        <p class="err" role="alert">{geolocationError}</p>
-      {/if}
-      <button class="btn mt-2" onclick={handleGeolocate} disabled={isGeolocating}>
-        {geolocateButtonText}
-      </button>
+        {#if geoPermission === "denied"}
+          <p role="note" class="text-sm">
+            Location access is blocked in your browser settings — you can still
+            search by address.
+          </p>
+        {/if}
+        {#if geolocationError}
+          <p class="err" role="alert">{geolocationError}</p>
+        {/if}
+        <button
+          class="btn mt-2"
+          onclick={handleGeolocate}
+          disabled={isGeolocating}
+        >
+          {geolocateButtonText}
+        </button>
       </section>
       <section class="card" aria-labelledby="address-heading">
         <h2 id="address-heading" class="mt-0 text-lg">Search by address</h2>
