@@ -1,6 +1,6 @@
-# Simple Weather App
+# Simple Weather
 
-> Simple Weather App is a progressive web app which queries the US National Weather Service API to provide a responsive weather forecast.
+> Simple Weather is a progressive web app which queries the US National Weather Service API to provide a responsive weather forecast.
 
 ## ✨ [Demo](https://www.partlycloudy.org/)
 
@@ -16,7 +16,7 @@ Clone the repository and `pnpm run build` should put it all together. Serve with
 The app utilizes the JavaScript geolocation API to query location and returns the forecast from NWS. You simply have to allow location access. The app runs local to the browser so your location is never shared with me, however it is shared with NWS (in order to give you the forecast you have to tell it a location).
 
 > [!IMPORTANT]
-> Simple Weather App only supports locations covered by US NWS forecast data (so largely the United States). If you are outside that area, might I suggest the excellent [MerrySky](https://merrysky.net/) as a great alternative!
+> Simple Weather only supports locations covered by US NWS forecast data (so largely the United States). If you are outside that area, might I suggest the excellent [MerrySky](https://merrysky.net/) as a great alternative!
 
 ## Implementation Details
 

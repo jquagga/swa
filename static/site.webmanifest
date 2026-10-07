@@ -68,7 +68,7 @@
     "client_mode": "focus-existing"
   },
   "handle_links": "preferred",
-  "description": "Simple Weather App is a small webpage which provides weather from the US National Weather Service.",
+  "description": "Simple Weather is a small webpage which provides weather from the US National Weather Service.",
   "categories": ["weather"],
   "prefer_related_applications": false
 }
