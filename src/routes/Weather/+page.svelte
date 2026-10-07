@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { parseAfdProduct } from "#lib/afd.js";
+  import { parseAfdProduct, unwrapNwsHardWrap } from "#lib/afd.js";
   import { buildChartConfig } from "#lib/chart-config.js";
   import type { Chart as ChartInstance } from "chart.js";
   import {
@@ -317,6 +317,11 @@
       default:
         return severity || "Unknown";
     }
+  }
+
+  function formatAlertText(text: string | undefined | null): string {
+    if (!text) return "";
+    return unwrapNwsHardWrap(text);
   }
 
   function mapWeatherToEmoji(description: string): string {
@@ -1095,12 +1100,12 @@
                 </p>
               {/if}
               <p class="mb-2.5 whitespace-pre-wrap">
-                {alert.properties.description}
+                {formatAlertText(alert.properties.description)}
               </p>
               {#if alert.properties.instruction}
-                <p class="mb-0">
+                <p class="mb-0 whitespace-pre-wrap">
                   <strong>What to do:</strong>
-                  {alert.properties.instruction}
+                  {formatAlertText(alert.properties.instruction)}
                 </p>
               {/if}
             </div>
