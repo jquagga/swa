@@ -62,4 +62,43 @@ html.ios-pwa body {
 /* Full-height map that respects mobile browser chrome. */
 #map {
   min-height: 50dvh;
+  min-width: 100%;
+  position: relative;
+}
+
+/* Shared utilities (replaces inline style= attributes so CSP style-src
+ * can omit 'unsafe-inline'). */
+.swa-center {
+  text-align: center;
+}
+.swa-error {
+  color: red;
+}
+.swa-chart-wrap {
+  height: 300px;
+  margin: 20px 0;
+}
+.swa-update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  text-align: center;
+  padding: 0.5rem;
+  background: #017fc0;
+  color: #fff;
+}
+.swa-update-banner button {
+  margin-left: 0.5rem;
+}
+.swa-offline-hero {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+.swa-error-box {
+  text-align: center;
+  padding: 20px;
+}
+/* SvelteKit body wrapper (was an inline style in app.html). */
+.swa-body-contents {
+  display: contents;
 }

@@ -2,7 +2,7 @@
   import { goto } from "$app/navigation";
 </script>
 
-<div class="container" style="text-align: center; padding: 2rem 1rem;">
+<div class="container swa-offline-hero">
   <h1>You're offline</h1>
   <p>
     Simple Weather needs a connection to fetch fresh forecasts, but your last
