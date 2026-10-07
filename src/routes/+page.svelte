@@ -15,41 +15,6 @@
   );
   let searchButtonText = $derived(isSearching ? "Searching..." : "Search");
 
-  interface RecentLocation {
-    key: string;
-    lat: string;
-    lon: string;
-    label: string;
-  }
-
-  let recentLocations = $state<RecentLocation[]>([]);
-
-  $effect(() => {
-    try {
-      const raw = localStorage.getItem("swa:weather:index");
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) return;
-      const prefix = "swa:weather:";
-      recentLocations = parsed
-        .filter((k): k is string => typeof k === "string")
-        .filter((k) => k.startsWith(prefix) && k !== "swa:weather:index")
-        .slice(0, 6)
-        .map((k) => {
-          const coords = k.slice(prefix.length);
-          const [lat, lon] = coords.split(",");
-          return {
-            key: k,
-            lat: lat?.trim() ?? "",
-            lon: lon?.trim() ?? "",
-            label: `${lat?.trim() ?? "?"}, ${lon?.trim() ?? "?"}`,
-          };
-        })
-        .filter((r) => r.lat && r.lon);
-    } catch {
-      // storage unavailable — no recents
-    }
-  });
-
   // Simple unique IDs for accessibility (not using $props.id() as this is a page component)
 
   $effect(() => {
@@ -204,20 +169,6 @@
       US National Weather Service to provide a responsive weather forecast. Use
       your current location or a full US street address below.
     </p>
-    {#if recentLocations.length > 0}
-      <section aria-label="Recent forecasts">
-        <h2>Recent forecasts</h2>
-        <ul class="swa-recent">
-          {#each recentLocations as recent (recent.key)}
-            <li>
-              <a href={`/Weather?lat=${recent.lat}&lon=${recent.lon}`}>
-                {recent.label}
-              </a>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
     <div class="swa-options">
       <section class="swa-option-card" aria-labelledby="geolocate-heading">
         <h2 id="geolocate-heading">Use my location</h2>

@@ -443,32 +443,6 @@ html.ios-pwa body {
   border-radius: 0.75rem;
   padding: 1rem;
 }
-.swa-recent {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  padding-left: 0;
-  list-style: none;
-  list-style-type: none;
-}
-.swa-recent li {
-  list-style: none;
-  list-style-type: none;
-  margin: 0;
-}
-.swa-recent li::marker {
-  content: none;
-}
-.swa-recent a {
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: 999px;
-  padding: 0.2rem 0.7rem;
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
 /* Responsive chart height. */
 .swa-chart-wrap {
   height: 260px;
