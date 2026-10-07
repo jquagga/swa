@@ -2,12 +2,22 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { parseAfdProduct } from "#lib/afd.js";
-  import type {
-    Chart as ChartInstance,
-    ChartConfiguration,
-    ChartDataset,
-    TooltipItem,
-  } from "chart.js";
+  import { buildChartConfig } from "#lib/chart-config.js";
+  import type { Chart as ChartInstance } from "chart.js";
+  import {
+    buildHourlyChartData,
+    type ChartData,
+    type GridpointData,
+  } from "#lib/grid.js";
+  import {
+    loadCachedSnapshot,
+    saveCachedSnapshot,
+    type AfdProduct,
+    type ForecastData,
+    type WeatherAlert,
+    type WeatherPoint,
+  } from "#lib/weather-cache.js";
+  import { fetchData } from "#lib/weather-fetch.js";
   import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
   // Chart.js is lazy-loaded on first chart render so the Weather page's
@@ -32,123 +42,6 @@
     }
     return chartLib;
   }
-
-  interface WeatherPoint {
-    properties?: {
-      cwa?: string;
-      forecastOffice?: string;
-      timeZone?: string;
-      astronomicalData?: {
-        sunrise?: string;
-        sunset?: string;
-      };
-      relativeLocation?: {
-        properties: {
-          city: string;
-          state: string;
-        };
-      };
-      forecastHourly?: string;
-      forecast?: string;
-      forecastGridData?: string;
-    };
-    detail?: string;
-  }
-
-  interface WeatherAlert {
-    features: Array<{
-      properties: {
-        id: string;
-        severity: string;
-        event: string;
-        description: string;
-        instruction: string;
-        effective?: string;
-      };
-    }>;
-  }
-
-  interface WeatherPeriod {
-    name: string;
-    shortForecast: string;
-    temperature: number;
-    temperatureUnit: string;
-    isDaytime: boolean;
-    detailedForecast: string;
-    startTime: string;
-    endTime: string;
-    windSpeed: string;
-    relativeHumidity: {
-      value: number | null;
-    };
-    probabilityOfPrecipitation?: {
-      value: number;
-    };
-    appTemp?: number;
-  }
-
-  interface ForecastData {
-    properties?: {
-      periods: WeatherPeriod[];
-    };
-  }
-
-  interface GridValueEntry {
-    validTime: string;
-    value: number | null;
-  }
-
-  interface GridQuantLayer {
-    uom: string;
-    values: GridValueEntry[];
-  }
-
-  interface GridpointProperties {
-    temperature?: GridQuantLayer;
-    heatIndex?: GridQuantLayer;
-    windChill?: GridQuantLayer;
-    relativeHumidity?: GridQuantLayer;
-    probabilityOfPrecipitation?: GridQuantLayer;
-    windSpeed?: GridQuantLayer;
-    [key: string]: unknown;
-  }
-
-  interface GridpointData {
-    properties?: GridpointProperties;
-  }
-
-  interface AfdProduct {
-    issuanceTime?: string;
-    productName?: string;
-    productText?: string;
-  }
-
-  type ChartData = {
-    labels: string[];
-    isos: string[];
-    tempValues: number[];
-    heatIndexValues: (number | null)[];
-    windChillValues: (number | null)[];
-    popValues: number[];
-    windLabels: string[];
-    humidityValues: number[];
-  };
-
-  // ChartDataset plus the custom `unit`/`isos` fields used for tooltips.
-  // `winds`/`humidities` feed the tooltip footer without extra lookups.
-  type UnitLineDataset = ChartDataset<"line", number[]> & {
-    unit?: string;
-    isos?: string[];
-    winds?: string[];
-    humidities?: number[];
-  };
-
-  type UnitBarDataset = ChartDataset<"bar", number[]> & {
-    unit?: string;
-    isos?: string[];
-    winds?: string[];
-    humidities?: number[];
-  };
 
   let point = $state.raw<WeatherPoint>({});
   let alerts = $state.raw<WeatherAlert>({ features: [] });
@@ -187,34 +80,6 @@
   // continuations must compare against it and drop stale results so an
   // older request can never overwrite a newer location's state or cache.
   let weatherRequestId = 0;
-
-  const MAX_RETRIES = 3;
-  const GRAPH_HOURS = 25;
-  const USER_AGENT = "https://github.com/jquagga/swa";
-  const CACHE_TTL_MS = 60 * 60 * 1000;
-  const MAX_CACHED_TILES = 10;
-  const CACHE_INDEX_KEY = "swa:weather:index";
-  const CACHE_KEY_PREFIX = "swa:weather:";
-  const CACHE_VERSION = 2;
-
-  const DATASET_CONFIG = {
-    TEMPERATURE: {
-      unit: "°F",
-      defaultPointRadius: 3,
-    },
-    HEAT_INDEX: {
-      unit: "°F",
-      defaultPointRadius: 3,
-    },
-    WIND_CHILL: {
-      unit: "°F",
-      defaultPointRadius: 3,
-    },
-    PRECIPITATION: {
-      unit: "%",
-      defaultPointRadius: 2,
-    },
-  } as const;
 
   const tooltipTitleFmt = new Intl.DateTimeFormat("en-US", {
     weekday: "short",
@@ -357,70 +222,6 @@
     return maplibre;
   }
 
-  function formatTooltipTitle(
-    context: TooltipItem<"line">[] | TooltipItem<"bar">[],
-  ): string {
-    try {
-      if (!context || context.length === 0) {
-        return "No data available";
-      }
-      const idx = context[0].dataIndex;
-      const iso = (context[0].dataset as unknown as { isos?: string[] }).isos?.[
-        idx
-      ];
-      if (iso) return formatIso(iso);
-      if (context[0].label) return formatIso(context[0].label);
-      return "Invalid date";
-    } catch {
-      return context?.[0]?.label ?? "Date error";
-    }
-  }
-
-  function formatTooltipLabel(
-    context: TooltipItem<"line"> | TooltipItem<"bar">,
-  ): string {
-    try {
-      let label = context.dataset.label || "";
-      if (label) {
-        label += ": ";
-      }
-
-      const unit = (context.dataset as { unit?: string }).unit || "";
-      label += context.parsed.y + unit;
-      return label;
-    } catch {
-      return "Data error";
-    }
-  }
-
-  function formatTooltipFooter(
-    context: TooltipItem<"line">[] | TooltipItem<"bar">[],
-  ): string {
-    try {
-      if (!context || context.length === 0) return "";
-      const idx = context[0].dataIndex;
-      const ds = context[0].dataset as unknown as {
-        winds?: string[];
-        humidities?: number[];
-      };
-      const wind = ds.winds?.[idx];
-      const humidity = ds.humidities?.[idx];
-      const parts: string[] = [];
-      if (wind) parts.push(`Wind ${wind}`);
-      if (typeof humidity === "number") parts.push(`Humidity ${humidity}%`);
-      return parts.join(" • ");
-    } catch {
-      return "";
-    }
-  }
-
-  function getPointRadius(baseRadius: number, dataLength: number): number {
-    if (dataLength > 20) {
-      return Math.max(1, baseRadius - 1);
-    }
-    return baseRadius;
-  }
-
   const weatherEmojiMap: Record<string, string> = {
     snow: "❄️",
     freezing: "🧊",
@@ -437,190 +238,33 @@
     clear: "🌕",
   };
 
-  async function fetchData<T>(url: string): Promise<T> {
-    const headers = {
-      accept: "application/geo+json",
-      "user-agent": USER_AGENT,
-    };
-
-    let retryCount = 0;
-    let lastError: Error | null = null;
-
-    while (retryCount < MAX_RETRIES) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-        const response = await fetch(url, {
-          headers,
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = (await response.json()) as T;
-
-        return data;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        retryCount++;
-
-        if (retryCount >= MAX_RETRIES) {
-          break;
-        }
-
-        const baseDelay = 1000 * Math.pow(2, retryCount);
-        const jitter = Math.random() * 0.3 * baseDelay;
-        const delay = baseDelay + jitter;
-
-        await new Promise<void>((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    throw lastError || new Error("Unknown error occurred during fetch");
-  }
-
-  function cacheKey(latitude: number, longitude: number): string {
-    return `${CACHE_KEY_PREFIX}${latitude.toFixed(4)},${longitude.toFixed(4)}`;
-  }
-
-  function readCacheIndex(): string[] {
-    try {
-      const raw = localStorage.getItem(CACHE_INDEX_KEY);
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed)
-        ? parsed.filter((k): k is string => typeof k === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function discoverCacheKeys(): string[] {
-    const keys: string[] = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(CACHE_KEY_PREFIX) && k !== CACHE_INDEX_KEY) {
-          keys.push(k);
-        }
-      }
-    } catch {
-      // storage unavailable — treat as empty
-    }
-    return keys;
-  }
-
-  function promoteCacheKey(key: string): void {
-    try {
-      const merged = [key, ...readCacheIndex().filter((k) => k !== key)];
-      // Include any legacy/discovered keys not yet in the index so they
-      // stay managed, then keep only the most-recent entries.
-      for (const k of discoverCacheKeys()) {
-        if (!merged.includes(k)) merged.push(k);
-      }
-      const next = merged.slice(0, MAX_CACHED_TILES);
-      const evicted = merged.filter((k) => !next.includes(k));
-      for (const k of evicted) localStorage.removeItem(k);
-      localStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(next));
-    } catch {
-      // best-effort only
-    }
-  }
-
   function saveCached(latitude: number, longitude: number): void {
-    const key = cacheKey(latitude, longitude);
-    const payload = JSON.stringify({
-      v: CACHE_VERSION,
+    saveCachedSnapshot(latitude, longitude, {
       point,
       alerts,
       forecast,
       gridData,
       NWSURL,
-      savedAt: new Date().toISOString(),
     });
-    try {
-      // Merge the stored index with any legacy keys already in storage so
-      // pre-index entries are managed, then free space *before* writing.
-      const merged = [key, ...readCacheIndex().filter((k) => k !== key)];
-      for (const k of discoverCacheKeys()) {
-        if (!merged.includes(k)) merged.push(k);
-      }
-      const next = merged.slice(0, MAX_CACHED_TILES);
-      const evicted = merged.filter((k) => !next.includes(k));
-      for (const k of evicted) localStorage.removeItem(k);
-      try {
-        localStorage.setItem(key, payload);
-      } catch {
-        // Still no room (e.g. legacy entries were large): drop the oldest
-        // managed entry and retry once before giving up.
-        const fallback = next.filter((k) => k !== key);
-        const oldest = fallback[fallback.length - 1];
-        if (!oldest) throw new Error("cache full");
-        localStorage.removeItem(oldest);
-        localStorage.setItem(key, payload);
-        next.splice(next.indexOf(oldest), 1);
-      }
-      localStorage.setItem(CACHE_INDEX_KEY, JSON.stringify(next));
-    } catch {
-      // storage full / private mode — offline fallback just won't exist
-    }
-  }
-
-  function normalizeCachedAlertSeverity(alerts: WeatherAlert): void {
-    // Previous versions cached the CSS class in `severity`; map it back to
-    // the raw NWS severity so `alertTone` keeps working after upgrade.
-    if (!alerts.features) return;
-    for (const alert of alerts.features) {
-      const s = alert.properties.severity;
-      if (s === "pico-background-yellow-100")
-        alert.properties.severity = "Severe";
-      else if (s === "pico-background-red-500")
-        alert.properties.severity = "Extreme";
-    }
   }
 
   function loadCached(
     latitude: number,
     longitude: number,
   ): { savedAt: string } | null {
-    try {
-      const key = cacheKey(latitude, longitude);
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      const data = JSON.parse(raw) as {
-        v?: number;
-        point: WeatherPoint;
-        alerts: WeatherAlert;
-        forecast: ForecastData;
-        gridData: GridpointData;
-        NWSURL: string;
-        savedAt: string;
-      };
-      if (!data?.savedAt || !data?.point?.properties) return null;
-      if (data.v !== CACHE_VERSION) return null;
-      if (!data?.gridData?.properties) return null;
-      if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
-      normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
-      point = data.point;
-      alerts = data.alerts ?? { features: [] };
-      forecast = data.forecast ?? {};
-      gridData = data.gridData ?? {};
-      NWSURL = data.NWSURL ?? "";
-      hourlyForecastProcessed = true;
-      isOffline = true;
-      offlineSavedAt = data.savedAt;
-      fetchedAt = data.savedAt;
-      updateBadge();
-      promoteCacheKey(key);
-      return { savedAt: data.savedAt };
-    } catch {
-      return null;
-    }
+    const data = loadCachedSnapshot(latitude, longitude);
+    if (!data) return null;
+    point = data.point;
+    alerts = data.alerts;
+    forecast = data.forecast;
+    gridData = data.gridData;
+    NWSURL = data.NWSURL;
+    hourlyForecastProcessed = true;
+    isOffline = true;
+    offlineSavedAt = data.savedAt;
+    fetchedAt = data.savedAt;
+    updateBadge();
+    return { savedAt: data.savedAt };
   }
 
   function updateBadge(): void {
@@ -652,7 +296,7 @@
       case "Moderate":
         return "border-l-orange-500 bg-orange-500/15";
       case "Minor":
-        return "border-l-sky-600 bg-sky-600/10";
+        return "border-l-brand-600 bg-brand-600/10";
       default:
         return "border-l-zinc-400";
     }
@@ -685,172 +329,9 @@
     return description;
   }
 
-  function celsiusToFahrenheit(celsius: number): number {
-    return (celsius * 9) / 5 + 32;
-  }
-
-  function convertGridTemperature(value: number | null, uom: string): number | null {
-    if (value == null) return null;
-    // Gridpoint temps arrive as wmoUnit:degC; pass through if already F.
-    if (uom.includes("degF") || uom === "F") return value;
-    return celsiusToFahrenheit(value);
-  }
-
-  function convertGridWindSpeed(value: number | null, uom: string): number | null {
-    if (value == null) return null;
-    if (uom.includes("km_h") || uom.includes("km/h")) return value * 0.621371;
-    if (uom.includes("m_s") || uom.includes("m/s")) return value * 2.23694;
-    return value;
-  }
-
-  interface GridInterval {
-    startMs: number;
-    endMs: number;
-    value: number | null;
-  }
-
-  function parseIsoDurationMs(duration: string): number | null {
-    // Supports the NWS subset: PnD / PTnH / PTnM / PnDTnHnM.
-    const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?$/.exec(duration);
-    if (!match) return null;
-    const days = Number(match[1] ?? 0);
-    const hours = Number(match[2] ?? 0);
-    const minutes = Number(match[3] ?? 0);
-    if (!days && !hours && !minutes) return null;
-    return ((days * 24 + hours) * 60 + minutes) * 60 * 1000;
-  }
-
-  function parseValidTime(validTime: string): { startMs: number; endMs: number } | null {
-    const parts = validTime.split("/");
-    if (parts.length !== 2) return null;
-    const startMs = Date.parse(parts[0]);
-    if (!Number.isFinite(startMs)) return null;
-    let endMs: number;
-    if (parts[1].startsWith("P")) {
-      const durationMs = parseIsoDurationMs(parts[1]);
-      if (durationMs == null) return null;
-      endMs = startMs + durationMs;
-    } else {
-      endMs = Date.parse(parts[1]);
-      if (!Number.isFinite(endMs)) return null;
-    }
-    if (!(endMs > startMs)) return null;
-    return { startMs, endMs };
-  }
-
-  function expandLayerIntervals(layer: GridQuantLayer | undefined): GridInterval[] {
-    if (!layer?.values) return [];
-    const intervals: GridInterval[] = [];
-    for (const entry of layer.values) {
-      const parsed = parseValidTime(entry.validTime);
-      if (!parsed) continue;
-      intervals.push({ ...parsed, value: entry.value });
-    }
-    intervals.sort((a, b) => a.startMs - b.startMs);
-    return intervals;
-  }
-
-  function lookupIntervalValue(intervals: GridInterval[], slotStartMs: number): number | null {
-    for (const interval of intervals) {
-      if (slotStartMs < interval.startMs) break;
-      if (slotStartMs < interval.endMs) return interval.value;
-    }
-    return null;
-  }
-
-  let hourlyChartData = $derived.by((): ChartData => {
-    const empty: ChartData = {
-      labels: [],
-      isos: [],
-      tempValues: [],
-      heatIndexValues: [],
-      windChillValues: [],
-      popValues: [],
-      windLabels: [],
-      humidityValues: [],
-    };
-    const props = gridData.properties;
-    const tempLayer = props?.temperature;
-    if (!tempLayer) return empty;
-
-    const tempIntervals = expandLayerIntervals(tempLayer);
-    const heatIntervals = expandLayerIntervals(props?.heatIndex);
-    const chillIntervals = expandLayerIntervals(props?.windChill);
-    const popIntervals = expandLayerIntervals(props?.probabilityOfPrecipitation);
-    const humidityIntervals = expandLayerIntervals(props?.relativeHumidity);
-    const windIntervals = expandLayerIntervals(props?.windSpeed);
-    const HOUR_MS = 60 * 60 * 1000;
-
-    const labels: string[] = [];
-    const isos: string[] = [];
-    const tempValues: number[] = [];
-    const heatIndexValues: (number | null)[] = [];
-    const windChillValues: (number | null)[] = [];
-    const popValues: number[] = [];
-    const windLabels: string[] = [];
-    const humidityValues: number[] = [];
-
-    const nowMs = Date.now();
-    const tempUom = tempLayer.uom ?? "";
-    const heatUom = props?.heatIndex?.uom ?? "";
-    const chillUom = props?.windChill?.uom ?? "";
-    const windUom = props?.windSpeed?.uom ?? "";
-
-    // Temperature intervals are step functions held constant over
-    // validTime; split multi-hour intervals into hourly slots, then look
-    // up the covering value in each companion layer per slot.
-    for (const interval of tempIntervals) {
-      for (
-        let slotStart = interval.startMs;
-        slotStart < interval.endMs && labels.length < GRAPH_HOURS;
-        slotStart += HOUR_MS
-      ) {
-        const slotEnd = slotStart + HOUR_MS;
-        if (nowMs >= slotEnd) continue;
-        if (interval.value == null) continue;
-        const tempF = convertGridTemperature(interval.value, tempUom);
-        if (tempF == null) continue;
-        const rawHeat = lookupIntervalValue(heatIntervals, slotStart);
-        const rawChill = lookupIntervalValue(chillIntervals, slotStart);
-        const heatF =
-          rawHeat == null
-            ? null
-            : convertGridTemperature(rawHeat, heatUom);
-        const chillF =
-          rawChill == null
-            ? null
-            : convertGridTemperature(rawChill, chillUom);
-        const pop = lookupIntervalValue(popIntervals, slotStart) ?? 0;
-        const humidity = lookupIntervalValue(humidityIntervals, slotStart) ?? 0;
-        const rawWind = lookupIntervalValue(windIntervals, slotStart);
-        const windMph =
-          rawWind == null ? null : convertGridWindSpeed(rawWind, windUom);
-        const date = new Date(slotStart);
-        labels.push(hourLabelFmt.format(date));
-        isos.push(date.toISOString());
-        tempValues.push(Math.round(tempF));
-        heatIndexValues.push(heatF == null ? null : Math.round(heatF));
-        windChillValues.push(chillF == null ? null : Math.round(chillF));
-        popValues.push(Math.round(pop));
-        windLabels.push(
-          windMph == null ? "—" : `${Math.round(windMph)} mph`,
-        );
-        humidityValues.push(Math.round(humidity));
-      }
-      if (labels.length >= GRAPH_HOURS) break;
-    }
-
-    return {
-      labels,
-      isos,
-      tempValues,
-      heatIndexValues,
-      windChillValues,
-      popValues,
-      windLabels,
-      humidityValues,
-    };
-  });
+  let hourlyChartData = $derived.by(
+    (): ChartData => buildHourlyChartData(gridData.properties, hourLabelFmt),
+  );
 
   let chartReady = $derived(
     hourlyForecastProcessed && hourlyChartData.labels.length > 0,
@@ -920,214 +401,6 @@
     }
   }
 
-  function buildChartConfig(chartData: ChartData): ChartConfiguration {
-    const tempPointRadius = getPointRadius(
-      DATASET_CONFIG.TEMPERATURE.defaultPointRadius,
-      chartData.labels.length,
-    );
-    const heatPointRadius = getPointRadius(
-      DATASET_CONFIG.HEAT_INDEX.defaultPointRadius,
-      chartData.labels.length,
-    );
-    const chillPointRadius = getPointRadius(
-      DATASET_CONFIG.WIND_CHILL.defaultPointRadius,
-      chartData.labels.length,
-    );
-    // Neutral grid works in both light and dark mode (previous
-    // rgba(0,0,0,0.05) was invisible in dark mode).
-    const gridColor = "rgba(127, 127, 127, 0.25)";
-
-    const tempDataset: UnitLineDataset = {
-      type: "line" as const,
-      label: "Temperature",
-      data: chartData.tempValues,
-      borderColor: "#B42318",
-      backgroundColor: "rgba(180, 35, 24, 0.08)",
-      tension: 0.4,
-      yAxisID: "y",
-      pointRadius: tempPointRadius,
-      pointHoverRadius: tempPointRadius + 3,
-      pointBackgroundColor: "#B42318",
-      pointBorderColor: "#B42318",
-      pointBorderWidth: 1,
-      borderWidth: 2.5,
-      unit: DATASET_CONFIG.TEMPERATURE.unit,
-      isos: chartData.isos,
-      winds: chartData.windLabels,
-      humidities: chartData.humidityValues,
-    };
-    const feelsDatasets: UnitLineDataset[] = [];
-    if (chartData.heatIndexValues.some((v) => v != null)) {
-      feelsDatasets.push({
-        type: "line" as const,
-        label: "Heat Index",
-        data: chartData.heatIndexValues as number[],
-        borderColor: "#C2410C",
-        backgroundColor: "transparent",
-        borderDash: [6, 4],
-        tension: 0.4,
-        yAxisID: "y",
-        pointRadius: heatPointRadius,
-        pointHoverRadius: heatPointRadius + 3,
-        pointBackgroundColor: "#C2410C",
-        pointBorderColor: "#C2410C",
-        pointBorderWidth: 1,
-        pointStyle: "rectRot",
-        borderWidth: 2,
-        spanGaps: false,
-        unit: DATASET_CONFIG.HEAT_INDEX.unit,
-        isos: chartData.isos,
-        winds: chartData.windLabels,
-        humidities: chartData.humidityValues,
-      });
-    }
-    if (chartData.windChillValues.some((v) => v != null)) {
-      feelsDatasets.push({
-        type: "line" as const,
-        label: "Wind Chill",
-        data: chartData.windChillValues as number[],
-        borderColor: "#017FC0",
-        backgroundColor: "transparent",
-        borderDash: [6, 4],
-        tension: 0.4,
-        yAxisID: "y",
-        pointRadius: chillPointRadius,
-        pointHoverRadius: chillPointRadius + 3,
-        pointBackgroundColor: "#017FC0",
-        pointBorderColor: "#017FC0",
-        pointBorderWidth: 1,
-        pointStyle: "rectRot",
-        borderWidth: 2,
-        spanGaps: false,
-        unit: DATASET_CONFIG.WIND_CHILL.unit,
-        isos: chartData.isos,
-        winds: chartData.windLabels,
-        humidities: chartData.humidityValues,
-      });
-    }
-    const popDataset: UnitBarDataset = {
-      type: "bar" as const,
-      label: "Chance of Precipitation",
-      data: chartData.popValues,
-      backgroundColor: "rgba(1, 127, 192, 0.45)",
-      hoverBackgroundColor: "rgba(1, 127, 192, 0.65)",
-      borderColor: "rgba(1, 127, 192, 0.9)",
-      borderWidth: 1,
-      borderRadius: 3,
-      yAxisID: "y1",
-      barPercentage: 0.6,
-      categoryPercentage: 0.7,
-      unit: DATASET_CONFIG.PRECIPITATION.unit,
-      isos: chartData.isos,
-      winds: chartData.windLabels,
-      humidities: chartData.humidityValues,
-    };
-
-    return {
-      type: "bar" as const,
-      data: {
-        labels: chartData.labels,
-        datasets: [
-          tempDataset as never,
-          ...(feelsDatasets as never[]),
-          popDataset as never,
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-          duration: 0,
-        },
-        interaction: {
-          mode: "index" as const,
-          intersect: false,
-        },
-        scales: {
-          x: {
-            type: "category",
-            stacked: false,
-            grid: {
-              display: true,
-              color: gridColor,
-            },
-            ticks: {
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: 9,
-              autoSkipPadding: 10,
-            },
-          },
-          y: {
-            type: "linear",
-            beginAtZero: false,
-            grace: "5%",
-            ticks: {
-              callback: function (value: string | number) {
-                return String(value) + "°";
-              },
-              padding: 8,
-              maxTicksLimit: 6,
-            },
-            grid: {
-              display: true,
-              color: gridColor,
-            },
-            title: {
-              display: false,
-            },
-          },
-          y1: {
-            type: "linear",
-            display: true,
-            position: "right" as const,
-            min: 0,
-            max: 100,
-            ticks: {
-              callback: function (value: string | number) {
-                return String(value) + "%";
-              },
-              maxTicksLimit: 5,
-            },
-            grid: {
-              display: false,
-            },
-          },
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: "bottom" as const,
-            align: "center" as const,
-            labels: {
-              usePointStyle: true,
-              padding: 20,
-              boxWidth: 8,
-            },
-          },
-          tooltip: {
-            backgroundColor: "rgba(0, 0, 0, 0.85)",
-            titleColor: "#fff",
-            bodyColor: "#fff",
-            footerColor: "#cbd5e1",
-            padding: 12,
-            displayColors: true,
-            callbacks: {
-              title: formatTooltipTitle as never,
-              label: formatTooltipLabel as never,
-              footer: formatTooltipFooter as never,
-            },
-          },
-        },
-        elements: {
-          line: {
-            borderJoinStyle: "round" as const,
-          },
-        },
-      },
-    };
-  }
-
   function chartAttachment(canvas: HTMLCanvasElement) {
     let instance: ChartInstance | null = null;
     let destroyed = false;
@@ -1136,7 +409,10 @@
       try {
         const lib = await ensureChartLib();
         if (destroyed) return;
-        instance = new lib.Chart(canvas, buildChartConfig(hourlyChartData));
+        instance = new lib.Chart(
+          canvas,
+          buildChartConfig(hourlyChartData, formatIso),
+        );
       } catch (e) {
         console.error(e);
       }
@@ -1152,7 +428,7 @@
       // when NWS provides them), so sync the full config each run.
       const data = hourlyChartData;
       if (instance) {
-        const next = buildChartConfig(data);
+        const next = buildChartConfig(data, formatIso);
         instance.data.labels = next.data.labels;
         instance.data.datasets = next.data.datasets;
         instance.update("none");
@@ -1672,8 +948,16 @@
   });
 </script>
 
+<svelte:head>
+  <title>{locationDisplay} – Simple Weather</title>
+  <meta
+    name="description"
+    content="Hourly, 7-day, radar, and alerts for {locationDisplay} from the US National Weather Service."
+  />
+</svelte:head>
+
 <svelte:boundary>
-  <div class="mx-auto w-full max-w-5xl px-4 sm:px-6">
+  <div class="shell">
     <div class="my-3 flex flex-wrap items-center gap-2">
       <a href="/" class="font-semibold no-underline">← New search</a>
       <span class="flex-1"></span>
@@ -1926,7 +1210,7 @@
           <label class="m-0 flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
-              class="size-4 accent-sky-700"
+              class="size-4 accent-brand-700"
               bind:checked={showRadar}
             />
             Radar
@@ -1934,7 +1218,7 @@
           <label class="m-0 flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
-              class="size-4 accent-sky-700"
+              class="size-4 accent-brand-700"
               bind:checked={showWatchWarn}
             />
             Watches &amp; warnings

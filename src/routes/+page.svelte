@@ -161,7 +161,7 @@
   }
 </script>
 
-<div class="mx-auto w-full max-w-5xl px-4 sm:px-6">
+<div class="shell">
   <div>
     <p>
       Simple Weather queries the US National Weather Service to provide a

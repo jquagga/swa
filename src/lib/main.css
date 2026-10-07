@@ -1,9 +1,25 @@
 @import "tailwindcss";
 
+/* Brand tokens: single source for the primary action color so button,
+ * input focus, and accent utilities stay in sync. Values match the
+ * Tailwind sky scale (600/700/800). Use `bg-brand-700` etc. */
+@theme {
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+}
+
 /* Modern PWA / UX defaults (2025+ baseline). */
 
 @view-transition {
   navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
 }
 
 :root {
@@ -32,38 +48,51 @@ html.ios-pwa body {
     @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
   }
   h1 {
-    @apply text-3xl font-bold tracking-tight;
+    @apply text-3xl font-bold tracking-tight text-balance;
   }
   h2 {
-    @apply mt-6 mb-2 text-xl font-bold;
+    @apply mt-6 mb-2 text-xl font-bold text-balance;
+  }
+  p {
+    @apply text-pretty;
   }
   a {
-    @apply text-sky-700 underline decoration-sky-700/40 underline-offset-2 dark:text-sky-400 dark:decoration-sky-400/40;
+    @apply text-brand-700 underline decoration-brand-700/40 underline-offset-2 dark:text-sky-400 dark:decoration-sky-400/40;
   }
 }
 
-/* Reusable patterns (Tailwind component layer — replaces the old `swa-*`
- * classes and Pico element defaults). Layout/one-off styling stays inline
+/* Reusable single-purpose patterns as Tailwind v4 utilities so they compose
+ * with variants (`dark:`, `hover:`). Layout/one-off styling stays inline
  * in markup as utilities. */
+@utility shell {
+  @apply mx-auto w-full max-w-5xl px-4 sm:px-6;
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500;
+}
+
+@utility card {
+  @apply rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900;
+}
+
+@utility input {
+  @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus-visible:border-brand-600 focus-visible:ring-2 focus-visible:ring-brand-600/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+}
+
+@utility chip {
+  @apply rounded-full border border-zinc-200 px-2.5 py-0.5 text-[0.85rem] dark:border-zinc-700;
+}
+
+@utility meta {
+  @apply text-[0.85rem] text-zinc-500 dark:text-zinc-400;
+}
+
+@utility err {
+  @apply font-semibold text-red-700 before:content-["⚠_"] dark:text-red-300;
+}
+
 @layer components {
-  .btn {
-    @apply inline-flex cursor-pointer items-center justify-center rounded-md bg-sky-700 px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500;
-  }
-  .card {
-    @apply rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900;
-  }
-  .input {
-    @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
-  }
-  .chip {
-    @apply rounded-full border border-zinc-200 px-2.5 py-0.5 text-[0.85rem] dark:border-zinc-700;
-  }
-  .meta {
-    @apply text-[0.85rem] text-zinc-500 dark:text-zinc-400;
-  }
-  .err {
-    @apply font-semibold text-red-700 before:content-["⚠_"] dark:text-red-300;
-  }
   .data-table {
     @apply w-full border-collapse text-sm;
   }
