@@ -45,6 +45,7 @@ const HOURLY_VARS = [
   "wind_gusts_10m",
   "visibility",
   "is_day",
+  "weather_code",
 ].join(",");
 
 export async function searchCity(
@@ -161,6 +162,7 @@ export async function fetchOpenMeteo(
     windGustKph: at(14),
     visibilityM: at(15),
     isDay: at(16),
+    wmoCode: at(17),
     timeZone: timezone,
   };
   return {

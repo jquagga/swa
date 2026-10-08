@@ -1,4 +1,5 @@
 import type { HourlySeries, PeriodSummary, ZfpPeriod } from "./types.js";
+import { summarizeWmo, type WmoSummary } from "./wmo.js";
 
 function avg(vals: (number | null)[]): number | null {
   let s = 0;
@@ -171,6 +172,10 @@ export function summarizePeriod(series: HourlySeries, period: ZfpPeriod): Period
     windGustKph: gusts.length ? Math.max(...gusts) : null,
     humidityAvg: avg(pick(series.humidity, period.hours)),
     visibilityMinM: vis.length ? Math.min(...vis) : null,
+    wmo: summarizeWmo(
+      pick(series.wmoCode ?? [], period.hours),
+      period.hours.length,
+    ),
   };
 }
 

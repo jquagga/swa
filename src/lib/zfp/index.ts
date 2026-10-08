@@ -10,6 +10,7 @@ import type {
 
 export * from "./types.js";
 export { summarizeAll, splitDayNight, summarizePeriod, localHour } from "./periods.js";
+export { summarizeWmo, type WmoSummary } from "./wmo.js";
 export { buildNarrative } from "./narrate.js";
 export { translateNarrative } from "./translator.js";
 export * from "./units.js";

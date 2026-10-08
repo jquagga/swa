@@ -4,6 +4,8 @@
 // Based in part on com.raytheon.viz.gfe Translator.py (Unidata AWIPS2),
 // used as reference per its license; see NOTICE in repo root.
 
+import type { WmoSummary } from "./wmo.js";
+
 export interface HourlySeries {
   timeMs: number[];
   /** °C */
@@ -34,6 +36,8 @@ export interface HourlySeries {
   /** meters */
   visibilityM: (number | null)[];
   isDay: (number | null)[];
+  /** WMO weather-code (WW); may be absent in older cached snapshots */
+  wmoCode?: (number | null)[];
   timeZone?: string;
 }
 
@@ -63,6 +67,7 @@ export interface PeriodSummary {
   windGustKph: number | null;
   humidityAvg: number | null;
   visibilityMinM: number | null;
+  wmo: WmoSummary;
 }
 
 export type SupportedZfpLocale = "en" | "es" | "fr";

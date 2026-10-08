@@ -45,7 +45,16 @@ export function popQualifier(popMax: number, convective: boolean): string | null
   return null; // 80%+ carries no qualifier
 }
 
-export type PrecipKind = "snow" | "rain-showers" | "rain" | "showers" | null;
+export type PrecipKind =
+  | "snow"
+  | "rain-showers"
+  | "rain"
+  | "showers"
+  | "thunderstorms"
+  | "freezing rain"
+  | "freezing drizzle"
+  | "drizzle"
+  | null;
 
 export function precipKind(
   precipMm: number,

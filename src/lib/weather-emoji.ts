@@ -8,6 +8,7 @@ export const weatherEmojiMap: Record<string, string> = {
   sleet: "🧊",
   thunder: "⛈️",
   rain: "🌧️",
+  drizzle: "🌧️",
   "partly cloudy": "🌥️",
   "mostly cloudy": "🌥️",
   "partly sunny": "🌤️",

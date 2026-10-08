@@ -27,8 +27,9 @@ export function buildNarrative(
   periodIndex: number,
   units: DisplayUnits = "metric",
 ): Narrative {
-  const convective = s.showersSumMm >= 0.5;
-  const kind = precipKind(s.precipSumMm, s.snowfallSumCm, s.showersSumMm);
+  const w = s.wmo;
+  const convective = s.showersSumMm >= 0.5 || w.thunderFrac >= 0.1;
+  const { kind, heavy } = resolveKind(s);
   const qualifier = popQualifier(s.popMax, convective);
   const sky = skyPhrase(s.cloudAvg, s.period.isDaytime);
   // Sky is optional when PoP dominates the period.
@@ -37,30 +38,31 @@ export function buildNarrative(
   const parts: string[] = [];
 
   // Weather sentence. High-PoP periods (80%+) carry no qualifier per
-  // ZFP Table 1, so they state the bare type ("Rain.").
-  if (kind && s.popMax >= 15) {
+  // ZFP Table 1, so they state the bare type ("Rain."). Amounts alone
+  // can't see thunder/fog/freezing events, so a confident WMO signal also
+  // opens the gate even when PoP is low (trace drizzle, dry thunderstorms).
+  if (kind && (s.popMax >= 15 || w.precipFrac >= 0.25)) {
+    const heavyPrefix = heavy ? "heavy " : "";
     const typeText =
-      kind === "snow"
-        ? "snow"
-        : kind === "rain-showers"
-          ? "rain showers"
-          : kind === "showers"
-            ? "showers"
-            : "rain";
+      kind === "rain-showers"
+        ? "rain showers"
+        : kind === "drizzle" && !qualifier && w.drizzleFrac < 0.4
+          ? "patchy drizzle"
+          : kind;
     if (qualifier) {
       if (qualifier === "likely") {
-        parts.push(`${capitalize(typeText)} likely`);
+        parts.push(`${capitalize(heavyPrefix + typeText)} likely`);
       } else if (
         qualifier === "isolated" ||
         qualifier === "scattered" ||
         qualifier === "numerous"
       ) {
-        parts.push(`${capitalize(qualifier)} ${typeText}`);
+        parts.push(`${capitalize(qualifier)} ${heavyPrefix}${typeText}`);
       } else {
-        parts.push(`${capitalize(qualifier)} of ${typeText}`);
+        parts.push(`${capitalize(qualifier)} of ${heavyPrefix}${typeText}`);
       }
     } else {
-      parts.push(capitalize(typeText));
+      parts.push(capitalize(heavyPrefix + typeText));
     }
     if (s.popMax >= 20) {
       parts.push(`probability of precipitation ${s.popMax} percent`);
@@ -70,6 +72,23 @@ export function buildNarrative(
   } else if (sky && kind) {
     parts.push(capitalize(sky));
   }
+
+  // Visibility restriction. WMO fog joins the existing visibility rule;
+  // code 48 (rime fog) always reads dense.
+  const fogDense =
+    (s.visibilityMinM != null && s.visibilityMinM <= 400) ||
+    w.denseFogFrac >= 0.25;
+  const fogText = !(
+    w.fogFrac >= 0.25 ||
+    (s.visibilityMinM != null && s.visibilityMinM <= 1000)
+  )
+    ? null
+    : fogDense
+      ? "areas of dense fog"
+      : w.fogFrac >= 0.5
+        ? "areas of fog"
+        : "patchy fog";
+  if (fogText) parts.push(fogText);
 
   // Snow accumulation (explicit in first three periods when PoP met).
   if (kind === "snow" && periodIndex < 3 && s.popMax >= 30) {
@@ -95,35 +114,53 @@ export function buildNarrative(
   const wind = windPhrase(s.windDirDeg, s.windKph, s.windGustKph, units);
   if (wind) parts.push(wind.text);
 
-  // Visibility restriction (dense fog / haze only at MVP).
-  if (s.visibilityMinM != null && s.visibilityMinM <= 400) {
-    parts.push("areas of dense fog");
-  } else if (s.visibilityMinM != null && s.visibilityMinM <= 1000) {
-    parts.push("patchy fog");
-  }
-
   const text = capitalizeSentences(parts.filter(Boolean).map(ensurePeriod).join(" ").trim()) ||
     "No significant weather.";
-  const shortForecast = shortLabel(kind, qualifier, showSky, sky);
+  const shortForecast = shortLabel(kind, qualifier, heavy, !!fogText, showSky, sky);
   return { text, shortForecast };
+}
+
+/**
+ * Merge amount-based and WMO-code evidence into one precip kind.
+ * Thunderstorms and freezing precipitation win on a modest WMO fraction
+ * even when amounts point at plain rain; drizzle needs no amounts at all.
+ */
+function resolveKind(s: PeriodSummary): { kind: PrecipKind; heavy: boolean } {
+  const w = s.wmo;
+  const heavy = w.heavyFrac >= 0.2;
+  if (w.thunderFrac >= 0.15) return { kind: "thunderstorms", heavy };
+  if (w.freezingRainFrac >= 0.2) return { kind: "freezing rain", heavy };
+  const amount = precipKind(s.precipSumMm, s.snowfallSumCm, s.showersSumMm);
+  if (amount === "snow") return { kind: "snow", heavy };
+  if (w.freezingDrizzleFrac >= 0.25) return { kind: "freezing drizzle", heavy };
+  if (amount === "rain" || amount === "rain-showers" || amount === "showers") {
+    return { kind: amount, heavy };
+  }
+  if (w.drizzleFrac >= 0.25) return { kind: "drizzle", heavy };
+  return { kind: null, heavy: false };
 }
 
 /** Areal qualifiers read bare ("Isolated showers"); the rest take "of". */
 function shortLabel(
   kind: PrecipKind,
   qualifier: string | null,
+  heavy: boolean,
+  foggy: boolean,
   showSky: boolean,
   sky: string | null,
 ): string {
-  const kindText = kind === "rain-showers" ? "rain showers" : kind;
+  const heavyPrefix = heavy ? "Heavy " : "";
+  const kindText =
+    kind === "rain-showers" ? "rain showers" : kind;
   if (kindText) {
-    if (!qualifier) return capitalize(kindText);
+    if (!qualifier) return capitalize(heavyPrefix + kindText);
     if (qualifier === "isolated" || qualifier === "scattered" || qualifier === "numerous") {
-      return `${capitalize(qualifier)} ${kindText}`;
+      return `${capitalize(qualifier)} ${heavyPrefix}${kindText}`;
     }
-    if (qualifier === "likely") return `Likely ${kindText}`;
-    return `${capitalize(qualifier)} of ${kindText}`;
+    if (qualifier === "likely") return `Likely ${heavyPrefix}${kindText}`;
+    return `${capitalize(qualifier)} of ${heavyPrefix}${kindText}`;
   }
+  if (foggy) return "Fog";
   if (showSky && sky) return capitalize(sky);
   if (sky) return capitalize(sky);
   return "Fair";
