@@ -1,12 +1,19 @@
 import adapter from "@sveltejs/adapter-cloudflare";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
     tailwindcss(),
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/lib/paraglide",
+      emitTsDeclarations: true,
+      strategy: ["cookie", "localStorage", "baseLocale"],
+    }),
     sveltekit({
       // Consult https://svelte.dev/docs/kit/integrations
       // for more information about preprocessors
@@ -37,7 +44,9 @@ export default defineConfig({
             "https://api.weather.gov",
             "https://tiles.openfreemap.org",
             "https://mapservices.weather.noaa.gov",
-            "https://geocoding.geo.census.gov"
+            "https://geocoding.geo.census.gov",
+            "https://api.open-meteo.com",
+            "https://geocoding-api.open-meteo.com"
           ],
           // No 'unsafe-inline': all app styles live in main.css / Svelte
           // <style> blocks (SvelteKit hashes the latter). JS-set styles

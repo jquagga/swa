@@ -11,12 +11,15 @@
     "build": "vite build",
     "preview": "pnpm run build && wrangler dev",
     "prepare": "svelte-kit sync || echo ''",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy cookie localStorage baseLocale --emit-ts-declarations",
+    "precheck": "pnpm run paraglide",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types src/worker-configuration.d.ts"
   },
   "devDependencies": {
+    "@inlang/paraglide-js": "^2.26.0",
     "@sveltejs/adapter-cloudflare": "8.0.0",
     "@sveltejs/kit": "3.0.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
@@ -32,7 +35,8 @@
   },
   "dependencies": {
     "chart.js": "4.5.1",
-    "maplibre-gl": "6.12.0"
+    "maplibre-gl": "6.12.0",
+    "openmeteo": "^1.2.3"
   },
   "overrides": {
     "cookie": "2.0.1"
