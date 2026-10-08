@@ -97,6 +97,17 @@ function decadePhrase(decade: number, ones: number): string {
   return `in the upper ${decade}s`;
 }
 
+/** Numeric rainfall total for narratives. US inches spell out the unit and
+ * always carry at least one decimal (two below 10 in for precision). */
+export function rainAmountPhrase(mm: number, units: "metric" | "us"): string {
+  if (units === "us") {
+    const inches = mm / 25.4;
+    const text = inches < 10 ? inches.toFixed(2) : inches.toFixed(1);
+    return `${text} ${inches < 1.05 && inches >= 0.95 ? "inch" : "inches"}`;
+  }
+  return `${mm < 10 ? mm.toFixed(1) : Math.round(mm)} mm`;
+}
+
 /** Snow accumulation categorical phrasing (ZFP Table 4). */
 export function snowRangePhrase(amount: number, units: "metric" | "us"): string {
   if (units === "us") {

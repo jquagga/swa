@@ -13,7 +13,7 @@
   - **NWS** — US National Weather Service: current conditions hero with temperature, heat index / wind chill (when NWS provides them), wind, humidity, and precipitation chance; active alerts with app-badge count; radar and watch/warning map overlays
   - **OpenMeteo** — worldwide Open-Meteo: current conditions hero (temperature + feels-like), next ~24 hours chart (temperature / feels-like / precipitation chance), and a 7-day forecast narrated in NWS Zone Forecast Product style — generated on-device by the bundled `src/lib/zfp/` library
   > [!IMPORANT]
-  > The narrative generated from the zfp library is a beta and the data source does not include weather alerts.
+  > The narrative generated from the ZFP library for the OpenMeteo data is a beta and the data source does not include weather alerts. It is a start at applying the US NWS forecast narrative guidelines to the raw data provided from OpenMeteo however it is generated programatically in browser and has some limitations. For example, a hurricane isn't reportable via the OpenMeteo data so ZFP reports "Rain with wind gusts up to 79 mph".
 - Use your current location (Geolocation API) or search: full US street address on the NWS side (US Census geocoder), any city worldwide on the OpenMeteo side (Open-Meteo geocoder, pick from up to 5 matches; GPS coordinates are reverse-labeled via OpenStreetMap Nominatim)
 - _Forecast in English, Spanish, or French_ (/-switchable in the top nav bar; OpenMeteo narratives are translated too) with metric / US-customary units toggle (defaults follow your browser locale)
 - 7-day forecast cards and NOAA NWS radar (OpenFreeMap basemap, dark-mode aware)

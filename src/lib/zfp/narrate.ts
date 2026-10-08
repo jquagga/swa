@@ -2,6 +2,7 @@ import { cmToInches } from "./units.js";
 import {
   popQualifier,
   precipKind,
+  rainAmountPhrase,
   skyPhrase,
   snowRangePhrase,
   tempCategory,
@@ -90,14 +91,31 @@ export function buildNarrative(
         : "patchy fog";
   if (fogText) parts.push(fogText);
 
-  // Snow accumulation (explicit in first three periods when PoP met).
-  if (kind === "snow" && periodIndex < 3 && s.popMax >= 30) {
+  // Snow accumulation (explicit when PoP met). Thresholds stay in display
+  // units so the gate matches what the reader sees (~1 cm either way).
+  if (kind === "snow" && s.popMax >= 30) {
     const amount = units === "us" ? cmToInches(s.snowfallSumCm) : s.snowfallSumCm;
     const threshold = units === "us" ? 0.5 : 1;
     if (amount >= threshold) {
       const possible = s.popMax < 60 ? "possible " : "";
       parts.push(`${possible}snow accumulation of ${snowRangePhrase(amount, units)}`);
     }
+  }
+
+  // Rainfall amounts for liquid kinds. Unlike snow (categorical Table 4
+  // ranges), rain reads as a numeric period total; US inches always carry
+  // at least one decimal place. The gate is a tenth of an inch (2.5 mm) —
+  // the NWS "measurable rain" line — so high-PoP periods with a fifth of
+  // an inch still report instead of going silent.
+  const liquidKind =
+    kind === "rain" ||
+    kind === "rain-showers" ||
+    kind === "showers" ||
+    kind === "thunderstorms" ||
+    kind === "freezing rain";
+  if (liquidKind && s.popMax >= 30 && s.precipSumMm >= 2.5) {
+    const possible = s.popMax < 60 ? "possible " : "";
+    parts.push(`${possible}rainfall amounts ${rainAmountPhrase(s.precipSumMm, units)}`);
   }
 
   // Temperature sentence.
