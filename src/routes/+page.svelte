@@ -1,5 +1,14 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { resolveInitialProvider } from "#lib/preferences.js";
+
+  $effect(() => {
+    // Default routing: en-US stays on the NWS workflow; every other
+    // locale (or a stored Global preference) uses /global.
+    if (resolveInitialProvider() === "openmeteo") {
+      void goto("/global");
+    }
+  });
 
   // Use $derived for computed error states
   let geolocationError = $state<string | null>(null);
@@ -166,7 +175,8 @@
     <p>
       Simple Weather queries the US National Weather Service to provide a
       responsive weather forecast. Use your current location or a full US street
-      address below.
+      address below. Worldwide forecasts via Open-Meteo are also available —
+      see the NWS / OpenMeteo switcher in the top nav bar.
     </p>
     <div class="my-4 grid gap-4 md:grid-cols-2">
       <section class="card" aria-labelledby="geolocate-heading">

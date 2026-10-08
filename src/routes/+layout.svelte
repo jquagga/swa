@@ -1,11 +1,40 @@
 <script lang="ts">
   import "#lib/main.css";
+  import { goto } from "$app/navigation";
   import { onNavigate } from "$app/navigation";
+  import { page } from "$app/state";
   import { updated } from "$app/state";
+  import { SUPPORTED_LOCALES, type AppLocale, type Provider, type Units } from "#lib/preferences.js";
+  import { initPrefs, prefs, setLocalePref, setProviderPref, setUnitsPref } from "#lib/prefs.svelte.js";
 
   let { children } = $props();
   let swUpdated = $state(false);
   let showUpdate = $derived(swUpdated || updated.current);
+
+  let prefsReady = $derived(prefs.ready);
+
+  let onGlobal = $derived(page.url.pathname.startsWith("/global"));
+
+  $effect(() => {
+    initPrefs();
+  });
+
+  async function selectProvider(next: Provider) {
+    setProviderPref(next);
+    if (next === "openmeteo" && !page.url.pathname.startsWith("/global")) {
+      await goto("/global");
+    } else if (next === "nws" && page.url.pathname.startsWith("/global")) {
+      await goto("/");
+    }
+  }
+
+  function selectLocale(next: AppLocale) {
+    setLocalePref(next);
+  }
+
+  function selectUnits(next: Units) {
+    setUnitsPref(next);
+  }
 
   // Use the View Transitions API when the browser supports it.
   onNavigate((navigation) => {
@@ -82,13 +111,77 @@
     class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
   >
     <a href="/" class="text-lg font-bold no-underline">Simple Weather</a>
-    <nav class="flex gap-3 text-sm" aria-label="Site">
-      <a
-        href="https://www.weather.gov/documentation/services-web-api"
-        rel="external noopener"
-      >
-        NWS API
-      </a>
+    <nav class="flex flex-wrap items-center gap-2 text-sm" aria-label="Site">
+      {#if prefsReady}
+        <div
+          class="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
+          role="group"
+          aria-label="Forecast source"
+        >
+          <button
+            type="button"
+            class="cursor-pointer px-2.5 py-1 text-[0.8rem] font-semibold {!onGlobal
+              ? 'bg-brand-700 text-white dark:bg-sky-600'
+              : 'text-zinc-600 dark:text-zinc-300'}"
+            aria-pressed={!onGlobal}
+            onclick={() => void selectProvider("nws")}
+          >
+            NWS
+          </button>
+          <button
+            type="button"
+            class="cursor-pointer px-2.5 py-1 text-[0.8rem] font-semibold {onGlobal
+              ? 'bg-brand-700 text-white dark:bg-sky-600'
+              : 'text-zinc-600 dark:text-zinc-300'}"
+            aria-pressed={onGlobal}
+            onclick={() => void selectProvider("openmeteo")}
+          >
+            OpenMeteo
+          </button>
+        </div>
+        <label class="flex items-center gap-1 text-[0.8rem]">
+          <span class="sr-only">Language</span>
+          <select
+            class="cursor-pointer rounded-md border border-zinc-200 bg-transparent px-1.5 py-1 text-[0.8rem] dark:border-zinc-700"
+            aria-label="Language"
+            value={prefs.locale}
+            onchange={(e) =>
+              selectLocale((e.currentTarget as HTMLSelectElement).value as AppLocale)}
+          >
+            {#each SUPPORTED_LOCALES as l (l)}
+              <option value={l}>{l}</option>
+            {/each}
+          </select>
+        </label>
+        {#if onGlobal}
+          <div
+            class="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
+            role="group"
+            aria-label="Units"
+          >
+            <button
+              type="button"
+              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units === 'metric'
+                ? 'bg-brand-700 text-white dark:bg-sky-600'
+                : 'text-zinc-600 dark:text-zinc-300'}"
+              aria-pressed={prefs.units === "metric"}
+              onclick={() => selectUnits("metric")}
+            >
+              °C
+            </button>
+            <button
+              type="button"
+              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units === 'us'
+                ? 'bg-brand-700 text-white dark:bg-sky-600'
+                : 'text-zinc-600 dark:text-zinc-300'}"
+              aria-pressed={prefs.units === "us"}
+              onclick={() => selectUnits("us")}
+            >
+              °F
+            </button>
+          </div>
+        {/if}
+      {/if}
       <a href="https://github.com/jquagga/swa" rel="external noopener">GitHub</a>
     </nav>
   </div>

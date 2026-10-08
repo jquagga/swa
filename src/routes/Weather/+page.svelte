@@ -18,6 +18,7 @@
     type WeatherPoint,
   } from "#lib/weather-cache.js";
   import { fetchData } from "#lib/weather-fetch.js";
+  import { mapWeatherToEmoji } from "#lib/weather-emoji.js";
   import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 
   // Chart.js is lazy-loaded on first chart render so the Weather page's
@@ -222,22 +223,6 @@
     return maplibre;
   }
 
-  const weatherEmojiMap: Record<string, string> = {
-    snow: "❄️",
-    freezing: "🧊",
-    sleet: "🧊",
-    thunder: "⛈️",
-    rain: "🌧️",
-    "partly cloudy": "🌥️",
-    "mostly cloudy": "🌥️",
-    "partly sunny": "🌤️",
-    "mostly sunny": "🌤️",
-    sunny: "☀️",
-    cloudy: "☁️",
-    fog: "🌫️",
-    clear: "🌕",
-  };
-
   function saveCached(latitude: number, longitude: number): void {
     saveCachedSnapshot(latitude, longitude, {
       point,
@@ -322,16 +307,6 @@
   function formatAlertText(text: string | undefined | null): string {
     if (!text) return "";
     return unwrapNwsHardWrap(text);
-  }
-
-  function mapWeatherToEmoji(description: string): string {
-    const lowerDesc = description.toLowerCase();
-    for (const [key, emoji] of Object.entries(weatherEmojiMap)) {
-      if (lowerDesc.includes(key)) {
-        return emoji;
-      }
-    }
-    return description;
   }
 
   let hourlyChartData = $derived.by(

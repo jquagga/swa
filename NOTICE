@@ -1,0 +1,18 @@
+# NOTICE
+
+This project includes narrative-phrasing logic in `src/lib/zfp/` developed
+with reference to:
+
+- `com.raytheon.viz.gfe/localization/gfe/userPython/textUtilities/Translator.py`
+  from Unidata AWIPS2 (https://github.com/Unidata/awips2), including its
+  `LanguageTables` English→Spanish/French expression tables.
+
+Per the file header, that AWIPS2 contribution is furnished in the public
+domain; the surrounding AWIPS II work carries its own license terms.
+The ZFP narrative wording here is original expression informed by that
+reference (accents restored, typos corrected, gender matrix simplified);
+no AWIPS source is vendored verbatim.
+
+Open-Meteo forecast data: https://open-meteo.com (see attribution on the
+/global/weather page). Location search data: GeoNames via Open-Meteo
+geocoding.
