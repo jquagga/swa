@@ -142,7 +142,7 @@ export function windPhrase(
   if (kph == null) return null;
   if (units === "us") {
     const mph = kphToMph(kph);
-    if (mph < 5) return { text: "light and variable", lightVariable: true };
+    if (mph < 5) return { text: "winds light and variable", lightVariable: true };
     const dir = dirDeg == null ? null : compass8(dirDeg);
     const lo = Math.floor(mph / 5) * 5;
     let range: string;
@@ -158,7 +158,7 @@ export function windPhrase(
     }
     return { text, lightVariable: false };
   }
-  if (kph < 8) return { text: "light and variable", lightVariable: true };
+  if (kph < 8) return { text: "winds light and variable", lightVariable: true };
   const dir = dirDeg == null ? null : compass8(dirDeg);
   const lo = Math.floor(kph / 10) * 10;
   const range = lo === 0 ? "up to 10 kph" : `${lo} to ${lo + 10} kph`;

@@ -175,16 +175,27 @@
   // The post-midnight tail (12am–6am) is its own block from the coming
   // evening night, but both fall on the same weekday — like the NWS, the
   // tail is titled "Overnight" (locale-aware) so the two never share a name.
+  // NWS-style titles: weekday alone by day ("Sunday"), weekday + modifier
+  // at night ("Sunday Night"). The post-midnight tail (12am–6am) is its own
+  // block from the coming evening night, but both fall on the same weekday
+  // — like the NWS, the tail is titled "Overnight" (locale-aware) so the
+  // two never share a name.
   function periodTitle(p: ForecastPeriod): string {
-    const word = p.summary.period.isDaytime
-      ? m.period_day()
-      : localHour(p.summary.period.startMs, timezone) < 6
-        ? m.period_overnight()
-        : m.period_night();
     // Weekdays are lowercase in es/fr by grammar ("lunes", "lundi"); titles
     // capitalize them per NWS convention (cf. Translator.py day names).
     const cap = (s: string): string =>
       s ? s[0].toUpperCase() + s.slice(1) : s;
+    if (p.summary.period.isDaytime) {
+      try {
+        return cap(weekdayFmt.format(new Date(p.summary.period.startMs)));
+      } catch {
+        return m.period_day();
+      }
+    }
+    const word =
+      localHour(p.summary.period.startMs, timezone) < 6
+        ? m.period_overnight()
+        : m.period_night();
     try {
       const weekday = cap(weekdayFmt.format(new Date(p.summary.period.startMs)));
       return `${weekday} ${word}`;
