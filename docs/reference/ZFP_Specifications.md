@@ -67,9 +67,7 @@ March 27, 2020 edition
                  (2) “Sleet” will be used instead of “ice pellets”
 
 
-              e. Mixed and Multiple Precipitation Types. The formatter should generate clear text to indicate the probability of measurable precipitation -- not the chance of
-
-changing from one type of precipitation to another. Formatted text will not generate confusing wording implying the likelihood of changing to snow, e.g., “70 PERCENT CHANCE OF RAIN CHANGING TO SNOW.”
+              e. Mixed and Multiple Precipitation Types. The formatter should generate clear text to indicate the probability of measurable precipitation -- not the chance of changing from one type of precipitation to another. Formatted text will not generate confusing wording implying the likelihood of changing to snow, e.g., “70 PERCENT CHANCE OF RAIN CHANGING TO SNOW.”
 
               f. Cases Where No POP Value is Required. Formatters are not required to include a POP when:
 
@@ -253,9 +251,7 @@ WEST or NORTHWEST
 
 - Wind gusts that increase or decrease by 10 MPH or more between sub periods, and still meet the above requirement, considered significant to report
 
-  1.5.7 Snow accumulation. Quantitative snowfall accumulations should be included by formatters in the first three periods of the ZFP (in Western Region, out to 72 hours) whenever
-
-the POP forecast is 60% (in Western Region whenever the POP is 30% or greater). If a snow event is forecast to end in the 1st, 2nd or 3rd period, formatters should produce a storm total amount in the final period the snow is forecast to end. If snow is forecast to begin in, or continue after the 3rd period, *generalized *quantitative snowfall amounts should be used as detailed below.
+  1.5.7 Snow accumulation. Quantitative snowfall accumulations should be included by formatters in the first three periods of the ZFP (in Western Region, out to 72 hours) whenever the POP forecast is 60% (in Western Region whenever the POP is 30% or greater). If a snow event is forecast to end in the 1st, 2nd or 3rd period, formatters should produce a storm total amount in the final period the snow is forecast to end. If snow is forecast to begin in, or continue after the 3rd period, *generalized *quantitative snowfall amounts should be used as detailed below.
 
 Formatters should not include snowfall accumulations in the ZFP when the POP forecast is less than 60%, except in the following two instances:
 

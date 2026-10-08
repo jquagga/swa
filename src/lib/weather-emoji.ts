@@ -3,6 +3,7 @@
 // narrative) so translated strings still resolve to the right glyph.
 
 export const weatherEmojiMap: Record<string, string> = {
+  hurricane: "🌀",
   snow: "❄️",
   freezing: "🧊",
   sleet: "🧊",

@@ -28,8 +28,32 @@
     }
   }
 
-  function selectLocale(next: AppLocale) {
-    setLocalePref(next);
+  // NWS pages are English-only, so leaving English for es/fr carries you
+  // to the OpenMeteo workflow that speaks the language — preserving the
+  // coordinates when you're on a forecast. The locale is applied with
+  // Paraglide's reload disabled here because its default full-document
+  // reload would race and cancel the navigation below; staying on the same
+  // workflow keeps the default reload so translated chrome refreshes.
+  // Picking English while global intentionally stays put (use the provider
+  // toggle to go back to NWS).
+  async function selectLocale(next: AppLocale) {
+    const path = page.url.pathname;
+    const onNws = path === "/" || path.startsWith("/Weather");
+    if (next !== "en" && onNws) {
+      setLocalePref(next, { reload: false });
+      if (path.startsWith("/Weather")) {
+        const params = new URLSearchParams();
+        const lat = page.url.searchParams.get("lat");
+        const lon = page.url.searchParams.get("lon");
+        if (lat) params.set("lat", lat);
+        if (lon) params.set("lon", lon);
+        await goto(`/global/weather?${params.toString()}`);
+      } else {
+        await goto("/global");
+      }
+    } else {
+      setLocalePref(next);
+    }
   }
 
   function selectUnits(next: Units) {
@@ -146,7 +170,7 @@
             aria-label="Language"
             value={prefs.locale}
             onchange={(e) =>
-              selectLocale((e.currentTarget as HTMLSelectElement).value as AppLocale)}
+              void selectLocale((e.currentTarget as HTMLSelectElement).value as AppLocale)}
           >
             {#each SUPPORTED_LOCALES as l (l)}
               <option value={l}>{l}</option>

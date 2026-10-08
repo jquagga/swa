@@ -29,7 +29,10 @@ export function initPrefs(): void {
   prefs.locale = resolveInitialLocale();
   prefs.units = resolveInitialUnits();
   try {
-    setLocale(prefs.locale);
+    // No document reload: the app is fully client-rendered and owns its
+    // reactive updates; the locale picker navigates explicitly when the
+    // workflow needs to change.
+    setLocale(prefs.locale, { reload: false });
   } catch {
     // ignore (prerender)
   }
@@ -41,11 +44,11 @@ export function setProviderPref(p: Provider): void {
   setStoredProvider(p);
 }
 
-export function setLocalePref(l: AppLocale): void {
+export function setLocalePref(l: AppLocale, opts?: { reload?: boolean }): void {
   prefs.locale = l;
   setStoredLocale(l);
   try {
-    setLocale(l);
+    setLocale(l, opts);
   } catch {
     // ignore
   }
