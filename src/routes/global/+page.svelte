@@ -60,6 +60,7 @@
   ) {
     const roundedLat = Math.round(latitude * 10000) / 10000;
     const roundedLon = Math.round(longitude * 10000) / 10000;
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity -- transient local, stringified immediately for goto; reactivity not needed
     const params = new URLSearchParams({
       lat: String(roundedLat),
       lon: String(roundedLon),

@@ -1,5 +1,5 @@
 import type { HourlySeries, PeriodSummary, ZfpPeriod } from "./types.js";
-import { summarizeWmo, type WmoSummary } from "./wmo.js";
+import { summarizeWmo } from "./wmo.js";
 
 function avg(vals: (number | null)[]): number | null {
   let s = 0;

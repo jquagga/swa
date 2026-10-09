@@ -53,6 +53,7 @@
     if (next !== "en" && onNws) {
       setLocalePref(next, { reload: false });
       if (path.startsWith("/Weather")) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity -- transient local, stringified immediately for goto; reactivity not needed
         const params = new URLSearchParams();
         const lat = page.url.searchParams.get("lat");
         const lon = page.url.searchParams.get("lon");

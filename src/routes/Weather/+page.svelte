@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { parseAfdProduct, unwrapNwsHardWrap } from "#lib/afd.js";
   import { buildChartConfig } from "#lib/chart-config.js";
@@ -64,7 +63,6 @@
   let geolocationError = $state<string | null>(null);
   let isLoading = $state(true);
   let isOffline = $state(false);
-  let offlineSavedAt = $state<string | null>(null);
   let hourlyForecastProcessed = $state(false);
   let maplibreglModule: typeof import("maplibre-gl") | null = null;
   let fetchedAt: string | null = $state(null);
@@ -246,7 +244,6 @@
     NWSURL = data.NWSURL;
     hourlyForecastProcessed = true;
     isOffline = true;
-    offlineSavedAt = data.savedAt;
     fetchedAt = data.savedAt;
     updateBadge();
     return { savedAt: data.savedAt };
@@ -745,7 +742,6 @@
     afdFetchedOffice = null;
     hourlyForecastProcessed = false;
     isOffline = false;
-    offlineSavedAt = null;
     fetchedAt = null;
     mapReady = false;
     mapError = null;
@@ -784,7 +780,6 @@
 
       hourlyForecastProcessed = true;
       isOffline = false;
-      offlineSavedAt = null;
       fetchedAt = new Date().toISOString();
       geolocationError = null;
 

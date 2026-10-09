@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { buildOpenMeteoChartConfig } from "#lib/openmeteo-chart.js";
   import {
@@ -51,7 +50,6 @@
   let fetchError = $state<string | null>(null);
   let isLoading = $state(true);
   let isOffline = $state(false);
-  let offlineSavedAt = $state<string | null>(null);
   let fetchedAt = $state<string | null>(null);
   let requestId = 0;
 
@@ -258,7 +256,6 @@
       if (!placeName) placeName = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       fetchError = null;
       isOffline = false;
-      offlineSavedAt = null;
       fetchedAt = new Date().toISOString();
       saveOpenMeteoSnapshot(lat, lon, {
         series: s,
@@ -277,7 +274,6 @@
         timezone = cached.timezone;
         placeName = cached.placeName || placeName;
         isOffline = true;
-        offlineSavedAt = cached.savedAt;
         fetchedAt = cached.savedAt;
         fetchError = null;
       } else {
