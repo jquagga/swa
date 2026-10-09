@@ -1,32 +1,71 @@
-import type { ChartConfiguration } from "chart.js";
+import type { ChartConfiguration, TooltipItem } from "chart.js";
 import {
-  formatTooltipFooter,
   formatTooltipLabel,
   formatTooltipTitle,
   getPointRadius,
 } from "#lib/chart-config.js";
 import type { HourPoint } from "#lib/openmeteo.js";
 
+export interface OpenMeteoChartLabels {
+  temperature: string;
+  feelsLike: string;
+  precip: string;
+  wind: string;
+  humidity: string;
+}
+
+const DEFAULT_LABELS: OpenMeteoChartLabels = {
+  temperature: "Temperature",
+  feelsLike: "Feels like",
+  precip: "Chance of Precipitation",
+  wind: "Wind",
+  humidity: "Humidity",
+};
+
+function formatFooter(
+  context: TooltipItem<"line">[] | TooltipItem<"bar">[],
+  labels: OpenMeteoChartLabels,
+): string {
+  try {
+    if (!context || context.length === 0) return "";
+    const idx = context[0].dataIndex;
+    const ds = context[0].dataset as unknown as {
+      winds?: string[];
+      humidities?: number[];
+    };
+    const wind = ds.winds?.[idx];
+    const humidity = ds.humidities?.[idx];
+    const parts: string[] = [];
+    if (wind) parts.push(`${labels.wind} ${wind}`);
+    if (typeof humidity === "number")
+      parts.push(`${labels.humidity} ${humidity}%`);
+    return parts.join(" • ");
+  } catch {
+    return "";
+  }
+}
+
 /** Chart config for the Open-Meteo 24h view: temp + feels-like + pop bars. */
 export function buildOpenMeteoChartConfig(
   hours: HourPoint[],
   formatIso: (iso: string) => string,
   tempUnit: string,
+  strings: OpenMeteoChartLabels = DEFAULT_LABELS,
 ): ChartConfiguration {
-  const labels = hours.map((h) => h.label);
+  const xLabels = hours.map((h) => h.label);
   const isos = hours.map((h) => h.iso);
   const winds = hours.map((h) => h.wind);
   const humidities = hours.map((h) => h.humidity);
-  const pointRadius = getPointRadius(3, labels.length);
+  const pointRadius = getPointRadius(3, xLabels.length);
   const gridColor = "rgba(127, 127, 127, 0.25)";
   return {
     type: "bar" as const,
     data: {
-      labels,
+      labels: xLabels,
       datasets: [
         {
           type: "line" as const,
-          label: "Temperature",
+          label: strings.temperature,
           data: hours.map((h) => h.temp),
           borderColor: "#B42318",
           backgroundColor: "rgba(180, 35, 24, 0.08)",
@@ -45,7 +84,7 @@ export function buildOpenMeteoChartConfig(
         } as never,
         {
           type: "line" as const,
-          label: "Feels like",
+          label: strings.feelsLike,
           data: hours.map((h) => h.feelsLike),
           borderColor: "#C2410C",
           backgroundColor: "transparent",
@@ -66,7 +105,7 @@ export function buildOpenMeteoChartConfig(
         } as never,
         {
           type: "bar" as const,
-          label: "Chance of Precipitation",
+          label: strings.precip,
           data: hours.map((h) => h.pop),
           backgroundColor: "rgba(1, 127, 192, 0.45)",
           hoverBackgroundColor: "rgba(1, 127, 192, 0.65)",
@@ -145,7 +184,12 @@ export function buildOpenMeteoChartConfig(
             title: ((items: never[]) =>
               formatTooltipTitle(items as never, formatIso)) as never,
             label: formatTooltipLabel as never,
-            footer: formatTooltipFooter as never,
+            footer: ((items: never[]) =>
+              formatFooter(
+                items as unknown as
+                  TooltipItem<"line">[] | TooltipItem<"bar">[],
+                strings,
+              )) as never,
           },
         },
       },

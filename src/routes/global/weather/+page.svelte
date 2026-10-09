@@ -217,13 +217,30 @@
   function chartAttachment(canvas: HTMLCanvasElement) {
     let instance: ChartInstance | null = null;
     let destroyed = false;
+    function chartStrings() {
+      // Track prefs.locale so the chart legend re-renders on language
+      // switch without a full reload (Paraglide runtime itself isn't reactive).
+      void prefs.locale;
+      return {
+        temperature: m.weather_chart_temperature(),
+        feelsLike: m.weather_chart_feels_like(),
+        precip: m.weather_chart_precip(),
+        wind: m.weather_chart_wind(),
+        humidity: m.weather_chart_humidity(),
+      };
+    }
     async function init() {
       try {
         const lib = await ensureChartLib();
         if (destroyed) return;
         instance = new lib.Chart(
           canvas,
-          buildOpenMeteoChartConfig(hours, formatIso, tempUnitLabel),
+          buildOpenMeteoChartConfig(
+            hours,
+            formatIso,
+            tempUnitLabel,
+            chartStrings(),
+          ),
         );
       } catch (e) {
         console.error(e);
@@ -233,8 +250,9 @@
     $effect(() => {
       const data = hours;
       const unit = tempUnitLabel;
+      const strings = chartStrings();
       if (instance) {
-        const next = buildOpenMeteoChartConfig(data, formatIso, unit);
+        const next = buildOpenMeteoChartConfig(data, formatIso, unit, strings);
         instance.data.labels = next.data.labels;
         instance.data.datasets = next.data.datasets;
         instance.update("none");
