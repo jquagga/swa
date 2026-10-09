@@ -124,8 +124,7 @@ self.addEventListener("fetch", (event) => {
     // fall back to the cache if we're offline.
     // Only cache versioned same-origin GETs without query strings:
     // third-party API/tile responses are left to the network so forecasts
-    // and radar never go stale, and /geocode responses are never cached
-    // so address lookups always stay fresh.
+    // and radar never go stale.
     try {
       const response = await fetch(event.request);
 
@@ -138,8 +137,7 @@ self.addEventListener("fetch", (event) => {
       if (
         response.status === 200 &&
         url.origin === self.location.origin &&
-        !url.search &&
-        !url.pathname.startsWith("/geocode")
+        !url.search
       ) {
         cache.put(event.request, response.clone()).catch(() => {});
       }
