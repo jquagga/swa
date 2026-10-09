@@ -36,6 +36,8 @@ pnpm dev
 
 ```sh
 pnpm check     # typecheck (svelte-kit sync && svelte-check)
+pnpm format    # format all files with Prettier
+pnpm format:check  # verify formatting (CI)
 pnpm build     # production build
 pnpm preview   # build + wrangler dev
 pnpm deploy    # build + wrangler deploy (Cloudflare Workers)
@@ -43,7 +45,7 @@ pnpm cf-typegen  # regenerate src/worker-configuration.d.ts
 ```
 
 > [!NOTE]
-> There are no test, lint, or format scripts. CI verifies `pnpm check` and the `pnpm build` production build.
+> There are no test or lint scripts yet. CI verifies `pnpm check` and the `pnpm build` production build.
 
 ## Usage
 

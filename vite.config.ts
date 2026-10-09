@@ -37,7 +37,7 @@ export default defineConfig({
             "data:",
             "blob:",
             "https://tiles.openfreemap.org",
-            "https://mapservices.weather.noaa.gov"
+            "https://mapservices.weather.noaa.gov",
           ],
           "connect-src": [
             "self",
@@ -46,7 +46,7 @@ export default defineConfig({
             "https://mapservices.weather.noaa.gov",
             "https://geocoding.geo.census.gov",
             "https://api.open-meteo.com",
-            "https://geocoding-api.open-meteo.com"
+            "https://geocoding-api.open-meteo.com",
           ],
           // No 'unsafe-inline': all app styles live in main.css / Svelte
           // <style> blocks (SvelteKit hashes the latter). JS-set styles
@@ -55,16 +55,16 @@ export default defineConfig({
           "font-src": ["self", "data:"],
           "script-src": ["self", "wasm-unsafe-eval"],
           "worker-src": ["self", "blob:"],
-          "manifest-src": ["self"]
-        }
-      }
-    })
+          "manifest-src": ["self"],
+        },
+      },
+    }),
   ],
   build: {
     // SvelteKit already code-splits per route; maplibre-gl stays behind a
     // dynamic import (IntersectionObserver-gated) so it never blocks first
     // paint. manualChunks is intentionally unset: Vite 8 builds the service
     // worker with codeSplitting disabled and rejects it there.
-    chunkSizeWarningLimit: 1100
-  }
+    chunkSizeWarningLimit: 1100,
+  },
 });

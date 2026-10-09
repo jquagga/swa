@@ -1,6 +1,10 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { reverseLabel, searchCity, type GeocodingResult } from "#lib/openmeteo.js";
+  import {
+    reverseLabel,
+    searchCity,
+    type GeocodingResult,
+  } from "#lib/openmeteo.js";
   import { setStoredProvider } from "#lib/preferences.js";
   import { initPrefs, prefs } from "#lib/prefs.svelte.js";
   import * as m from "#lib/paraglide/messages.js";
@@ -14,7 +18,9 @@
   let geoPermission = $state<string | null>(null);
 
   let geolocateButtonText = $derived(
-    isGeolocating ? m.landing_geolocate_button_busy() : m.landing_geolocate_button(),
+    isGeolocating
+      ? m.landing_geolocate_button_busy()
+      : m.landing_geolocate_button(),
   );
   let searchButtonText = $derived(
     isSearching ? m.landing_search_button_busy() : m.landing_search_button(),
@@ -47,7 +53,11 @@
     };
   });
 
-  async function navigateToWeather(latitude: number, longitude: number, name?: string) {
+  async function navigateToWeather(
+    latitude: number,
+    longitude: number,
+    name?: string,
+  ) {
     const roundedLat = Math.round(latitude * 10000) / 10000;
     const roundedLon = Math.round(longitude * 10000) / 10000;
     const params = new URLSearchParams({
@@ -79,7 +89,11 @@
             pos.coords.longitude,
             prefs.locale,
           );
-          await navigateToWeather(pos.coords.latitude, pos.coords.longitude, label);
+          await navigateToWeather(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            label,
+          );
         } catch {
           await navigateToWeather(pos.coords.latitude, pos.coords.longitude);
         }
@@ -90,7 +104,8 @@
           2: m.error_geolocation_unavailable(),
           3: m.error_geolocation_timeout(),
         };
-        geolocationError = errorMessages[error.code] || m.error_geolocation_generic();
+        geolocationError =
+          errorMessages[error.code] || m.error_geolocation_generic();
         isGeolocating = false;
       },
       options,
@@ -113,7 +128,12 @@
     isSearching = true;
     try {
       const timeoutId = setTimeout(() => controller.abort(), 15000);
-      const results = await searchCity(query.trim(), prefs.locale, 5, controller.signal);
+      const results = await searchCity(
+        query.trim(),
+        prefs.locale,
+        5,
+        controller.signal,
+      );
       clearTimeout(timeoutId);
       if (searchController !== controller) return;
       if (!results.length) {
@@ -143,7 +163,9 @@
     <p>{m.landing_intro_global()}</p>
     <div class="my-4 grid gap-4 md:grid-cols-2">
       <section class="card" aria-labelledby="geolocate-heading">
-        <h2 id="geolocate-heading" class="mt-0 text-lg">{m.landing_geolocate_title()}</h2>
+        <h2 id="geolocate-heading" class="mt-0 text-lg">
+          {m.landing_geolocate_title()}
+        </h2>
         <p class="text-sm">{m.landing_geolocate_body_global()}</p>
         {#if geoPermission === "denied"}
           <p role="note" class="text-sm">{m.landing_geolocate_blocked()}</p>
@@ -160,7 +182,9 @@
         </button>
       </section>
       <section class="card" aria-labelledby="city-heading">
-        <h2 id="city-heading" class="mt-0 text-lg">{m.landing_search_title_global()}</h2>
+        <h2 id="city-heading" class="mt-0 text-lg">
+          {m.landing_search_title_global()}
+        </h2>
         <p class="text-sm">{m.landing_search_body_global()}</p>
         <form onsubmit={handleCitySearch}>
           <label for="city-input" class="mb-1 block text-sm font-medium"
@@ -191,13 +215,19 @@
               <li class="m-0 list-none">
                 <button
                   type="button"
-                  class="block w-full cursor-pointer rounded-lg border border-zinc-200 px-3 py-2 text-left text-sm hover:border-brand-600 dark:border-zinc-700"
-                  onclick={() => void navigateToWeather(c.latitude, c.longitude, candidateLabel(c))}
+                  class="hover:border-brand-600 block w-full cursor-pointer rounded-lg border border-zinc-200 px-3 py-2 text-left text-sm dark:border-zinc-700"
+                  onclick={() =>
+                    void navigateToWeather(
+                      c.latitude,
+                      c.longitude,
+                      candidateLabel(c),
+                    )}
                 >
                   <span class="font-semibold">{candidateLabel(c)}</span>
                   <span class="meta block">
                     {c.latitude.toFixed(2)}, {c.longitude.toFixed(2)}
-                    {#if c.timezone} • {c.timezone}{/if}
+                    {#if c.timezone}
+                      • {c.timezone}{/if}
                   </span>
                 </button>
               </li>

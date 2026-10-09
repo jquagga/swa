@@ -4,8 +4,19 @@
   import { onNavigate } from "$app/navigation";
   import { page } from "$app/state";
   import { updated } from "$app/state";
-  import { SUPPORTED_LOCALES, type AppLocale, type Provider, type Units } from "#lib/preferences.js";
-  import { initPrefs, prefs, setLocalePref, setProviderPref, setUnitsPref } from "#lib/prefs.svelte.js";
+  import {
+    SUPPORTED_LOCALES,
+    type AppLocale,
+    type Provider,
+    type Units,
+  } from "#lib/preferences.js";
+  import {
+    initPrefs,
+    prefs,
+    setLocalePref,
+    setProviderPref,
+    setUnitsPref,
+  } from "#lib/prefs.svelte.js";
 
   let { children } = $props();
   let swUpdated = $state(false);
@@ -86,10 +97,7 @@
       const standalone =
         mq.matches ||
         (navigator as Navigator & { standalone?: boolean }).standalone === true;
-      document.documentElement.classList.toggle(
-        "ios-pwa",
-        isIos && standalone,
-      );
+      document.documentElement.classList.toggle("ios-pwa", isIos && standalone);
     };
     apply();
     mq.addEventListener?.("change", apply);
@@ -170,7 +178,9 @@
             aria-label="Language"
             value={prefs.locale}
             onchange={(e) =>
-              void selectLocale((e.currentTarget as HTMLSelectElement).value as AppLocale)}
+              void selectLocale(
+                (e.currentTarget as HTMLSelectElement).value as AppLocale,
+              )}
           >
             {#each SUPPORTED_LOCALES as l (l)}
               <option value={l}>{l}</option>
@@ -185,7 +195,8 @@
           >
             <button
               type="button"
-              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units === 'metric'
+              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units ===
+              'metric'
                 ? 'bg-brand-700 text-white dark:bg-sky-600'
                 : 'text-zinc-600 dark:text-zinc-300'}"
               aria-pressed={prefs.units === "metric"}
@@ -195,7 +206,8 @@
             </button>
             <button
               type="button"
-              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units === 'us'
+              class="cursor-pointer px-2 py-1 text-[0.8rem] font-semibold {prefs.units ===
+              'us'
                 ? 'bg-brand-700 text-white dark:bg-sky-600'
                 : 'text-zinc-600 dark:text-zinc-300'}"
               aria-pressed={prefs.units === "us"}
@@ -206,7 +218,8 @@
           </div>
         {/if}
       {/if}
-      <a href="https://github.com/jquagga/swa" rel="external noopener">GitHub</a>
+      <a href="https://github.com/jquagga/swa" rel="external noopener">GitHub</a
+      >
     </nav>
   </div>
 </header>

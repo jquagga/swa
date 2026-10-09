@@ -198,7 +198,10 @@ const FR_CLEANUP: Pair[] = [
 function capitalizeSentences(s: string): string {
   if (!s) return s;
   let out = s[0].toUpperCase() + s.slice(1);
-  out = out.replace(/\. ([a-zàâäéèêëîïôöùûüçñ])/g, (_, c: string) => `. ${c.toUpperCase()}`);
+  out = out.replace(
+    /\. ([a-zàâäéèêëîïôöùûüçñ])/g,
+    (_, c: string) => `. ${c.toUpperCase()}`,
+  );
   return out;
 }
 

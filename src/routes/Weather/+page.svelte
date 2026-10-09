@@ -309,8 +309,8 @@
     return unwrapNwsHardWrap(text);
   }
 
-  let hourlyChartData = $derived.by(
-    (): ChartData => buildHourlyChartData(gridData.properties, hourLabelFmt),
+  let hourlyChartData = $derived.by((): ChartData =>
+    buildHourlyChartData(gridData.properties, hourLabelFmt),
   );
 
   let chartReady = $derived(
@@ -332,17 +332,29 @@
     const daily = forecast.properties?.periods?.[0];
     const hasHourly = hourlyChartData.tempValues.length > 0;
     if (!hasHourly && !daily) return null;
-    const heatIndex = hasHourly ? (hourlyChartData.heatIndexValues[0] ?? null) : null;
-    const windChill = hasHourly ? (hourlyChartData.windChillValues[0] ?? null) : null;
+    const heatIndex = hasHourly
+      ? (hourlyChartData.heatIndexValues[0] ?? null)
+      : null;
+    const windChill = hasHourly
+      ? (hourlyChartData.windChillValues[0] ?? null)
+      : null;
     return {
-      temperature: hasHourly ? hourlyChartData.tempValues[0] : (daily?.temperature ?? 0),
+      temperature: hasHourly
+        ? hourlyChartData.tempValues[0]
+        : (daily?.temperature ?? 0),
       temperatureUnit: "F",
       heatIndex,
       windChill,
       shortForecast: daily?.shortForecast ?? "",
-      windSpeed: hasHourly ? hourlyChartData.windLabels[0] : (daily?.windSpeed ?? "—"),
-      humidity: hasHourly ? hourlyChartData.humidityValues[0] : (daily?.relativeHumidity.value ?? null),
-      pop: hasHourly ? hourlyChartData.popValues[0] : (daily?.probabilityOfPrecipitation?.value ?? null),
+      windSpeed: hasHourly
+        ? hourlyChartData.windLabels[0]
+        : (daily?.windSpeed ?? "—"),
+      humidity: hasHourly
+        ? hourlyChartData.humidityValues[0]
+        : (daily?.relativeHumidity.value ?? null),
+      pop: hasHourly
+        ? hourlyChartData.popValues[0]
+        : (daily?.probabilityOfPrecipitation?.value ?? null),
       isDaytime: daily?.isDaytime ?? true,
       dailyName: daily?.name ?? null,
       dailyHighLow: daily
@@ -822,7 +834,8 @@
     }
   }
 
-  async function fetchAlertsAsync(    latitude: number,
+  async function fetchAlertsAsync(
+    latitude: number,
     longitude: number,
     requestId: number,
   ): Promise<void> {
@@ -1014,15 +1027,11 @@
           <div>
             <p class="mt-1 font-semibold">{currentHero.shortForecast}</p>
             {#if currentHero.heatIndex !== null}
-              <p
-                class="text-[0.95rem] text-zinc-500 dark:text-zinc-400"
-              >
+              <p class="text-[0.95rem] text-zinc-500 dark:text-zinc-400">
                 Heat index {currentHero.heatIndex}°
               </p>
             {:else if currentHero.windChill !== null}
-              <p
-                class="text-[0.95rem] text-zinc-500 dark:text-zinc-400"
-              >
+              <p class="text-[0.95rem] text-zinc-500 dark:text-zinc-400">
                 Wind chill {currentHero.windChill}°
               </p>
             {/if}
@@ -1126,8 +1135,18 @@
                     >{formatIso(hourlyChartData.isos[i] ?? label)}</th
                   >
                   <td>{hourlyChartData.tempValues[i]}°</td>
-                  <td>{hourlyChartData.heatIndexValues[i] ?? "—"}{hourlyChartData.heatIndexValues[i] != null ? "°" : ""}</td>
-                  <td>{hourlyChartData.windChillValues[i] ?? "—"}{hourlyChartData.windChillValues[i] != null ? "°" : ""}</td>
+                  <td
+                    >{hourlyChartData.heatIndexValues[i] ?? "—"}{hourlyChartData
+                      .heatIndexValues[i] != null
+                      ? "°"
+                      : ""}</td
+                  >
+                  <td
+                    >{hourlyChartData.windChillValues[i] ?? "—"}{hourlyChartData
+                      .windChillValues[i] != null
+                      ? "°"
+                      : ""}</td
+                  >
                   <td>{hourlyChartData.popValues[i]}%</td>
                 </tr>
               {/each}
@@ -1190,7 +1209,7 @@
           <label class="m-0 flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
-              class="size-4 accent-brand-700"
+              class="accent-brand-700 size-4"
               bind:checked={showRadar}
             />
             Radar
@@ -1198,7 +1217,7 @@
           <label class="m-0 flex cursor-pointer items-center gap-1.5">
             <input
               type="checkbox"
-              class="size-4 accent-brand-700"
+              class="accent-brand-700 size-4"
               bind:checked={showWatchWarn}
             />
             Watches &amp; warnings
@@ -1314,9 +1333,7 @@
                       {/each}
                     {:else}
                       <pre
-                        class="mt-2 text-[0.85rem] break-words whitespace-pre-wrap"
-                        >{afd.productText.trim()}</pre
-                      >
+                        class="mt-2 text-[0.85rem] break-words whitespace-pre-wrap">{afd.productText.trim()}</pre>
                     {/if}
                   {:else}
                     <p class="meta">

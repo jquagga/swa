@@ -110,8 +110,7 @@ self.addEventListener("fetch", (event) => {
         return response;
       } catch (err) {
         const cached =
-          (await cache.match(OFFLINE_FALLBACK)) ??
-          (await cache.match("/"));
+          (await cache.match(OFFLINE_FALLBACK)) ?? (await cache.match("/"));
 
         if (cached) {
           return cached;

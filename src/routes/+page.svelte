@@ -175,8 +175,8 @@
     <p>
       Simple Weather queries the US National Weather Service to provide a
       responsive weather forecast. Use your current location or a full US street
-      address below. Worldwide forecasts via Open-Meteo are also available —
-      see the NWS / OpenMeteo switcher in the top nav bar.
+      address below. Worldwide forecasts via Open-Meteo are also available — see
+      the NWS / OpenMeteo switcher in the top nav bar.
     </p>
     <div class="my-4 grid gap-4 md:grid-cols-2">
       <section class="card" aria-labelledby="geolocate-heading">

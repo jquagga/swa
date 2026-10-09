@@ -1,8 +1,4 @@
-import type {
-  ChartConfiguration,
-  ChartDataset,
-  TooltipItem,
-} from "chart.js";
+import type { ChartConfiguration, ChartDataset, TooltipItem } from "chart.js";
 import type { ChartData } from "#lib/grid.js";
 
 // ChartDataset plus the custom `unit`/`isos` fields used for tooltips.

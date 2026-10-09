@@ -26,7 +26,10 @@ export function compass8(deg: number): Compass8 {
 }
 
 /** Sky wording per ZFP Table 3 thresholds (percent opaque cover). */
-export function skyPhrase(cloudAvg: number | null, isDaytime: boolean): string | null {
+export function skyPhrase(
+  cloudAvg: number | null,
+  isDaytime: boolean,
+): string | null {
   if (cloudAvg == null) return null;
   if (cloudAvg <= 5) return isDaytime ? "sunny" : "clear";
   if (cloudAvg <= 25) return isDaytime ? "mostly clear" : "mostly clear";
@@ -37,7 +40,10 @@ export function skyPhrase(cloudAvg: number | null, isDaytime: boolean): string |
 }
 
 /** PoP qualifying term per ZFP Table 1. */
-export function popQualifier(popMax: number, convective: boolean): string | null {
+export function popQualifier(
+  popMax: number,
+  convective: boolean,
+): string | null {
   if (popMax < 15) return null;
   if (popMax <= 20) return convective ? "isolated" : "slight chance";
   if (popMax <= 50) return convective ? "scattered" : "chance";
@@ -109,7 +115,10 @@ export function rainAmountPhrase(mm: number, units: "metric" | "us"): string {
 }
 
 /** Snow accumulation categorical phrasing (ZFP Table 4). */
-export function snowRangePhrase(amount: number, units: "metric" | "us"): string {
+export function snowRangePhrase(
+  amount: number,
+  units: "metric" | "us",
+): string {
   if (units === "us") {
     const inches = amount;
     if (inches < 0.5) return "little or no accumulation";
@@ -153,13 +162,16 @@ export function windPhrase(
   if (kph == null) return null;
   if (units === "us") {
     const mph = kphToMph(kph);
-    if (mph < 5) return { text: "winds light and variable", lightVariable: true };
+    if (mph < 5)
+      return { text: "winds light and variable", lightVariable: true };
     const dir = dirDeg == null ? null : compass8(dirDeg);
     const lo = Math.floor(mph / 5) * 5;
     let range: string;
     if (mph < 20) range = `${lo} to ${lo + 5} mph`;
-    else if (mph < 40) range = `${Math.floor(mph / 10) * 10} to ${Math.floor(mph / 10) * 10 + 10} mph`;
-    else range = `${Math.floor(mph / 20) * 20} to ${Math.floor(mph / 20) * 20 + 20} mph`;
+    else if (mph < 40)
+      range = `${Math.floor(mph / 10) * 10} to ${Math.floor(mph / 10) * 10 + 10} mph`;
+    else
+      range = `${Math.floor(mph / 20) * 20} to ${Math.floor(mph / 20) * 20 + 20} mph`;
     let text = dir ? `${dir} winds ${range}` : `winds ${range}`;
     if (gustKph != null) {
       const gustMph = Math.round(kphToMph(gustKph));

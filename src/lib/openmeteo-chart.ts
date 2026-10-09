@@ -143,10 +143,7 @@ export function buildOpenMeteoChartConfig(
           displayColors: true,
           callbacks: {
             title: ((items: never[]) =>
-              formatTooltipTitle(
-                items as never,
-                formatIso,
-              )) as never,
+              formatTooltipTitle(items as never, formatIso)) as never,
             label: formatTooltipLabel as never,
             footer: formatTooltipFooter as never,
           },

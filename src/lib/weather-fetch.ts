@@ -38,7 +38,9 @@ export async function fetchData<T>(url: string): Promise<T> {
 
       const baseDelay = 1000 * Math.pow(2, retryCount);
       const jitter = Math.random() * 0.3 * baseDelay;
-      await new Promise<void>((resolve) => setTimeout(resolve, baseDelay + jitter));
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, baseDelay + jitter),
+      );
     }
   }
 
