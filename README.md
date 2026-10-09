@@ -16,8 +16,8 @@
 > [!IMPORTANT]
 > The narrative generated from the ZFP library for the OpenMeteo data is a beta and the data source does not include weather alerts. It is a start at applying the US NWS forecast narrative guidelines to the raw data provided from OpenMeteo however it is generated programatically in browser and has some limitations. For example, a hurricane isn't reportable via the OpenMeteo data so ZFP reports "Rain with wind gusts up to 79 mph".
 
-- Use your current location (Geolocation API) or search: full US street address on the NWS side (US Census geocoder), any city worldwide on the OpenMeteo side (Open-Meteo geocoder, pick from up to 5 matches; GPS coordinates are reverse-labeled via OpenStreetMap Nominatim)
-- _Forecast in English, Spanish, or French_ (/-switchable in the top nav bar; OpenMeteo narratives are translated too) with metric / US-customary units toggle (defaults follow your browser locale)
+- Use your current location (Geolocation API) or search for a city: both the NWS and OpenMeteo sides use the Open-Meteo geocoder (pick from up to 5 matches; GPS coordinates on the OpenMeteo side are reverse-labeled via OpenStreetMap Nominatim)
+- _Forecast in English, Spanish, or French_ (switchable in the top nav bar; OpenMeteo narratives are translated too — NWS forecast content stays English, only the header chrome translates there) with metric / US-customary units toggle (defaults follow your browser locale)
 - 7-day forecast cards and NOAA NWS radar (OpenFreeMap basemap, dark-mode aware)
 - PWA with offline fallback: last forecast per location is cached in `localStorage`, service worker serves `/offline` when unreachable
 
@@ -60,14 +60,14 @@ The top nav bar switches providers (**NWS** / **OpenMeteo**), UI language (Engli
 NWS home page — pick one of the two options:
 
 1. **Use my location** — asks for location permission and navigates to `/Weather?lat=&lon=` (coordinates are rounded to 4 decimals). Shows a hint if geolocation is blocked in the browser.
-2. **Search by address** — a full US street address is required, e.g. `1600 Pennsylvania Ave SE, Washington, DC`. This goes through the same-origin `/geocode` proxy (US Census Bureau geocoder) to avoid CORS.
+2. **Search by city** — a city or town name is enough, e.g. `Washington, DC`. Queries the Open-Meteo geocoder directly from the browser and offers up to 5 matches to pick from (NWS only covers US locations, so pick a US match).
 
 OpenMeteo (`/global`) home page — same two-card layout:
 
 1. **Use my location** — worldwide; GPS coordinates are reverse-labeled into a place name via the same-origin `/reverse` proxy (OpenStreetMap Nominatim), falling back to raw coordinates.
 2. **Search for a city** — a city name is enough, e.g. `Berlin, Germany`. Queries the Open-Meteo geocoder directly from the browser and offers up to 5 matches to pick from.
 
-Geolocation coordinates go directly from your browser to NWS or Open-Meteo (to fetch the forecast); searched addresses pass through this app's `/geocode` server before being forwarded to the Census geocoder, and GPS coordinates pass through `/reverse` before being forwarded to Nominatim. Coordinates, addresses, and place names you look up are shared with those providers to fetch data — but never otherwise stored or shared by us.
+Geolocation coordinates go directly from your browser to NWS or Open-Meteo (to fetch the forecast); city searches go directly to the Open-Meteo geocoder, and GPS coordinates on the OpenMeteo side pass through this app's `/reverse` proxy before being forwarded to Nominatim. Coordinates and place names you look up are shared with those providers to fetch data — but never otherwise stored or shared by us.
 
 On `/Weather`:
 
@@ -86,9 +86,9 @@ On `/global/weather`:
 - `/Weather` fetches `api.weather.gov` directly from the browser: `points/{lat},{lon}` → `forecast` (7-day text) + `forecastGridData` (raw gridpoint numbers for the hourly chart: temperature, heat index, wind chill, precipitation chance, humidity, wind — converted from metric to US units, in parallel; alerts resolve independently so a slow alerts endpoint never blocks the forecast).
 - `/global/weather` fetches `api.open-meteo.com` via the `openmeteo` SDK (`best_match` models, `timezone=auto`): hourly temperature, humidity, apparent temperature, precipitation/rain/showers/snowfall, cloud cover, wind + gusts, visibility. The framework-free `src/lib/zfp/` library slices the hourly data into 6am–6pm day / 6pm–6am night periods starting from the current period, then narrates each one ZFP-style (sky, PoP + qualifiers, temp categories + trends, 8-point wind + gusts, snow accumulations) in metric, converting to US units at display only when the locale calls for it; Spanish/French phrasing is seeded from the NWS AWIPS `Translator.py` tables (see `NOTICE`).
 - UI strings are compiled with [Paraglide](https://paraglidejs.com/) (no localized URLs; sources in `messages/*.json`, Weblate-friendly) for English, Spanish, and French.
-- `src/routes/geocode/+server.ts` is a thin proxy to `geocoding.geo.census.gov` (10s timeout, `address` required, ≤200 chars) returning plain `Response` JSON; `src/routes/reverse/+server.ts` is a thin proxy to OpenStreetMap Nominatim reverse-geocoding (`lat`/`lon` required, 10s timeout) for GPS place names.
+- `src/routes/reverse/+server.ts` is a thin proxy to OpenStreetMap Nominatim reverse-geocoding (`lat`/`lon` required, 10s timeout) for GPS place names.
 - Chart.js is tree-shaken (`chart.js` core only, no `chart.js/auto`, dates via `Intl.DateTimeFormat` + category scale); MapLibre GL JS is lazy-loaded behind an `IntersectionObserver` with its worker via `?worker&url` + `setWorkerUrl`.
-- Last forecast per 4-decimal tile is cached in `localStorage` (1h TTL, max 10 tiles, separate `swa:openmeteo:` namespace for the Global workflow) for the offline fallback; the service worker is network-first for navigations (falls back to prerendered `/offline`) and never caches `/geocode`, `/reverse`, or `?` URLs so forecasts stay fresh.
+- Last forecast per 4-decimal tile is cached in `localStorage` (1h TTL, max 10 tiles, separate `swa:openmeteo:` namespace for the Global workflow) for the offline fallback; the service worker is network-first for navigations (falls back to prerendered `/offline`) and never caches `/reverse` or `?` URLs so forecasts stay fresh.
 - Content-Security-Policy is generated by SvelteKit (`csp.mode: hash` in `vite.config.ts`) — do not add one to root `_headers`.
 - Styling is [Tailwind CSS](https://tailwindcss.com/) v4 (via `@tailwindcss/vite`): utility classes in markup plus a small `@layer base` / `@layer components` block in `src/lib/main.css` (typography, buttons, cards, inputs, chips, tables). Dark mode follows `prefers-color-scheme`; no `style=""` attributes so the CSP needs no `unsafe-inline`.
 
@@ -102,6 +102,5 @@ On `/global/weather`:
 - [Tailwind CSS](https://tailwindcss.com/) v4
 - [chart.js](https://www.chartjs.org/)
 - MapLibre GL JS with [OpenFreeMap](https://openfreemap.org/) basemaps and NOAA NWS radar / watch-warning WMS overlays
-- [US Census Bureau Geocoder](https://geocoding.geo.census.gov/)
 - Reverse-geocoding by [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/) (© OpenStreetMap contributors)
 - Icon comes from [Meteocons](https://github.com/basmilius/weather-icons)

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { searchCity, type GeocodingResult } from "#lib/openmeteo.js";
   import { resolveInitialProvider } from "#lib/preferences.js";
 
   $effect(() => {
@@ -13,9 +14,10 @@
   // Use $derived for computed error states
   let geolocationError = $state<string | null>(null);
   let isGeolocating = $state(false);
-  let address = $state("");
+  let query = $state("");
   let isSearching = $state(false);
   let searchError = $state<string | null>(null);
+  let candidates = $state<GeocodingResult[]>([]);
   let geoPermission = $state<string | null>(null);
 
   // Use $derived for button text
@@ -94,12 +96,13 @@
 
   let searchController: AbortController | null = null;
 
-  async function handleAddressSearch(event?: SubmitEvent) {
+  async function handleCitySearch(event?: SubmitEvent) {
     event?.preventDefault();
     searchError = null;
+    candidates = [];
 
-    if (!address.trim()) {
-      searchError = "Please enter an address to search.";
+    if (!query.trim()) {
+      searchError = "Please enter a city to search.";
       return;
     }
 
@@ -110,57 +113,28 @@
     isSearching = true;
 
     try {
-      const url = `/geocode?address=${encodeURIComponent(address.trim())}`;
-
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(url, { signal: controller.signal });
+      const results = await searchCity(
+        query.trim(),
+        "en",
+        5,
+        controller.signal,
+      );
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // A newer submit superseded this one — drop its results.
+      if (searchController !== controller) return;
 
-      const data: {
-        result?: {
-          addressMatches?: Array<{
-            coordinates?: { x?: number; y?: number };
-          }>;
-        };
-      } = await response.json();
-
-      if (
-        data.result &&
-        data.result.addressMatches &&
-        data.result.addressMatches.length > 0
-      ) {
-        const match = data.result.addressMatches[0];
-        const coordinates = match.coordinates;
-
-        if (
-          coordinates &&
-          coordinates.x !== undefined &&
-          coordinates.y !== undefined
-        ) {
-          await navigateToWeather(coordinates.y, coordinates.x);
-        } else {
-          searchError = "No coordinates found for the provided address.";
-        }
+      if (results.length === 0) {
+        searchError = "Location not found. Please check and try again.";
       } else {
-        searchError =
-          "Address not found. Please check the address and try again.";
+        candidates = results;
       }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        // Superseded by a newer submit, or timed out. Only report timeouts
-        // for the still-active request.
-        if (searchController === controller) {
-          searchError = "Unable to geocode the address. Please try again.";
-        }
-        return;
+    } catch {
+      if (searchController === controller) {
+        searchError = "Unable to search for the location. Please try again.";
       }
-      console.error("Error geocoding address:", error);
-      searchError = "Unable to geocode the address. Please try again.";
     } finally {
       if (searchController === controller) {
         isSearching = false;
@@ -168,14 +142,18 @@
       }
     }
   }
+
+  function candidateLabel(c: GeocodingResult): string {
+    return [c.name, c.admin1, c.country].filter(Boolean).join(", ");
+  }
 </script>
 
 <div class="shell">
   <div>
     <p>
       Simple Weather queries the US National Weather Service to provide a
-      responsive weather forecast. Use your current location or a full US street
-      address below. Worldwide forecasts via Open-Meteo are also available — see
+      responsive weather forecast. Use your current location or search for a
+      city below. Worldwide forecasts via Open-Meteo are also available — see
       the NWS / OpenMeteo switcher in the top nav bar.
     </p>
     <div class="my-4 grid gap-4 md:grid-cols-2">
@@ -188,7 +166,7 @@
         {#if geoPermission === "denied"}
           <p role="note" class="text-sm">
             Location access is blocked in your browser settings — you can still
-            search by address.
+            search by city.
           </p>
         {/if}
         {#if geolocationError}
@@ -202,26 +180,24 @@
           {geolocateButtonText}
         </button>
       </section>
-      <section class="card" aria-labelledby="address-heading">
-        <h2 id="address-heading" class="mt-0 text-lg">Search by address</h2>
+      <section class="card" aria-labelledby="city-heading">
+        <h2 id="city-heading" class="mt-0 text-lg">Search by city</h2>
         <p class="text-sm">
-          Uses the Census Bureau geocoder. <strong>
-            A full street address is needed.
-          </strong>
-          Example: 1600 Pennsylvania Ave SE, Washington, DC.
+          Uses the Open-Meteo geocoder. A city or town name is enough. Example:
+          Washington, DC.
         </p>
-        <form onsubmit={handleAddressSearch}>
-          <label for="address-input" class="mb-1 block text-sm font-medium"
-            >Street Address:</label
+        <form onsubmit={handleCitySearch}>
+          <label for="city-input" class="mb-1 block text-sm font-medium"
+            >City:</label
           >
           <input
-            id="address-input"
+            id="city-input"
             type="search"
-            name="address"
-            placeholder="1600 Pennsylvania Ave SE, Washington, DC"
-            aria-label="Street Address"
+            name="city"
+            placeholder="Washington, DC"
+            aria-label="City"
             class="input"
-            bind:value={address}
+            bind:value={query}
           />
 
           <div class="mt-3">
@@ -233,6 +209,28 @@
             </button>
           </div>
         </form>
+        {#if candidates.length > 0}
+          <p class="meta mt-3">Pick a match to see its NWS forecast:</p>
+          <ul class="m-0 mt-2 grid list-none gap-2 p-0">
+            {#each candidates as c (c.id)}
+              <li class="m-0 list-none">
+                <button
+                  type="button"
+                  class="hover:border-brand-600 block w-full cursor-pointer rounded-lg border border-zinc-200 px-3 py-2 text-left text-sm dark:border-zinc-700"
+                  onclick={() =>
+                    void navigateToWeather(c.latitude, c.longitude)}
+                >
+                  <span class="font-semibold">{candidateLabel(c)}</span>
+                  <span class="meta block">
+                    {c.latitude.toFixed(2)}, {c.longitude.toFixed(2)}
+                    {#if c.timezone}
+                      • {c.timezone}{/if}
+                  </span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
       </section>
     </div>
   </div>

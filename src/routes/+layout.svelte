@@ -17,6 +17,7 @@
     setProviderPref,
     setUnitsPref,
   } from "#lib/prefs.svelte.js";
+  import * as m from "#lib/paraglide/messages.js";
 
   let { children } = $props();
   let swUpdated = $state(false);
@@ -143,13 +144,13 @@
   <div
     class="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6"
   >
-    <a href="/" class="text-lg font-bold no-underline">Simple Weather</a>
+    <a href="/" class="text-lg font-bold no-underline">{m.app_title()}</a>
     <nav class="flex flex-wrap items-center gap-2 text-sm" aria-label="Site">
       {#if prefsReady}
         <div
           class="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
           role="group"
-          aria-label="Forecast source"
+          aria-label={m.nav_provider_label()}
         >
           <button
             type="button"
@@ -159,7 +160,7 @@
             aria-pressed={!onGlobal}
             onclick={() => void selectProvider("nws")}
           >
-            NWS
+            {m.nav_provider_nws()}
           </button>
           <button
             type="button"
@@ -169,14 +170,14 @@
             aria-pressed={onGlobal}
             onclick={() => void selectProvider("openmeteo")}
           >
-            OpenMeteo
+            {m.nav_provider_openmeteo()}
           </button>
         </div>
         <label class="flex items-center gap-1 text-[0.8rem]">
-          <span class="sr-only">Language</span>
+          <span class="sr-only">{m.nav_language_label()}</span>
           <select
             class="cursor-pointer rounded-md border border-zinc-200 bg-transparent px-1.5 py-1 text-[0.8rem] dark:border-zinc-700"
-            aria-label="Language"
+            aria-label={m.nav_language_label()}
             value={prefs.locale}
             onchange={(e) =>
               void selectLocale(
@@ -192,7 +193,7 @@
           <div
             class="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
             role="group"
-            aria-label="Units"
+            aria-label={m.nav_units_label()}
           >
             <button
               type="button"

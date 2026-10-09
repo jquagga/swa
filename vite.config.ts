@@ -44,7 +44,6 @@ export default defineConfig({
             "https://api.weather.gov",
             "https://tiles.openfreemap.org",
             "https://mapservices.weather.noaa.gov",
-            "https://geocoding.geo.census.gov",
             "https://api.open-meteo.com",
             "https://geocoding-api.open-meteo.com",
           ],
