@@ -51,7 +51,7 @@ pnpm cf-typegen  # regenerate src/worker-configuration.d.ts
 ```
 
 > [!NOTE]
-> CI verifies `pnpm check` and the `pnpm build` production build.
+> CI verifies `pnpm format:check`, `pnpm lint`, `pnpm test`, `pnpm check`, and the `pnpm build` production build.
 
 ## Usage
 
