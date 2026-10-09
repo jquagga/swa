@@ -39,4 +39,28 @@ describe("buildOpenMeteoChartConfig", () => {
     expect(pop.data).toEqual([10, 20]);
     expect(pop.unit).toBe("%");
   });
+
+  it("uses translated labels for legend and tooltip footer", () => {
+    const cfg = buildOpenMeteoChartConfig(hours(), (iso) => iso, "°C", {
+      temperature: "Temperatura",
+      feelsLike: "Sensación térmica",
+      precip: "Probabilidad de lluvia",
+      wind: "Viento",
+      humidity: "Humedad",
+    });
+    const [temp, feels, pop] = cfg.data.datasets as unknown as Array<{
+      label: string;
+    }>;
+    expect(temp.label).toBe("Temperatura");
+    expect(feels.label).toBe("Sensación térmica");
+    expect(pop.label).toBe("Probabilidad de lluvia");
+    const footer = (
+      cfg.options?.plugins?.tooltip?.callbacks as {
+        footer?: (items: never[]) => string;
+      }
+    ).footer;
+    expect(typeof footer).toBe("function");
+    const items = [{ dataIndex: 0, dataset: cfg.data.datasets[0] }] as never[];
+    expect(footer?.(items)).toBe("Viento 6 mph • Humedad 55%");
+  });
 });

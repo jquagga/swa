@@ -51,6 +51,11 @@
   "weather_table_precip": "Pluie",
   "weather_table_toggle": "Tableau horaire (alternative accessible)",
   "weather_chart_caption": "Max {high} • Min {low} • Les barres montrent le risque de pluie (axe droit).",
+  "weather_chart_temperature": "Température",
+  "weather_chart_feels_like": "Ressenti",
+  "weather_chart_precip": "Probabilité de pluie",
+  "weather_chart_wind": "Vent",
+  "weather_chart_humidity": "Humidité",
   "weather_footer_openmeteo": "Données de prévision par Open-Meteo (open-meteo.com). Données de lieux © GeoNames. Noms de lieux © contributeurs OpenStreetMap.",
   "weather_sunrise": "🌅 Lever {time}",
   "weather_sunset": "🌇 Coucher {time}"
