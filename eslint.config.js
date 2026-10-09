@@ -10,6 +10,7 @@ export default tseslint.config(
     ignores: [
       ".svelte-kit/**",
       "build/**",
+      "coverage/**",
       ".wrangler/**",
       ".output/**",
       "src/lib/paraglide/**",

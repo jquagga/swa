@@ -1,6 +1,8 @@
 # Build / generated output (never format)
 .svelte-kit/
 build/
+.coverage/
+coverage/
 .wrangler/
 .output/
 src/lib/paraglide/
