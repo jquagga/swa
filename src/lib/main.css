@@ -57,7 +57,7 @@ html.ios-pwa body {
     @apply text-pretty;
   }
   a {
-    @apply text-brand-700 underline decoration-brand-700/40 underline-offset-2 dark:text-sky-400 dark:decoration-sky-400/40;
+    @apply text-brand-700 decoration-brand-700/40 underline underline-offset-2 dark:text-sky-400 dark:decoration-sky-400/40;
   }
 }
 
@@ -69,7 +69,7 @@ html.ios-pwa body {
 }
 
 @utility btn {
-  @apply inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500;
+  @apply bg-brand-700 hover:bg-brand-800 focus-visible:outline-brand-600 inline-flex min-h-11 cursor-pointer items-center justify-center rounded-md px-4 py-2.5 text-sm font-semibold text-white no-underline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-600 dark:hover:bg-sky-500;
 }
 
 @utility card {
@@ -77,7 +77,7 @@ html.ios-pwa body {
 }
 
 @utility input {
-  @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus-visible:border-brand-600 focus-visible:ring-2 focus-visible:ring-brand-600/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
+  @apply focus-visible:border-brand-600 focus-visible:ring-brand-600/30 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100;
 }
 
 @utility chip {

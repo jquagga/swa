@@ -8,8 +8,14 @@ import type { RequestHandler } from "./$types";
 // on explicit GPS taps. Credit: "Place names © OpenStreetMap contributors"
 // (see the /global/weather footer).
 export const GET: RequestHandler = async ({ url }) => {
-  const lat = Number(url.searchParams.get("lat"));
-  const lon = Number(url.searchParams.get("lon"));
+  // Number(null) and Number("") are both 0 ("Null Island"), so missing or
+  // blank params must be rejected explicitly instead of proxied upstream.
+  const latParam = url.searchParams.get("lat");
+  const lonParam = url.searchParams.get("lon");
+  const lat =
+    latParam == null || latParam.trim() === "" ? NaN : Number(latParam);
+  const lon =
+    lonParam == null || lonParam.trim() === "" ? NaN : Number(lonParam);
   const language =
     url.searchParams.get("language")?.split(/[-_]/)[0]?.toLowerCase() ?? "en";
 

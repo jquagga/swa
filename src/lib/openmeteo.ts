@@ -126,7 +126,8 @@ export async function fetchOpenMeteo(
   const intervalSec = hourly.interval() || 3600;
   const firstVals = hourly.variables(0)?.valuesArray();
   const n = firstVals?.length ?? 0;
-  if (!Number.isFinite(startSec) || n === 0) throw new Error("Empty hourly data");
+  if (!Number.isFinite(startSec) || n === 0)
+    throw new Error("Empty hourly data");
   const timeMs = Array.from(
     { length: n },
     (_, i) => (startSec + i * intervalSec) * 1000,
@@ -200,8 +201,10 @@ export function buildHourlyDisplay(
     const tC = series.temperatureC[i];
     const fC = series.apparentC[i];
     if (tC == null || fC == null) continue;
-    const temp = units === "us" ? Math.round((tC * 9) / 5 + 32) : Math.round(tC);
-    const feelsLike = units === "us" ? Math.round((fC * 9) / 5 + 32) : Math.round(fC);
+    const temp =
+      units === "us" ? Math.round((tC * 9) / 5 + 32) : Math.round(tC);
+    const feelsLike =
+      units === "us" ? Math.round((fC * 9) / 5 + 32) : Math.round(fC);
     const windKph = series.windKph[i];
     const wind =
       windKph == null

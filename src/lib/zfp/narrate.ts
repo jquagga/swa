@@ -94,11 +94,14 @@ export function buildNarrative(
   // Snow accumulation (explicit when PoP met). Thresholds stay in display
   // units so the gate matches what the reader sees (~1 cm either way).
   if (kind === "snow" && s.popMax >= 30) {
-    const amount = units === "us" ? cmToInches(s.snowfallSumCm) : s.snowfallSumCm;
+    const amount =
+      units === "us" ? cmToInches(s.snowfallSumCm) : s.snowfallSumCm;
     const threshold = units === "us" ? 0.5 : 1;
     if (amount >= threshold) {
       const possible = s.popMax < 60 ? "possible " : "";
-      parts.push(`${possible}snow accumulation of ${snowRangePhrase(amount, units)}`);
+      parts.push(
+        `${possible}snow accumulation of ${snowRangePhrase(amount, units)}`,
+      );
     }
   }
 
@@ -115,15 +118,23 @@ export function buildNarrative(
     kind === "freezing rain";
   if (liquidKind && s.popMax >= 30 && s.precipSumMm >= 2.5) {
     const possible = s.popMax < 60 ? "possible " : "";
-    parts.push(`${possible}rainfall amounts ${rainAmountPhrase(s.precipSumMm, units)}`);
+    parts.push(
+      `${possible}rainfall amounts ${rainAmountPhrase(s.precipSumMm, units)}`,
+    );
   }
 
   // Temperature sentence.
-  const anchor = s.period.isDaytime ? (s.tMaxC ?? s.tAvgC) : (s.tMinC ?? s.tAvgC);
+  const anchor = s.period.isDaytime
+    ? (s.tMaxC ?? s.tAvgC)
+    : (s.tMinC ?? s.tAvgC);
   if (anchor != null) {
     const label = s.period.isDaytime ? "highs" : "lows";
     parts.push(`${label} ${tempCategory(anchor, units)}`);
-    if (s.trendC != null && Math.abs(s.trendC) >= 2 && s.period.hours.length >= 6) {
+    if (
+      s.trendC != null &&
+      Math.abs(s.trendC) >= 2 &&
+      s.period.hours.length >= 6
+    ) {
       parts.push(s.trendC > 0 ? "temperatures rising" : "temperatures falling");
     }
   }
@@ -132,9 +143,18 @@ export function buildNarrative(
   const wind = windPhrase(s.windDirDeg, s.windKph, s.windGustKph, units);
   if (wind) parts.push(wind.text);
 
-  const text = capitalizeSentences(parts.filter(Boolean).map(ensurePeriod).join(" ").trim()) ||
-    "No significant weather.";
-  const shortForecast = shortLabel(kind, qualifier, heavy, !!fogText, showSky, sky);
+  const text =
+    capitalizeSentences(
+      parts.filter(Boolean).map(ensurePeriod).join(" ").trim(),
+    ) || "No significant weather.";
+  const shortForecast = shortLabel(
+    kind,
+    qualifier,
+    heavy,
+    !!fogText,
+    showSky,
+    sky,
+  );
   return { text, shortForecast };
 }
 
@@ -168,11 +188,14 @@ function shortLabel(
   sky: string | null,
 ): string {
   const heavyPrefix = heavy ? "Heavy " : "";
-  const kindText =
-    kind === "rain-showers" ? "rain showers" : kind;
+  const kindText = kind === "rain-showers" ? "rain showers" : kind;
   if (kindText) {
     if (!qualifier) return capitalize(heavyPrefix + kindText);
-    if (qualifier === "isolated" || qualifier === "scattered" || qualifier === "numerous") {
+    if (
+      qualifier === "isolated" ||
+      qualifier === "scattered" ||
+      qualifier === "numerous"
+    ) {
       return `${capitalize(qualifier)} ${heavyPrefix}${kindText}`;
     }
     if (qualifier === "likely") return `Likely ${heavyPrefix}${kindText}`;
@@ -186,7 +209,10 @@ function shortLabel(
 
 function capitalizeSentences(s: string): string {
   if (!s) return s;
-  return s[0].toUpperCase() + s.slice(1).replace(/\. ([a-z])/g, (_, c: string) => `. ${c.toUpperCase()}`);
+  return (
+    s[0].toUpperCase() +
+    s.slice(1).replace(/\. ([a-z])/g, (_, c: string) => `. ${c.toUpperCase()}`)
+  );
 }
 
 function capitalize(s: string): string {

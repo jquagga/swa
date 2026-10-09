@@ -5,7 +5,10 @@ SvelteKit 3 + Svelte 5 PWA (client-rendered) deployed to Cloudflare Workers. Dua
 ## Commands
 
 - `pnpm dev` — local dev (`vite dev`)
-- `pnpm check` — typecheck (`precheck` compiles Paraglide first, then `svelte-kit sync && svelte-check`); only verification available (no test/lint/format scripts)
+- `pnpm check` — typecheck (`precheck` compiles Paraglide first, then `svelte-kit sync && svelte-check`)
+- `pnpm format` / `pnpm format:check` — Prettier write / verify (Svelte + Tailwind plugins; config in `prettier.config.js`, ignores in `.prettierignore`)
+- `pnpm lint` — ESLint flat config (`eslint.config.js`: JS + non-type-checked TS + Svelte, Prettier-compatible; `svelte-check` remains the type layer)
+- `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` — Vitest unit suites (`src/**/*.test.ts`, node env; `/coverage` output is gitignored)
 - `pnpm run paraglide` — regenerate `src/lib/paraglide/` from `project.inlang/settings.json` + `messages/*.json` (generated dir is gitignored; CI relies on `precheck`)
 - `pnpm build` — production build (`vite build`)
 - `pnpm preview` — build + `wrangler dev`
@@ -28,5 +31,6 @@ SvelteKit 3 + Svelte 5 PWA (client-rendered) deployed to Cloudflare Workers. Dua
 - `vite.config.ts` `connect-src` additionally allows `api.open-meteo.com`, `geocoding-api.open-meteo.com` (Nominatim is proxied same-origin so needs no entry).
 - `vite.config.ts` relies on SvelteKit route splitting + dynamic `import("maplibre-gl")` (do NOT add `manualChunks`: Vite 8 builds the SW with code-splitting off and rejects it). MapLibre worker must load via `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url` + `setWorkerUrl` (see `Weather/+page.svelte`).
 - Svelte 5 runes (`$state`, `$derived`) throughout; `tsconfig.json` has `strict` with `checkJs: false` and excludes `src/service-worker.ts`.
+- Unit tests are colocated (`src/**/*.test.ts`, Vitest node env) and typechecked by `svelte-check`, so keep them type-clean (no `any` leaks, no unused imports). `localStorage` is stubbed per-file with an in-memory map; the `openmeteo` SDK is faked via `vi.mock` (see `openmeteo.test.ts` for the UTC-expansion regression pin); `/geocode` + `/reverse` server tests call `GET` with a `Parameters<typeof GET>[0]`-cast URL and stubbed `fetch` (the `./$types` import is type-only, so no generated types are needed at runtime). Keep `src/lib/zfp/` framework-free — no Svelte/Paraglide imports, or the node-env suites break.
 - `wrangler.jsonc`: `main: .svelte-kit/cloudflare/_worker.js`, adapter is `@sveltejs/adapter-cloudflare`. Custom asset headers live in root `_headers` (required at project root by the adapter); use `pnpm deploy`. `_headers` must NOT set `Content-Security-Policy` — SvelteKit generates it (per-build bootstrap hashes) from `csp` in `vite.config.ts`.
-- `.github/workflows/ci.yml` runs `pnpm check` + `pnpm build`; `dependency-review`/`scorecard` are supply-chain only.
+- `.github/workflows/ci.yml` runs `pnpm format:check` + `pnpm lint` + `pnpm test` + `pnpm check` + `pnpm build` (fail-fast order); `dependency-review`/`scorecard` are supply-chain only.

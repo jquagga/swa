@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { buildOpenMeteoChartConfig } from "#lib/openmeteo-chart.js";
   import {
@@ -51,7 +50,6 @@
   let fetchError = $state<string | null>(null);
   let isLoading = $state(true);
   let isOffline = $state(false);
-  let offlineSavedAt = $state<string | null>(null);
   let fetchedAt = $state<string | null>(null);
   let requestId = 0;
 
@@ -78,9 +76,7 @@
   // formatter pins the FORECAST location's timezone (not the device zone)
   // so day titles, hour labels, and tooltips agree with the ZFP periods.
   // An invalid zone falls back to the device zone rather than crashing.
-  function zonedFmt(
-    opts: Intl.DateTimeFormatOptions,
-  ): Intl.DateTimeFormat {
+  function zonedFmt(opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
     try {
       return new Intl.DateTimeFormat(prefs.locale, {
         ...opts,
@@ -91,9 +87,7 @@
     }
   }
 
-  let hourLabelFmt = $derived(
-    zonedFmt({ hour: "numeric", weekday: "short" }),
-  );
+  let hourLabelFmt = $derived(zonedFmt({ hour: "numeric", weekday: "short" }));
   let weekdayFmt = $derived(
     zonedFmt({
       weekday: "long",
@@ -141,8 +135,12 @@
   });
 
   let chartReady = $derived(hours.length > 0);
-  let hourlyHigh = $derived(hours.length ? Math.max(...hours.map((h) => h.temp)) : null);
-  let hourlyLow = $derived(hours.length ? Math.min(...hours.map((h) => h.temp)) : null);
+  let hourlyHigh = $derived(
+    hours.length ? Math.max(...hours.map((h) => h.temp)) : null,
+  );
+  let hourlyLow = $derived(
+    hours.length ? Math.min(...hours.map((h) => h.temp)) : null,
+  );
 
   let hero = $derived.by(() => {
     if (!hours.length || !periods.length) return null;
@@ -197,7 +195,9 @@
         ? m.period_overnight()
         : m.period_night();
     try {
-      const weekday = cap(weekdayFmt.format(new Date(p.summary.period.startMs)));
+      const weekday = cap(
+        weekdayFmt.format(new Date(p.summary.period.startMs)),
+      );
       return `${weekday} ${word}`;
     } catch {
       return word;
@@ -209,7 +209,8 @@
       ? (p.summary.tMaxC ?? p.summary.tAvgC)
       : (p.summary.tMinC ?? p.summary.tAvgC);
     if (c == null) return "—";
-    const v = prefs.units === "us" ? Math.round((c * 9) / 5 + 32) : Math.round(c);
+    const v =
+      prefs.units === "us" ? Math.round((c * 9) / 5 + 32) : Math.round(c);
     return `${v}${tempUnitLabel}`;
   }
 
@@ -255,7 +256,6 @@
       if (!placeName) placeName = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
       fetchError = null;
       isOffline = false;
-      offlineSavedAt = null;
       fetchedAt = new Date().toISOString();
       saveOpenMeteoSnapshot(lat, lon, {
         series: s,
@@ -274,11 +274,11 @@
         timezone = cached.timezone;
         placeName = cached.placeName || placeName;
         isOffline = true;
-        offlineSavedAt = cached.savedAt;
         fetchedAt = cached.savedAt;
         fetchError = null;
       } else {
-        fetchError = e instanceof Error ? `Error: ${e.message}` : m.error_address_failed();
+        fetchError =
+          e instanceof Error ? `Error: ${e.message}` : m.error_address_failed();
       }
     } finally {
       if (req === requestId) isLoading = false;
@@ -324,7 +324,9 @@
 <svelte:boundary>
   <div class="shell">
     <div class="my-3 flex flex-wrap items-center gap-2">
-      <a href="/global" class="font-semibold no-underline">{m.weather_new_search()}</a>
+      <a href="/global" class="font-semibold no-underline"
+        >{m.weather_new_search()}</a
+      >
       <span class="flex-1"></span>
       <button
         type="button"
@@ -354,7 +356,12 @@
     {#if fetchError && !series}
       <div class="px-5 py-5 text-center" role="alert">
         <p class="err">{fetchError}</p>
-        <button type="button" class="btn mt-3" onclick={refresh} disabled={isLoading}>
+        <button
+          type="button"
+          class="btn mt-3"
+          onclick={refresh}
+          disabled={isLoading}
+        >
           {m.weather_retry()}
         </button>
       </div>
@@ -391,8 +398,12 @@
           {#if hero.extreme != null}
             <li class="chip">
               {hero.extremeIsHigh
-                ? m.weather_high({ temp: `${prefs.units === "us" ? Math.round((hero.extreme * 9) / 5 + 32) : Math.round(hero.extreme)}°` })
-                : m.weather_low({ temp: `${prefs.units === "us" ? Math.round((hero.extreme * 9) / 5 + 32) : Math.round(hero.extreme)}°` })}
+                ? m.weather_high({
+                    temp: `${prefs.units === "us" ? Math.round((hero.extreme * 9) / 5 + 32) : Math.round(hero.extreme)}°`,
+                  })
+                : m.weather_low({
+                    temp: `${prefs.units === "us" ? Math.round((hero.extreme * 9) / 5 + 32) : Math.round(hero.extreme)}°`,
+                  })}
             </li>
           {/if}
           <li class="chip">{m.weather_wind({ value: hero.wind })}</li>
@@ -414,11 +425,16 @@
         </div>
         {#if hourlyHigh !== null && hourlyLow !== null}
           <p class="meta mt-1.5">
-            {m.weather_chart_caption({ high: `${hourlyHigh}°`, low: `${hourlyLow}°` })}
+            {m.weather_chart_caption({
+              high: `${hourlyHigh}°`,
+              low: `${hourlyLow}°`,
+            })}
           </p>
         {/if}
         <details>
-          <summary class="cursor-pointer text-sm">{m.weather_table_toggle()}</summary>
+          <summary class="cursor-pointer text-sm"
+            >{m.weather_table_toggle()}</summary
+          >
           <table class="data-table mt-2 text-[0.85rem]">
             <thead>
               <tr>
@@ -469,15 +485,21 @@
                 <ul class="m-0 flex list-none flex-wrap gap-1.5 p-0">
                   {#if p.summary.windKph != null}
                     <li class="chip">
-                      {m.weather_wind({ value: formatWind(p.summary.windKph, prefs.units) })}
+                      {m.weather_wind({
+                        value: formatWind(p.summary.windKph, prefs.units),
+                      })}
                     </li>
                   {/if}
                   {#if p.summary.popMax > 0}
-                    <li class="chip">{m.weather_precip({ value: p.summary.popMax })}</li>
+                    <li class="chip">
+                      {m.weather_precip({ value: p.summary.popMax })}
+                    </li>
                   {/if}
                   {#if p.summary.humidityAvg != null}
                     <li class="chip">
-                      {m.weather_humidity({ value: Math.round(p.summary.humidityAvg) })}
+                      {m.weather_humidity({
+                        value: Math.round(p.summary.humidityAvg),
+                      })}
                     </li>
                   {/if}
                 </ul>

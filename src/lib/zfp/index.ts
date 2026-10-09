@@ -9,7 +9,12 @@ import type {
 } from "./types.js";
 
 export * from "./types.js";
-export { summarizeAll, splitDayNight, summarizePeriod, localHour } from "./periods.js";
+export {
+  summarizeAll,
+  splitDayNight,
+  summarizePeriod,
+  localHour,
+} from "./periods.js";
 export { summarizeWmo, type WmoSummary } from "./wmo.js";
 export { buildNarrative } from "./narrate.js";
 export { translateNarrative } from "./translator.js";
@@ -27,7 +32,11 @@ export interface ForecastPeriod {
 /** Full pipeline: summarize day/night periods and narrate each one. */
 export function buildForecast(
   series: HourlySeries,
-  options: { locale?: SupportedZfpLocale; units?: DisplayUnits; nowMs?: number } = {},
+  options: {
+    locale?: SupportedZfpLocale;
+    units?: DisplayUnits;
+    nowMs?: number;
+  } = {},
 ): ForecastPeriod[] {
   const { locale = "en", units = "metric", nowMs = Date.now() } = options;
   return summarizeAll(series, nowMs).map((summary, i) => {

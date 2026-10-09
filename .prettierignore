@@ -1,3 +1,19 @@
-*.html
-*swa.js
-*main.js
+# Build / generated output (never format)
+.svelte-kit/
+build/
+.coverage/
+coverage/
+.wrangler/
+.output/
+src/lib/paraglide/
+src/worker-configuration.d.ts
+worker-configuration.d.ts
+project.inlang/cache/
+vite.config.ts.timestamp-*
+
+# Lockfiles
+pnpm-lock.yaml
+
+# Local agent / IDE state
+.agents/
+.opencode/

@@ -1,5 +1,5 @@
 import type { HourlySeries, PeriodSummary, ZfpPeriod } from "./types.js";
-import { summarizeWmo, type WmoSummary } from "./wmo.js";
+import { summarizeWmo } from "./wmo.js";
 
 function avg(vals: (number | null)[]): number | null {
   let s = 0;
@@ -84,35 +84,35 @@ export function splitDayNight(
       if (skipPast && !live(i)) continue;
       const ms = series.timeMs[i];
       if (!Number.isFinite(ms)) continue;
-    const day = isDayHour(localHour(ms, series.timeZone));
-    if (current === null || day !== currentDay) {
-      if (current !== null && current.length > 0 && currentDay !== null) {
-        periods.push({
-          index: periods.length,
-          isDaytime: currentDay,
-          startMs,
-          endMs: ms,
-          hours: current,
-        });
-        if (periods.length >= maxPeriods) return periods;
+      const day = isDayHour(localHour(ms, series.timeZone));
+      if (current === null || day !== currentDay) {
+        if (current !== null && current.length > 0 && currentDay !== null) {
+          periods.push({
+            index: periods.length,
+            isDaytime: currentDay,
+            startMs,
+            endMs: ms,
+            hours: current,
+          });
+          if (periods.length >= maxPeriods) return periods;
+        }
+        current = [];
+        currentDay = day;
+        startMs = ms;
       }
-      current = [];
-      currentDay = day;
-      startMs = ms;
+      current.push(i);
     }
-    current.push(i);
-  }
-  if (current !== null && current.length > 0 && currentDay !== null) {
-    const lastMs = series.timeMs[series.timeMs.length - 1] ?? startMs;
-    periods.push({
-      index: periods.length,
-      isDaytime: currentDay,
-      startMs,
-      endMs: lastMs + 3600_000,
-      hours: current,
-    });
-  }
-  return periods.slice(0, maxPeriods);
+    if (current !== null && current.length > 0 && currentDay !== null) {
+      const lastMs = series.timeMs[series.timeMs.length - 1] ?? startMs;
+      periods.push({
+        index: periods.length,
+        isDaytime: currentDay,
+        startMs,
+        endMs: lastMs + 3600_000,
+        hours: current,
+      });
+    }
+    return periods.slice(0, maxPeriods);
   };
 
   const livePeriods = build(true);
@@ -130,7 +130,8 @@ function vectorAvgDir(
   for (let i = 0; i < speeds.length; i++) {
     const s = speeds[i];
     const d = degs[i];
-    if (s == null || d == null || !Number.isFinite(s) || !Number.isFinite(d)) continue;
+    if (s == null || d == null || !Number.isFinite(s) || !Number.isFinite(d))
+      continue;
     const rad = (d * Math.PI) / 180;
     x += s * Math.sin(rad);
     y += s * Math.cos(rad);
@@ -138,13 +139,26 @@ function vectorAvgDir(
     n++;
   }
   if (!n) return { dir: null, speed: null };
-  return { dir: (Math.atan2(x, y) * 180) / Math.PI < 0 ? (Math.atan2(x, y) * 180) / Math.PI + 360 : (Math.atan2(x, y) * 180) / Math.PI, speed: sSum / n };
+  return {
+    dir:
+      (Math.atan2(x, y) * 180) / Math.PI < 0
+        ? (Math.atan2(x, y) * 180) / Math.PI + 360
+        : (Math.atan2(x, y) * 180) / Math.PI,
+    speed: sSum / n,
+  };
 }
 
-export function summarizePeriod(series: HourlySeries, period: ZfpPeriod): PeriodSummary {
+export function summarizePeriod(
+  series: HourlySeries,
+  period: ZfpPeriod,
+): PeriodSummary {
   const temps = pick(series.temperatureC, period.hours);
-  const tMinC = temps.some((v) => v != null) ? Math.min(...(temps.filter((v) => v != null) as number[])) : null;
-  const tMaxC = temps.some((v) => v != null) ? Math.max(...(temps.filter((v) => v != null) as number[])) : null;
+  const tMinC = temps.some((v) => v != null)
+    ? Math.min(...(temps.filter((v) => v != null) as number[]))
+    : null;
+  const tMaxC = temps.some((v) => v != null)
+    ? Math.max(...(temps.filter((v) => v != null) as number[]))
+    : null;
   const half = Math.floor(period.hours.length / 2);
   const first = pick(series.temperatureC, period.hours.slice(0, half));
   const second = pick(series.temperatureC, period.hours.slice(half));
@@ -154,8 +168,12 @@ export function summarizePeriod(series: HourlySeries, period: ZfpPeriod): Period
     pick(series.windKph, period.hours),
     pick(series.windDeg, period.hours),
   );
-  const gusts = pick(series.windGustKph, period.hours).filter((v) => v != null) as number[];
-  const vis = pick(series.visibilityM, period.hours).filter((v) => v != null) as number[];
+  const gusts = pick(series.windGustKph, period.hours).filter(
+    (v) => v != null,
+  ) as number[];
+  const vis = pick(series.visibilityM, period.hours).filter(
+    (v) => v != null,
+  ) as number[];
   return {
     period,
     tMinC,
@@ -179,6 +197,11 @@ export function summarizePeriod(series: HourlySeries, period: ZfpPeriod): Period
   };
 }
 
-export function summarizeAll(series: HourlySeries, nowMs = Date.now()): PeriodSummary[] {
-  return splitDayNight(series, 14, nowMs).map((p) => summarizePeriod(series, p));
+export function summarizeAll(
+  series: HourlySeries,
+  nowMs = Date.now(),
+): PeriodSummary[] {
+  return splitDayNight(series, 14, nowMs).map((p) =>
+    summarizePeriod(series, p),
+  );
 }
