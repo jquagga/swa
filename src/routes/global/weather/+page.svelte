@@ -126,7 +126,11 @@
   let periods = $derived.by((): ForecastPeriod[] => {
     if (!series) return [];
     try {
-      return buildForecast(series, { dictionary: zfpDict, units: prefs.units });
+      return buildForecast(series, {
+        dictionary: zfpDict,
+        units: prefs.units,
+        locale: prefs.locale,
+      });
     } catch (e) {
       console.error("ZFP build failed:", e);
       return [];
@@ -286,7 +290,11 @@
       fetchedAt = new Date().toISOString();
       saveOpenMeteoSnapshot(lat, lon, {
         series: s,
-        periods: buildForecast(s, { dictionary: zfpDict, units: prefs.units }),
+        periods: buildForecast(s, {
+          dictionary: zfpDict,
+          units: prefs.units,
+          locale: prefs.locale,
+        }),
         placeName,
         timezone: tz,
         units: prefs.units,

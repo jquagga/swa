@@ -9,7 +9,7 @@ SvelteKit 3 + Svelte 5 PWA (client-rendered) deployed to Cloudflare Workers. Dua
 - `pnpm format` / `pnpm format:check` — Prettier write / verify (Svelte + Tailwind plugins; config in `prettier.config.js`, ignores in `.prettierignore`)
 - `pnpm lint` — ESLint flat config (`eslint.config.js`: JS + non-type-checked TS + Svelte, Prettier-compatible; `svelte-check` remains the type layer)
 - `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` — Vitest unit suites (`src/**/*.test.ts`, node env; `/coverage` output is gitignored)
-- `pnpm run paraglide` — regenerate `src/lib/paraglide/` from `project.inlang/settings.json` + `messages/*.json` (generated dir is gitignored; auto-run via `pretest`/`precheck` before `test`/`check`, so fresh checkouts work)
+- `pnpm run paraglide` — regenerate `src/lib/paraglide/` from `project.inlang/settings.json` + `messages/*.json` (generated dir is gitignored; `precheck` regenerates before `check`/`build`, while unit tests never touch generated code so `test` works on clean checkouts)
 - `pnpm build` — production build (`vite build`)
 - `pnpm preview` — build + `wrangler dev`
 - `pnpm deploy` — build + `wrangler deploy`

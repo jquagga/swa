@@ -28,7 +28,8 @@ export interface ForecastPeriod {
  * Full pipeline: summarize day/night periods and narrate each one.
  * The dictionary supplies every human-readable string (built by the
  * app-level Paraglide adapter); English output always comes from EN_DICT
- * so card emoji matching stays anchored to `shortEn`.
+ * so card emoji matching stays anchored to `shortEn`. `locale` is the
+ * BCP-47 tag for sentence casing of the localized output.
  */
 export function buildForecast(
   series: HourlySeries,
@@ -36,12 +37,14 @@ export function buildForecast(
     dictionary?: ZfpDictionary;
     units?: DisplayUnits;
     nowMs?: number;
+    locale?: string;
   } = {},
 ): ForecastPeriod[] {
   const {
     dictionary = EN_DICT,
     units = "metric",
     nowMs = Date.now(),
+    locale = "en",
   } = options;
   return summarizeAll(series, nowMs).map((summary, i) => {
     const { text, shortForecast } = buildNarrative(
@@ -49,8 +52,9 @@ export function buildForecast(
       i,
       units,
       dictionary,
+      locale,
     );
-    const en = buildNarrative(summary, i, units, EN_DICT);
+    const en = buildNarrative(summary, i, units, EN_DICT, "en");
     return {
       summary,
       narrativeEn: en.text,

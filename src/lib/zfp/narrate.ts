@@ -27,12 +27,15 @@ export interface Narrative {
  * spec subset: sky, PoP + precip type/intensity, temp category + trend,
  * wind (+gusts), snow. All human-readable strings come from `dict` — no
  * English literals here — so new locales only add messages, never code.
+ * `locale` is the BCP-47 tag used for sentence casing (e.g. Turkish
+ * dotted-I); it defaults to English.
  */
 export function buildNarrative(
   s: PeriodSummary,
   periodIndex: number,
   units: DisplayUnits = "metric",
   dict: ZfpDictionary = EN_DICT,
+  locale = "en",
 ): Narrative {
   void periodIndex;
   const w = s.wmo;
@@ -150,7 +153,8 @@ export function buildNarrative(
   const text =
     capitalizeSentences(
       parts.filter(Boolean).map(ensurePeriod).join(" ").trim(),
-    ) || dict.no_weather;
+      locale,
+    ) || capitalizeSentences(ensurePeriod(dict.no_weather), locale);
   const shortForecast = shortLabel(
     kind,
     qualifier,
@@ -159,6 +163,7 @@ export function buildNarrative(
     showSky,
     sky,
     dict,
+    locale,
   );
   return { text, shortForecast };
 }
@@ -239,10 +244,11 @@ function shortLabel(
   showSky: boolean,
   sky: string | null,
   dict: ZfpDictionary,
+  locale: string,
 ): string {
   const kindText = kind == null ? null : precipText(kind, heavy, false, dict);
   if (kindText) {
-    if (!qualifier) return capitalize(kindText);
+    if (!qualifier) return capitalize(kindText, locale);
     if (
       qualifier === "isolated" ||
       qualifier === "scattered" ||
@@ -250,35 +256,49 @@ function shortLabel(
     ) {
       return capitalize(
         dict.pop_sentence_bare(popText(qualifier, dict), kindText),
+        locale,
       );
     }
     if (qualifier === "likely")
       return capitalize(
         dict.pop_sentence_likely(kindText, popText(qualifier, dict)),
+        locale,
       );
-    return capitalize(dict.pop_sentence_of(popText(qualifier, dict), kindText));
+    return capitalize(
+      dict.pop_sentence_of(popText(qualifier, dict), kindText),
+      locale,
+    );
   }
-  if (foggy) return capitalize(dict.short_fog);
-  if (showSky && sky) return capitalize(sky);
-  if (sky) return capitalize(sky);
-  return capitalize(dict.short_fair);
+  if (foggy) return capitalize(dict.short_fog, locale);
+  if (showSky && sky) return capitalize(sky, locale);
+  if (sky) return capitalize(sky, locale);
+  return capitalize(dict.short_fair, locale);
 }
 
-function capitalizeSentences(s: string): string {
+function upperChar(c: string, locale: string): string {
+  try {
+    return c.toLocaleUpperCase(locale);
+  } catch {
+    return c.toUpperCase();
+  }
+}
+
+function upperFirst(s: string, locale: string): string {
   if (!s) return s;
-  return (
-    s[0].toUpperCase() +
-    s
-      .slice(1)
-      .replace(
-        /\. ([a-zàâäéèêëîïôöùûüçñ])/g,
-        (_, c: string) => `. ${c.toUpperCase()}`,
-      )
+  const [first, ...rest] = [...s];
+  return upperChar(first ?? "", locale) + rest.join("");
+}
+
+function capitalizeSentences(s: string, locale: string): string {
+  if (!s) return s;
+  return upperFirst(s, locale).replace(
+    /\. (\p{L})/gu,
+    (_, c: string) => `. ${upperChar(c, locale)}`,
   );
 }
 
-function capitalize(s: string): string {
-  return s ? s[0].toUpperCase() + s.slice(1) : s;
+function capitalize(s: string, locale: string): string {
+  return upperFirst(s, locale);
 }
 
 function ensurePeriod(s: string): string {

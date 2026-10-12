@@ -124,6 +124,63 @@ describe("buildForecast pipeline", () => {
     expect(clear?.narrative).toContain("winds");
   });
 
+  it("cases sentence starts with the active locale (Turkish dotted-I)", () => {
+    const dict = withFallback({ sky_mostly_clear: "istanbul haze" });
+    const tr = buildForecast(series(), {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+      locale: "tr",
+    });
+    const en = buildForecast(series(), {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+      locale: "en",
+    });
+    const first = (p: { narrative: string }): string => p.narrative;
+    expect(tr.map(first).some((n) => n.includes("İstanbul haze"))).toBe(true);
+    expect(en.map(first).some((n) => n.includes("Istanbul haze"))).toBe(true);
+  });
+
+  it("capitalizes the no-weather fallback in the active locale", () => {
+    const n = 12;
+    const fill = (): (number | null)[] => Array(n).fill(null);
+    const empty: HourlySeries = {
+      timeMs: Array.from({ length: n }, (_, i) => START + i * HOUR_MS),
+      temperatureC: fill(),
+      humidity: fill(),
+      apparentC: fill(),
+      pop: fill(),
+      precipMm: fill(),
+      rainMm: fill(),
+      showersMm: fill(),
+      snowfallCm: fill(),
+      cloudCover: fill(),
+      cloudLow: fill(),
+      cloudMid: fill(),
+      cloudHigh: fill(),
+      windKph: fill(),
+      windDeg: fill(),
+      windGustKph: fill(),
+      visibilityM: fill(),
+      isDay: fill(),
+      wmoCode: fill(),
+      timeZone: "America/Chicago",
+    };
+    const dict = withFallback({ no_weather: "sin fenómenos significativos." });
+    const periods = buildForecast(empty, {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+      locale: "es",
+    });
+    expect(periods.length).toBeGreaterThan(0);
+    for (const p of periods) {
+      expect(p.narrative).toBe("Sin fenómenos significativos.");
+    }
+  });
+
   it("converts units without breaking the pipeline", () => {
     const base = buildForecast(series(), {
       dictionary: EN_DICT,

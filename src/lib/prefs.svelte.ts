@@ -11,7 +11,7 @@ import {
   type Provider,
   type Units,
 } from "./preferences.js";
-import { locales, setLocale } from "./paraglide/runtime.js";
+import { baseLocale, locales, setLocale } from "./paraglide/runtime.js";
 
 export const prefs = $state({
   provider: "nws" as Provider,
@@ -34,7 +34,7 @@ export function initPrefs(): void {
   if (initialized) return;
   initialized = true;
   prefs.provider = resolveInitialProvider();
-  prefs.locale = resolveInitialLocale();
+  prefs.locale = resolveInitialLocale(locales, baseLocale);
   prefs.units = resolveInitialUnits();
   try {
     // No document reload: the app is fully client-rendered and owns its

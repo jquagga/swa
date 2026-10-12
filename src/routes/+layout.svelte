@@ -5,7 +5,7 @@
   import { page } from "$app/state";
   import { updated } from "$app/state";
   import {
-    SUPPORTED_LOCALES,
+    isEnglishLocale,
     type AppLocale,
     type Provider,
     type Units,
@@ -18,6 +18,7 @@
     setUnitsPref,
   } from "#lib/prefs.svelte.js";
   import * as m from "#lib/paraglide/messages.js";
+  import { locales as SUPPORTED_LOCALES } from "#lib/paraglide/runtime.js";
 
   let { children } = $props();
   let swUpdated = $state(false);
@@ -40,9 +41,11 @@
     }
   }
 
-  // NWS pages are English-only, so leaving English for es/fr carries you
-  // to the OpenMeteo workflow that speaks the language — preserving the
-  // coordinates when you're on a forecast. The locale is applied with
+  // NWS pages are English-only, so leaving English for a non-English locale
+  // carries you to the OpenMeteo workflow that speaks the language —
+  // preserving the coordinates when you're on a forecast. English is judged
+  // by primary subtag so regional tags (en-US, en-GB) stay on NWS,
+  // consistent with defaultProvider(). The locale is applied with
   // Paraglide's reload disabled here because its default full-document
   // reload would race and cancel the navigation below; staying on the same
   // workflow keeps the default reload so translated chrome refreshes.
@@ -51,7 +54,7 @@
   async function selectLocale(next: AppLocale) {
     const path = page.url.pathname;
     const onNws = path === "/" || path.startsWith("/Weather");
-    if (next !== "en" && onNws) {
+    if (!isEnglishLocale(next) && onNws) {
       setLocalePref(next, { reload: false });
       if (path.startsWith("/Weather")) {
         // eslint-disable-next-line svelte/prefer-svelte-reactivity -- transient local, stringified immediately for goto; reactivity not needed
