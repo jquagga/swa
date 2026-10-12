@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "license": "AGPL-3.0-only",
   "type": "module",
-  "packageManager": "pnpm@12.9.1",
+  "packageManager": "pnpm@12.10.1",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "vite dev",
@@ -28,7 +28,7 @@
     "@eslint/js": "10.0.1",
     "@inlang/paraglide-js": "2.26.0",
     "@sveltejs/adapter-cloudflare": "8.0.0",
-    "@sveltejs/kit": "3.0.0",
+    "@sveltejs/kit": "3.0.1",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "26.6.4",
@@ -41,18 +41,18 @@
     "prettier": "3.9.9",
     "prettier-plugin-svelte": "4.1.1",
     "prettier-plugin-tailwindcss": "0.8.1",
-    "svelte": "5.57.1",
+    "svelte": "5.57.2",
     "svelte-check": "4.7.6",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
-    "vite": "8.3.2",
+    "vite": "8.3.4",
     "vitest": "5.0.3",
-    "wrangler": "4.147.0"
+    "wrangler": "4.149.0"
   },
   "dependencies": {
     "chart.js": "4.5.1",
-    "maplibre-gl": "6.12.0",
+    "maplibre-gl": "6.13.0",
     "openmeteo": "1.2.3"
   },
   "overrides": {
