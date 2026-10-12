@@ -7,12 +7,15 @@ import type { Handle } from "@sveltejs/kit/hooks";
 // %lang%/%dir% placeholders; the client runtime (initPrefs) owns the
 // locale afterwards.
 //
-// Locales are hardcoded (instead of importing the generated Paraglide
-// runtime) because plain .ts server modules in this repo cannot resolve
-// the generated .js + .d.ts output. Keep in sync with
-// project.inlang/settings.json.
-const BASE_LOCALE = "en";
-const LOCALES = ["en", "es", "fr"];
+// Locales come from the generated Paraglide runtime (i.e.
+// project.inlang/settings.json) so adding a language needs no edit here.
+// Plain `.ts`-relative imports of generated output fail resolution, so
+// this uses the `#lib` alias like the Svelte routes do.
+
+import { baseLocale, locales } from "#lib/paraglide/runtime.js";
+
+const BASE_LOCALE = baseLocale;
+const LOCALES: readonly string[] = locales;
 const COOKIE_NAME = "PARAGLIDE_LOCALE";
 
 function localeFromCookie(cookieHeader: string | null): string {

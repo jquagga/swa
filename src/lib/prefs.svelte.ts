@@ -11,7 +11,7 @@ import {
   type Provider,
   type Units,
 } from "./preferences.js";
-import { setLocale } from "./paraglide/runtime.js";
+import { locales, setLocale } from "./paraglide/runtime.js";
 
 export const prefs = $state({
   provider: "nws" as Provider,
@@ -21,6 +21,14 @@ export const prefs = $state({
 });
 
 let initialized = false;
+
+function applyRuntimeLocale(l: AppLocale, opts?: { reload?: boolean }): void {
+  // Only hand tags Paraglide knows to the runtime; anything else stays
+  // as an app-level preference with Paraglide on its fallback.
+  if ((locales as readonly string[]).includes(l)) {
+    setLocale(l as (typeof locales)[number], opts);
+  }
+}
 
 export function initPrefs(): void {
   if (initialized) return;
@@ -32,7 +40,7 @@ export function initPrefs(): void {
     // No document reload: the app is fully client-rendered and owns its
     // reactive updates; the locale picker navigates explicitly when the
     // workflow needs to change.
-    setLocale(prefs.locale, { reload: false });
+    applyRuntimeLocale(prefs.locale, { reload: false });
   } catch {
     // ignore (prerender)
   }
@@ -48,7 +56,7 @@ export function setLocalePref(l: AppLocale, opts?: { reload?: boolean }): void {
   prefs.locale = l;
   setStoredLocale(l);
   try {
-    setLocale(l, opts);
+    applyRuntimeLocale(l, opts);
   } catch {
     // ignore
   }

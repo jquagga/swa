@@ -70,5 +70,4 @@ export interface PeriodSummary {
   wmo: WmoSummary;
 }
 
-export type SupportedZfpLocale = "en" | "es" | "fr";
 export type DisplayUnits = "metric" | "us";

@@ -13,8 +13,10 @@
   import { initPrefs, prefs } from "#lib/prefs.svelte.js";
   import { setStoredProvider } from "#lib/preferences.js";
   import { mapWeatherToEmoji } from "#lib/weather-emoji.js";
+  import { getZfpDictionary } from "#lib/zfp-dict.js";
   import {
     buildForecast,
+    EN_DICT,
     formatWind,
     localHour,
     type ForecastPeriod,
@@ -66,11 +68,18 @@
   let nameParam = $derived(page.url.searchParams.get("name") ?? "");
 
   let tempUnitLabel = $derived(prefs.units === "us" ? "°F" : "°C");
-  let zfpLocale = $derived(
-    (["en", "es", "fr"] as const).includes(prefs.locale as "en" | "es" | "fr")
-      ? (prefs.locale as "en" | "es" | "fr")
-      : "en",
-  );
+  // Dictionary for the current locale, built from centralized Paraglide
+  // messages. `prefs.locale` is tracked so narratives re-render on language
+  // switch (the Paraglide runtime itself isn't reactive); unknown locales
+  // fall back to English inside the message functions.
+  let zfpDict = $derived.by(() => {
+    void prefs.locale;
+    try {
+      return getZfpDictionary();
+    } catch {
+      return EN_DICT;
+    }
+  });
 
   // All timestamps from the SDK adapter are true UTC instants; every
   // formatter pins the FORECAST location's timezone (not the device zone)
@@ -117,7 +126,7 @@
   let periods = $derived.by((): ForecastPeriod[] => {
     if (!series) return [];
     try {
-      return buildForecast(series, { locale: zfpLocale, units: prefs.units });
+      return buildForecast(series, { dictionary: zfpDict, units: prefs.units });
     } catch (e) {
       console.error("ZFP build failed:", e);
       return [];
@@ -277,7 +286,7 @@
       fetchedAt = new Date().toISOString();
       saveOpenMeteoSnapshot(lat, lon, {
         series: s,
-        periods: buildForecast(s, { locale: zfpLocale, units: prefs.units }),
+        periods: buildForecast(s, { dictionary: zfpDict, units: prefs.units }),
         placeName,
         timezone: tz,
         units: prefs.units,

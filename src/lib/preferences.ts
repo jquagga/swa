@@ -1,11 +1,20 @@
 // App-level preferences: provider, locale, units. Client-persisted in
 // localStorage; auto-detect only when no stored value exists.
+//
+// Locales are open-ended: the supported list comes from the generated
+// Paraglide runtime (i.e. project.inlang/settings.json), so adding a
+// language needs no code change here. Matching is exact-tag first, then
+// primary-subtag ("es-MX" → "es"), then the base locale.
+
+import { baseLocale, locales } from "#lib/paraglide/runtime.js";
 
 export type Provider = "nws" | "openmeteo";
 export type Units = "metric" | "us";
-export type AppLocale = "en" | "es" | "fr";
+/** Any BCP-47 tag; validated against the supported list where it matters. */
+export type AppLocale = string;
 
-export const SUPPORTED_LOCALES: AppLocale[] = ["en", "es", "fr"];
+export const BASE_LOCALE: string = baseLocale;
+export const SUPPORTED_LOCALES: readonly string[] = locales;
 
 const PROVIDER_KEY = "swa:provider";
 const LOCALE_KEY = "swa:locale";
@@ -26,11 +35,28 @@ export function defaultUnits(lang = browserLanguage()): Units {
   return /[-_]US$/i.test(lang.trim()) ? "us" : "metric";
 }
 
-export function defaultLocale(lang = browserLanguage()): AppLocale {
-  const primary = lang.trim().split(/[-_]/)[0]?.toLowerCase() ?? "en";
-  if (primary === "es") return "es";
-  if (primary === "fr") return "fr";
-  return "en";
+function canonicalSupported(tag: string): string | null {
+  const lower = tag.toLowerCase();
+  for (const s of SUPPORTED_LOCALES) {
+    if (s.toLowerCase() === lower) return s;
+  }
+  return null;
+}
+
+export function defaultLocale(
+  lang = browserLanguage(),
+  supported: readonly string[] = SUPPORTED_LOCALES,
+): string {
+  const tag = lang.trim().replace(/_/g, "-");
+  const exact = tag.toLowerCase();
+  for (const s of supported) {
+    if (s.toLowerCase() === exact) return s;
+  }
+  const primary = tag.split("-")[0]?.toLowerCase() ?? "";
+  for (const s of supported) {
+    if (s.split("-")[0]?.toLowerCase() === primary) return s;
+  }
+  return baseLocale;
 }
 
 function readStored<T extends string>(key: string): T | null {
@@ -55,9 +81,14 @@ export function getStoredProvider(): Provider | null {
   return v === "nws" || v === "openmeteo" ? v : null;
 }
 
-export function getStoredLocale(): AppLocale | null {
-  const v = readStored<AppLocale>(LOCALE_KEY);
-  return v && (SUPPORTED_LOCALES as string[]).includes(v) ? v : null;
+export function getStoredLocale(): string | null {
+  const v = readStored<string>(LOCALE_KEY);
+  if (!v) return null;
+  // Accept anything shaped like a language tag that we support; unknown
+  // values (e.g. from a newer version) fall through to auto-detect.
+  return /^[A-Za-z]{2,3}(-[A-Za-z]{2,4})?$/.test(v)
+    ? (canonicalSupported(v) ?? null)
+    : null;
 }
 
 export function getStoredUnits(): Units | null {
@@ -69,7 +100,7 @@ export function resolveInitialProvider(): Provider {
   return getStoredProvider() ?? defaultProvider();
 }
 
-export function resolveInitialLocale(): AppLocale {
+export function resolveInitialLocale(): string {
   return getStoredLocale() ?? defaultLocale();
 }
 
@@ -81,7 +112,7 @@ export function setStoredProvider(p: Provider): void {
   writeStored(PROVIDER_KEY, p);
 }
 
-export function setStoredLocale(l: AppLocale): void {
+export function setStoredLocale(l: string): void {
   writeStored(LOCALE_KEY, l);
 }
 
