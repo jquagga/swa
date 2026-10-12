@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildForecast } from "./index.js";
+import { EN_DICT, withFallback, type ZfpDictionary } from "./dictionary.js";
 import { mapWeatherToEmoji } from "../weather-emoji.js";
 import type { HourlySeries } from "./types.js";
 
@@ -40,10 +41,26 @@ function series(): HourlySeries {
   };
 }
 
+/**
+ * Token dictionary: every entry renders as [key] or [key:args], so tests
+ * can prove the builder used the dictionary (not English literals) for a
+ * given fragment.
+ */
+function tokenDict(): ZfpDictionary {
+  const out: Record<string, string | ((...args: string[]) => string)> = {};
+  for (const [k, v] of Object.entries(EN_DICT)) {
+    out[k] =
+      typeof v === "function"
+        ? (...args: string[]) => `[${k}:${args.join(",")}]`
+        : `[${k}]`;
+  }
+  return out as unknown as ZfpDictionary;
+}
+
 describe("buildForecast pipeline", () => {
   it("narrates every live period in order", () => {
     const periods = buildForecast(series(), {
-      locale: "en",
+      dictionary: EN_DICT,
       units: "metric",
       nowMs: START + HOUR_MS,
     });
@@ -59,29 +76,125 @@ describe("buildForecast pipeline", () => {
     expect(starts[0]).toBeLessThanOrEqual(START + HOUR_MS);
   });
 
-  it("translates and converts units without breaking the pipeline", () => {
-    const base = buildForecast(series(), {
-      locale: "en",
+  it("renders English through the dictionary (no hardcoded literals)", () => {
+    const periods = buildForecast(series(), {
+      dictionary: tokenDict(),
       units: "metric",
       nowMs: START + HOUR_MS,
     });
-    for (const locale of ["es", "fr"] as const) {
-      const localized = buildForecast(series(), {
-        locale,
-        units: "metric",
-        nowMs: START + HOUR_MS,
-      });
-      expect(localized).toHaveLength(base.length);
-      for (const p of localized) {
-        expect(p.narrative.length).toBeGreaterThan(0);
-      }
+    expect(periods.length).toBeGreaterThan(0);
+    // The shower period composes qualifier + type + percent + temp + wind
+    // entirely from token entries.
+    const shower = periods.find((p) => p.narrative.includes("[pop_sentence"));
+    expect(shower).toBeDefined();
+    expect(shower?.narrative).toContain("[pop_sentence_percent:");
+    expect(shower?.narrativeEn).not.toContain("[pop_sentence");
+    // narrativeEn always stays English for emoji matching.
+    expect(shower?.narrativeEn).toContain("Rain showers.");
+    for (const p of periods) {
+      expect(p.narrative.length).toBeGreaterThan(0);
+      expect(p.short.length).toBeGreaterThan(0);
     }
-    const us = buildForecast(series(), {
+  });
+
+  it("composes qualifiers through dictionary patterns", () => {
+    const s = series();
+    // Mid-range PoP with convective showers → "scattered" qualifier.
+    s.pop = s.pop.map((v, i) => (i >= 30 && i < 36 ? 40 : v));
+    const periods = buildForecast(s, {
+      dictionary: tokenDict(),
+      units: "metric",
+      nowMs: START + HOUR_MS,
+    });
+    const shower = periods.find((p) => p.narrative.includes("[pop_sentence"));
+    expect(shower?.narrative).toContain("[pop_sentence_bare:");
+    expect(shower?.narrativeEn).toContain("Scattered rain showers.");
+  });
+
+  it("falls back to English for untranslated keys", () => {
+    const partial = withFallback({ sky_mostly_clear: "[despejado]" });
+    const periods = buildForecast(series(), {
+      dictionary: partial,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+    });
+    const clear = periods.find((p) => p.narrative.includes("[despejado]"));
+    expect(clear).toBeDefined();
+    // Wind sentence still renders from the English fallback.
+    expect(clear?.narrative).toContain("winds");
+  });
+
+  it("cases sentence starts with the active locale (Turkish dotted-I)", () => {
+    const dict = withFallback({ sky_mostly_clear: "istanbul haze" });
+    const tr = buildForecast(series(), {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+      locale: "tr",
+    });
+    const en = buildForecast(series(), {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
       locale: "en",
+    });
+    const first = (p: { narrative: string }): string => p.narrative;
+    expect(tr.map(first).some((n) => n.includes("İstanbul haze"))).toBe(true);
+    expect(en.map(first).some((n) => n.includes("Istanbul haze"))).toBe(true);
+  });
+
+  it("capitalizes the no-weather fallback in the active locale", () => {
+    const n = 12;
+    const fill = (): (number | null)[] => Array(n).fill(null);
+    const empty: HourlySeries = {
+      timeMs: Array.from({ length: n }, (_, i) => START + i * HOUR_MS),
+      temperatureC: fill(),
+      humidity: fill(),
+      apparentC: fill(),
+      pop: fill(),
+      precipMm: fill(),
+      rainMm: fill(),
+      showersMm: fill(),
+      snowfallCm: fill(),
+      cloudCover: fill(),
+      cloudLow: fill(),
+      cloudMid: fill(),
+      cloudHigh: fill(),
+      windKph: fill(),
+      windDeg: fill(),
+      windGustKph: fill(),
+      visibilityM: fill(),
+      isDay: fill(),
+      wmoCode: fill(),
+      timeZone: "America/Chicago",
+    };
+    const dict = withFallback({ no_weather: "sin fenómenos significativos." });
+    const periods = buildForecast(empty, {
+      dictionary: dict,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+      locale: "es",
+    });
+    expect(periods.length).toBeGreaterThan(0);
+    for (const p of periods) {
+      expect(p.narrative).toBe("Sin fenómenos significativos.");
+    }
+  });
+
+  it("converts units without breaking the pipeline", () => {
+    const base = buildForecast(series(), {
+      dictionary: EN_DICT,
+      units: "metric",
+      nowMs: START + HOUR_MS,
+    });
+    const us = buildForecast(series(), {
+      dictionary: EN_DICT,
       units: "us",
       nowMs: START + HOUR_MS,
     });
     expect(us).toHaveLength(base.length);
-    expect(us[0].narrativeEn).not.toBe(base[0].narrativeEn);
+    expect(us[0]?.narrativeEn).not.toBe(base[0]?.narrativeEn);
+    expect(us[0]?.narrativeEn).toContain("mph");
+    expect(base[0]?.narrativeEn).toContain("kph");
   });
 });

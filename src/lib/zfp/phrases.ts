@@ -1,3 +1,4 @@
+import { EN_DICT, type ZfpDictionary } from "./dictionary.js";
 import { celsiusToFahrenheit, kphToMph } from "./units.js";
 
 export type Compass8 =
@@ -22,10 +23,14 @@ export function compass8(deg: number): Compass8 {
     "northwest",
   ];
   const i = Math.round((((deg % 360) + 360) % 360) / 45) % 8;
-  return dirs[i];
+  return dirs[i] ?? "north";
 }
 
-/** Sky wording per ZFP Table 3 thresholds (percent opaque cover). */
+/**
+ * Sky wording per ZFP Table 3 thresholds (percent opaque cover). Returns a
+ * stable semantic id; the builder looks it up in the dictionary so the id
+ * doubles as the English text.
+ */
 export function skyPhrase(
   cloudAvg: number | null,
   isDaytime: boolean,
@@ -39,7 +44,7 @@ export function skyPhrase(
   return isDaytime ? "cloudy" : "cloudy";
 }
 
-/** PoP qualifying term per ZFP Table 1. */
+/** PoP qualifying term per ZFP Table 1. Returns a stable semantic id. */
 export function popQualifier(
   popMax: number,
   convective: boolean,
@@ -81,70 +86,83 @@ export function precipKind(
  * "0s"/"10s" read like typos and don't survive translation; sub-zero
  * values use "around" (decade math breaks on negatives).
  */
-export function tempCategory(c: number, units: "metric" | "us"): string {
+export function tempCategory(
+  c: number,
+  units: "metric" | "us",
+  dict: ZfpDictionary = EN_DICT,
+): string {
   if (units === "us") {
     const f = Math.round(celsiusToFahrenheit(c));
-    if (f < 0 || f >= 100) return `around ${f}`;
-    if (f < 10) return "in the single digits";
-    if (f < 20) return `around ${f}`;
-    return decadePhrase(Math.floor(f / 10) * 10, f % 10);
+    if (f < 0 || f >= 100) return dict.temp_around(String(f));
+    if (f < 10) return dict.temp_single_digits;
+    if (f < 20) return dict.temp_around(String(f));
+    return decadePhrase(Math.floor(f / 10) * 10, f % 10, dict);
   }
   const v = Math.round(c);
-  if (v < 0) return `around ${v}`;
-  if (v < 10) return "in the single digits";
-  if (v < 20) return `around ${v}`;
-  return decadePhrase(Math.floor(v / 10) * 10, ((v % 10) + 10) % 10);
+  if (v < 0) return dict.temp_around(String(v));
+  if (v < 10) return dict.temp_single_digits;
+  if (v < 20) return dict.temp_around(String(v));
+  return decadePhrase(Math.floor(v / 10) * 10, ((v % 10) + 10) % 10, dict);
 }
 
-function decadePhrase(decade: number, ones: number): string {
-  if (ones === 0) return `around ${decade}`;
-  if (ones <= 3) return `in the lower ${decade}s`;
-  if (ones <= 6) return `in the mid ${decade}s`;
-  return `in the upper ${decade}s`;
+function decadePhrase(
+  decade: number,
+  ones: number,
+  dict: ZfpDictionary,
+): string {
+  if (ones === 0) return dict.temp_around(String(decade));
+  if (ones <= 3) return dict.temp_lower(String(decade));
+  if (ones <= 6) return dict.temp_mid(String(decade));
+  return dict.temp_upper(String(decade));
 }
 
-/** Numeric rainfall total for narratives. US inches spell out the unit and
- * always carry at least one decimal (two below 10 in for precision). */
-export function rainAmountPhrase(mm: number, units: "metric" | "us"): string {
+/** Numeric rainfall total for narratives. */
+export function rainAmountPhrase(
+  mm: number,
+  units: "metric" | "us",
+  dict: ZfpDictionary = EN_DICT,
+): string {
   if (units === "us") {
     const inches = mm / 25.4;
     const text = inches < 10 ? inches.toFixed(2) : inches.toFixed(1);
-    return `${text} ${inches < 1.05 && inches >= 0.95 ? "inch" : "inches"}`;
+    // Singular "inch" near 1.00 is English-specific (MVP documented).
+    return `${text} ${inches < 1.05 && inches >= 0.95 ? dict.unit_inch : dict.unit_inches}`;
   }
-  return `${mm < 10 ? mm.toFixed(1) : Math.round(mm)} mm`;
+  return `${mm < 10 ? mm.toFixed(1) : Math.round(mm)} ${dict.unit_mm}`;
 }
 
 /** Snow accumulation categorical phrasing (ZFP Table 4). */
 export function snowRangePhrase(
   amount: number,
   units: "metric" | "us",
+  dict: ZfpDictionary = EN_DICT,
 ): string {
   if (units === "us") {
     const inches = amount;
-    if (inches < 0.5) return "little or no accumulation";
-    if (inches < 1.5) return "around an inch";
-    if (inches < 2.5) return "1 to 3 inches";
-    if (inches < 3.5) return "2 to 4 inches";
-    if (inches < 4.5) return "3 to 5 inches";
-    if (inches < 5.5) return "4 to 6 inches";
-    if (inches < 7.5) return "4 to 8 inches";
-    if (inches < 9.5) return "6 to 10 inches";
-    if (inches < 11.5) return "8 to 12 inches";
-    if (inches < 13.5) return "10 to 14 inches";
-    if (inches < 15.5) return "12 to 16 inches";
-    if (inches < 17.5) return "12 to 18 inches";
-    if (inches <= 24) return "18 to 24 inches";
-    return "more than 2 feet";
+    if (inches < 0.5) return dict.snow_none;
+    if (inches < 1.5) return dict.snow_around_inch;
+    if (inches < 2.5) return dict.range("1", "3", dict.unit_inches);
+    if (inches < 3.5) return dict.range("2", "4", dict.unit_inches);
+    if (inches < 4.5) return dict.range("3", "5", dict.unit_inches);
+    if (inches < 5.5) return dict.range("4", "6", dict.unit_inches);
+    if (inches < 7.5) return dict.range("4", "8", dict.unit_inches);
+    if (inches < 9.5) return dict.range("6", "10", dict.unit_inches);
+    if (inches < 11.5) return dict.range("8", "12", dict.unit_inches);
+    if (inches < 13.5) return dict.range("10", "14", dict.unit_inches);
+    if (inches < 15.5) return dict.range("12", "16", dict.unit_inches);
+    if (inches < 17.5) return dict.range("12", "18", dict.unit_inches);
+    if (inches <= 24) return dict.range("18", "24", dict.unit_inches);
+    return dict.snow_more_than_2ft;
   }
   const cm = amount;
-  if (cm < 1) return "little or no accumulation";
-  if (cm < 3) return "around 2 cm";
-  if (cm < 6) return "2 to 6 cm";
-  if (cm < 10) return "5 to 10 cm";
-  if (cm < 15) return "8 to 15 cm";
-  if (cm < 25) return "15 to 25 cm";
-  if (cm < 40) return "25 to 40 cm";
-  return "more than 40 cm";
+  if (cm < 1) return dict.snow_none;
+  if (cm < 3) return dict.snow_around_2cm;
+  if (cm < 6) return dict.range("2", "6", dict.unit_cm);
+  if (cm < 10) return dict.range("5", "10", dict.unit_cm);
+  if (cm < 15) return dict.range("8", "15", dict.unit_cm);
+  if (cm < 25) return dict.range("15", "25", dict.unit_cm);
+  if (cm < 40) return dict.range("25", "40", dict.unit_cm);
+  return dict.snow_more_than_40cm;
 }
 
 export interface WindPhrase {
@@ -158,39 +176,110 @@ export function windPhrase(
   kph: number | null,
   gustKph: number | null,
   units: "metric" | "us" = "us",
+  dict: ZfpDictionary = EN_DICT,
 ): WindPhrase | null {
   if (kph == null) return null;
   if (units === "us") {
     const mph = kphToMph(kph);
-    if (mph < 5)
-      return { text: "winds light and variable", lightVariable: true };
+    if (mph < 5) return { text: dict.wind_calm, lightVariable: true };
     const dir = dirDeg == null ? null : compass8(dirDeg);
     const lo = Math.floor(mph / 5) * 5;
     let range: string;
-    if (mph < 20) range = `${lo} to ${lo + 5} mph`;
-    else if (mph < 40)
-      range = `${Math.floor(mph / 10) * 10} to ${Math.floor(mph / 10) * 10 + 10} mph`;
-    else
-      range = `${Math.floor(mph / 20) * 20} to ${Math.floor(mph / 20) * 20 + 20} mph`;
-    let text = dir ? `${dir} winds ${range}` : `winds ${range}`;
+    if (mph < 20) range = dict.range(String(lo), String(lo + 5), dict.unit_mph);
+    else if (mph < 40) {
+      const base = Math.floor(mph / 10) * 10;
+      range = dict.range(String(base), String(base + 10), dict.unit_mph);
+    } else {
+      const base = Math.floor(mph / 20) * 20;
+      range = dict.range(String(base), String(base + 20), dict.unit_mph);
+    }
+    let text =
+      dir == null
+        ? dict.wind_no_dir(range)
+        : dict.wind_with_dir(dirText(dir, dict), range);
     if (gustKph != null) {
       const gustMph = Math.round(kphToMph(gustKph));
       if (gustMph >= 20 && gustMph - mph >= 10) {
-        text += ` with gusts to ${gustMph} mph`;
+        text = dict.wind_gusts(text, `${gustMph} ${dict.unit_mph}`);
       }
     }
     return { text, lightVariable: false };
   }
-  if (kph < 8) return { text: "winds light and variable", lightVariable: true };
+  if (kph < 8) return { text: dict.wind_calm, lightVariable: true };
   const dir = dirDeg == null ? null : compass8(dirDeg);
   const lo = Math.floor(kph / 10) * 10;
-  const range = lo === 0 ? "up to 10 kph" : `${lo} to ${lo + 10} kph`;
-  let text = dir ? `${dir} winds ${range}` : `winds ${range}`;
+  const range =
+    lo === 0
+      ? dict.wind_up_to("10", dict.unit_kph)
+      : dict.range(String(lo), String(lo + 10), dict.unit_kph);
+  let text =
+    dir == null
+      ? dict.wind_no_dir(range)
+      : dict.wind_with_dir(dirText(dir, dict), range);
   if (gustKph != null) {
     const gust = Math.round(gustKph);
     if (gust >= 32 && gust - kph >= 16) {
-      text += ` with gusts to ${gust} kph`;
+      text = dict.wind_gusts(text, `${gust} ${dict.unit_kph}`);
     }
   }
   return { text, lightVariable: false };
+}
+
+/** Map a skyPhrase id to localized text. */
+export function skyText(id: string, dict: ZfpDictionary): string {
+  switch (id) {
+    case "sunny":
+      return dict.sky_sunny;
+    case "clear":
+      return dict.sky_clear;
+    case "mostly clear":
+      return dict.sky_mostly_clear;
+    case "partly cloudy":
+      return dict.sky_partly_cloudy;
+    case "mostly cloudy":
+      return dict.sky_mostly_cloudy;
+    default:
+      return dict.sky_cloudy;
+  }
+}
+
+/** Map a popQualifier id to its localized qualifier word. */
+export function popText(id: string, dict: ZfpDictionary): string {
+  switch (id) {
+    case "isolated":
+      return dict.pop_isolated;
+    case "scattered":
+      return dict.pop_scattered;
+    case "numerous":
+      return dict.pop_numerous;
+    case "likely":
+      return dict.pop_likely;
+    case "slight chance":
+      return dict.pop_slight_chance;
+    default:
+      return dict.pop_chance;
+  }
+}
+
+/** Localized compass point. Dictionary entries carry the locale's
+ * preposition/article contract (en "northeast", es "del noreste"). */
+export function dirText(dir: Compass8, dict: ZfpDictionary): string {
+  switch (dir) {
+    case "north":
+      return dict.dir_north;
+    case "northeast":
+      return dict.dir_northeast;
+    case "east":
+      return dict.dir_east;
+    case "southeast":
+      return dict.dir_southeast;
+    case "south":
+      return dict.dir_south;
+    case "southwest":
+      return dict.dir_southwest;
+    case "west":
+      return dict.dir_west;
+    case "northwest":
+      return dict.dir_northwest;
+  }
 }

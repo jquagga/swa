@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { EN_DICT, withFallback } from "./dictionary.js";
 import {
   compass8,
+  dirText,
   popQualifier,
+  popText,
   precipKind,
   rainAmountPhrase,
   skyPhrase,
+  skyText,
   snowRangePhrase,
   tempCategory,
   windPhrase,
@@ -108,5 +112,50 @@ describe("windPhrase", () => {
     expect(windPhrase(180, 25, null, "metric")?.text).toBe(
       "south winds 20 to 30 kph",
     );
+  });
+
+  it("renders through the dictionary (prepositional dirs, patterns)", () => {
+    const dict = withFallback({
+      wind_calm: "vientos ligeros y variables",
+      wind_with_dir: (dir, range) => `vientos ${dir} ${range}`,
+      wind_no_dir: (range) => `vientos ${range}`,
+      wind_gusts: (base, gust) => `${base} con ráfagas de ${gust}`,
+      range: (a, b, unit) => `${a} a ${b} ${unit}`,
+      dir_east: "del este",
+    });
+    expect(windPhrase(90, 16, 48, "us", dict)?.text).toBe(
+      "vientos del este 5 a 10 mph con ráfagas de 30 mph",
+    );
+    expect(windPhrase(null, 16, null, "us", dict)?.text).toBe(
+      "vientos 5 a 10 mph",
+    );
+    expect(windPhrase(90, 3, null, "metric", dict)?.text).toBe(
+      "vientos ligeros y variables",
+    );
+  });
+});
+
+describe("dictionary lookups", () => {
+  it("maps sky and qualifier ids with English fallback", () => {
+    expect(skyText("sunny", EN_DICT)).toBe("sunny");
+    expect(skyText("bogus", EN_DICT)).toBe("cloudy");
+    expect(popText("likely", EN_DICT)).toBe("likely");
+    expect(popText("bogus", EN_DICT)).toBe("chance");
+    expect(dirText("north", EN_DICT)).toBe("north");
+    const dict = withFallback({ sky_sunny: "soleado" });
+    expect(skyText("sunny", dict)).toBe("soleado");
+    expect(skyText("cloudy", dict)).toBe("cloudy");
+  });
+
+  it("formats temps and amounts through dictionary templates", () => {
+    expect(tempCategory(20, "us", EN_DICT)).toBe("in the upper 60s");
+    const dict = withFallback({
+      temp_upper: (decade) => `altos ${decade}`,
+      temp_around: (value) => `alrededor de ${value}`,
+    });
+    expect(tempCategory(20, "us", dict)).toBe("altos 60");
+    expect(tempCategory(20, "metric", dict)).toBe("alrededor de 20");
+    expect(rainAmountPhrase(25.4, "us", dict)).toBe("1.00 inch");
+    expect(snowRangePhrase(1, "us", dict)).toBe("around an inch");
   });
 });
