@@ -10,4 +10,6 @@ trustPolicy: "no-downgrade"
 
 strictDepBuilds: true
 
+minimumReleaseAge: 10080
+
 ignoreScripts: true
