@@ -6,5 +6,6 @@
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<7"
     }
-  ]
+  ],
+  "minimumReleaseAge": "7 days"
 }
