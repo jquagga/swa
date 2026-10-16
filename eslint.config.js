@@ -49,6 +49,11 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      // No `paths.base` (root-deployed Workers app) and Paraglide uses
+      // cookie/localStorage strategy with no localized URLs, so `resolve()`
+      // is an identity wrapper here. The rule also flags dynamic external
+      // NWS URLs (briefingUrl/NWSURL) it can't prove absolute.
+      "svelte/no-navigation-without-resolve": "off",
     },
   },
   {
