@@ -42,17 +42,17 @@
     "prettier-plugin-svelte": "4.1.1",
     "prettier-plugin-tailwindcss": "0.8.1",
     "svelte": "5.57.2",
-    "svelte-check": "4.7.6",
+    "svelte-check": "4.7.7",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",
     "vitest": "5.0.5",
-    "wrangler": "4.151.0"
+    "wrangler": "4.151.1"
   },
   "dependencies": {
     "chart.js": "4.5.1",
-    "maplibre-gl": "6.14.0",
+    "maplibre-gl": "6.15.0",
     "openmeteo": "1.2.3"
   },
   "overrides": {
