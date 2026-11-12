@@ -28,4 +28,4 @@ jobs:
           persist-credentials: false
 
       - name: Run zizmor 🌈
-        uses: step-security/zizmor-action
+        uses: step-security/zizmor-action@v0
