@@ -35,7 +35,7 @@
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.14.0",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-svelte": "3.24.0",
+    "eslint-plugin-svelte": "3.24.1",
     "globals": "17.14.0",
     "picomatch": "4.0.7",
     "prettier": "3.9.10",
@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "chart.js": "4.6.1",
-    "maplibre-gl": "6.16.0",
+    "maplibre-gl": "6.17.0",
     "openmeteo": "1.2.3"
   },
   "overrides": {
