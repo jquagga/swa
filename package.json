@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "license": "AGPL-3.0-only",
   "type": "module",
-  "packageManager": "pnpm@12.18.0",
+  "packageManager": "pnpm@12.19.0",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "dev": "vite dev",
@@ -28,7 +28,7 @@
     "@eslint/js": "10.0.1",
     "@inlang/paraglide-js": "3.2.1",
     "@sveltejs/adapter-cloudflare": "8.0.2",
-    "@sveltejs/kit": "3.1.1",
+    "@sveltejs/kit": "3.2.0",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "@tailwindcss/vite": "4.3.5",
     "@types/node": "26.6.6",
@@ -46,9 +46,9 @@
     "tailwindcss": "4.3.5",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.2",
-    "vite": "8.3.6",
+    "vite": "8.3.7",
     "vitest": "5.1.0",
-    "wrangler": "4.158.0"
+    "wrangler": "4.160.0"
   },
   "dependencies": {
     "chart.js": "4.6.1",
