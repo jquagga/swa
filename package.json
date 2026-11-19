@@ -55,9 +55,6 @@
     "maplibre-gl": "6.18.0",
     "openmeteo": "1.2.3"
   },
-  "overrides": {
-    "cookie": "2.0.2"
-  },
   "imports": {
     "#lib": "./src/lib/index.js",
     "#lib/*": "./src/lib/*"
