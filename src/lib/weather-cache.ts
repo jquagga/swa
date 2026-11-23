@@ -31,6 +31,9 @@ export interface WeatherAlert {
       description: string;
       instruction: string;
       effective?: string;
+      /** Event end (preferred) or message expiry, per NWS. */
+      ends?: string | null;
+      expires?: string | null;
     };
   }>;
 }
@@ -145,6 +148,28 @@ export function normalizeCachedAlertSeverity(alerts: WeatherAlert): void {
   }
 }
 
+/**
+ * Drop alerts whose end/expiry is already in the past. Cached snapshots can
+ * be days old (offline fallback), and the page labels whatever survives as
+ * "Active alerts" — restoring expired warnings as current is misleading.
+ * Unknown or unparseable timestamps are kept rather than hidden.
+ */
+export function filterActiveAlerts(
+  alerts: WeatherAlert,
+  nowMs = Date.now(),
+): WeatherAlert {
+  if (!alerts.features) return { features: [] };
+  return {
+    ...alerts,
+    features: alerts.features.filter((alert) => {
+      const end = alert.properties.ends ?? alert.properties.expires;
+      if (!end) return true;
+      const endMs = Date.parse(end);
+      return !Number.isFinite(endMs) || endMs > nowMs;
+    }),
+  };
+}
+
 /** Persist the current forecast snapshot for offline fallback. */
 export function saveCachedSnapshot(
   latitude: number,
@@ -210,10 +235,11 @@ export function loadCachedSnapshot(
       return null;
     }
     normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
+    const alerts = filterActiveAlerts(data.alerts ?? { features: [] });
     writeCacheIndex(key);
     return {
       point: data.point,
-      alerts: data.alerts ?? { features: [] },
+      alerts,
       forecast: data.forecast ?? {},
       gridData: data.gridData ?? {},
       NWSURL: data.NWSURL ?? "",

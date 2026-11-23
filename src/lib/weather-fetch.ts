@@ -1,9 +1,6 @@
 const USER_AGENT = "https://github.com/jquagga/swa";
 const MAX_ATTEMPTS = 3;
 const FETCH_TIMEOUT_MS = 10_000;
-// A `Retry-After` beyond this is treated as "wait too long" and replaced by
-// the normal backoff, so a strict upstream never stalls a visible fetch.
-const MAX_RETRY_AFTER_MS = 10_000;
 
 /** An HTTP failure that carries the status (and any `Retry-After` hint). */
 export class HttpError extends Error {
@@ -52,8 +49,10 @@ export function backoffMs(attempt: number): number {
 
 function retryDelayMs(error: Error, attempt: number): number {
   if (error instanceof HttpError) {
+    // The server's requested wait wins over our backoff, even when it is
+    // long: retrying early would only earn another 429/503.
     const after = parseRetryAfterMs(error.retryAfter);
-    if (after != null) return Math.min(after, MAX_RETRY_AFTER_MS);
+    if (after != null) return after;
   }
   return backoffMs(attempt);
 }

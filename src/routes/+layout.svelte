@@ -23,6 +23,10 @@
   let { children } = $props();
   let swUpdated = $state(false);
   let showUpdate = $derived(swUpdated || updated.current);
+  // The installed-but-waiting worker, if one has been observed. `SKIP_WAITING`
+  // must be posted here: posting to `controller` targets the *active* (old)
+  // worker, whose skipWaiting() is a no-op, so the update would never apply.
+  let waitingWorker: ServiceWorker | null = null;
 
   let prefsReady = $derived(prefs.ready);
 
@@ -128,6 +132,7 @@
 
     function onSwStateChange() {
       if (watched?.state === "installed" && container.controller) {
+        waitingWorker = watched;
         swUpdated = true;
       }
     }
@@ -148,7 +153,10 @@
         if (!reg) return;
         registration = reg;
         registration.addEventListener("updatefound", onUpdateFound);
-        if (reg.waiting && container.controller) swUpdated = true;
+        if (reg.waiting && container.controller) {
+          waitingWorker = reg.waiting;
+          swUpdated = true;
+        }
         watch(reg.installing);
       })
       .catch(() => {});
@@ -157,6 +165,7 @@
       container.removeEventListener("message", onSwMessage);
       registration?.removeEventListener("updatefound", onUpdateFound);
       watch(null);
+      waitingWorker = null;
     };
   });
 
@@ -175,7 +184,14 @@
       window.location.reload();
     };
     container.addEventListener("controllerchange", go, { once: true });
-    container.controller.postMessage({ type: "SKIP_WAITING" });
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      // SvelteKit can flag a new version before we observe the worker
+      // (e.g. right after install). There is nothing useful to post yet, so
+      // rely on the timeout below to pick up the update on reload.
+      container.controller.postMessage({ type: "SKIP_WAITING" });
+    }
     // Fallback when activation never emits a controller change.
     setTimeout(go, 1500);
   }

@@ -753,7 +753,13 @@
     return () => clearInterval(timer);
   });
 
-  $effect(() => () => clearBadge());
+  $effect(() => () => {
+    // Invalidate in-flight continuations (notably fetchAlertsAsync) before
+    // clearing the badge: a late alert response must not restore the
+    // departed location's count after the page is gone.
+    weatherRequestId++;
+    clearBadge();
+  });
 
   $effect(() => {
     // Load the discussion when the accordion opens, and when the office

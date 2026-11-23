@@ -107,6 +107,26 @@ describe("retry policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("honors a Retry-After longer than the old 10s cap", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(
+        new Response("slow down", {
+          status: 429,
+          headers: { "retry-after": "30" },
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const pending = fetchData<{ ok: boolean }>("https://x");
+    await vi.advanceTimersByTimeAsync(29_000);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(pending).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("exposes the status on HTTP failures", async () => {
     const fetchMock = vi.fn(async () => new Response("gone", { status: 410 }));
     vi.stubGlobal("fetch", fetchMock);
