@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { parseAfdProduct, unwrapNwsHardWrap } from "#lib/afd.js";
+  import { shouldAutoLoadAfd } from "#lib/afd-state.js";
   import { buildChartConfig } from "#lib/chart-config.js";
   import type { Chart as ChartInstance } from "chart.js";
   import {
@@ -55,6 +56,10 @@
   let afdLoading = $derived(afdLoadingOffice !== null);
   let afdError = $state<string | null>(null);
   let afdFetchedOffice = $state<string | null>(null);
+  // Office whose last automatic load failed. Kept separate from afdError so
+  // a failure cannot re-arm the effect that starts loads (see
+  // shouldAutoLoadAfd); retrying is an explicit user action.
+  let afdFailedOffice = $state<string | null>(null);
   // User-visible open state of the AFD accordion, tracked so an office
   // change while it is open can restore it and load the new discussion
   // (a remounted <details> emits no toggle event on its own).
@@ -80,39 +85,56 @@
   // older request can never overwrite a newer location's state or cache.
   let weatherRequestId = 0;
 
-  const tooltipTitleFmt = new Intl.DateTimeFormat("en-US", {
+  const TOOLTIP_TITLE_OPTIONS: Intl.DateTimeFormatOptions = {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
-  const hourLabelFmt = new Intl.DateTimeFormat("en-US", {
+  };
+  const HOUR_LABEL_OPTIONS: Intl.DateTimeFormatOptions = {
     hour: "numeric",
     weekday: "short",
-  });
-  const sunTimeFmt = new Intl.DateTimeFormat("en-US", {
+  };
+  const SUN_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
     hour: "numeric",
     minute: "2-digit",
-  });
+  };
 
-  // Format sun times in the forecast location's timezone (from /points),
-  // falling back to the device timezone when it is missing or invalid.
-  let sunTimeFormatter = $derived.by(() => {
-    const tz = point.properties?.timeZone?.trim();
-    if (tz) {
+  // Forecast times belong to the forecast location, not the device: the same
+  // U.S. location viewed from another timezone must still read local hours.
+  // Fall back to the device timezone only when /points has no usable zone.
+  let forecastTimeZone = $derived(
+    point.properties?.timeZone?.trim() || undefined,
+  );
+
+  function formatterFor(
+    options: Intl.DateTimeFormatOptions,
+  ): Intl.DateTimeFormat {
+    const timeZone = forecastTimeZone;
+    if (timeZone) {
       try {
-        return new Intl.DateTimeFormat("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          timeZone: tz,
-        });
+        return new Intl.DateTimeFormat("en-US", { ...options, timeZone });
       } catch {
         // Unknown timezone — fall through to the device default below.
       }
     }
-    return sunTimeFmt;
-  });
+    return new Intl.DateTimeFormat("en-US", options);
+  }
+
+  let tooltipTitleFmt = $derived(formatterFor(TOOLTIP_TITLE_OPTIONS));
+  let hourLabelFmt = $derived(formatterFor(HOUR_LABEL_OPTIONS));
+  let sunTimeFormatter = $derived(formatterFor(SUN_TIME_OPTIONS));
+
+  function formatWith(formatter: Intl.DateTimeFormat, iso: string): string {
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return iso;
+    try {
+      return formatter.format(new Date(ms));
+    } catch {
+      return iso;
+    }
+  }
 
   function formatSunTime(
     iso: string | undefined,
@@ -129,13 +151,7 @@
   }
 
   function formatIso(iso: string): string {
-    const ms = Date.parse(iso);
-    if (!Number.isFinite(ms)) return iso;
-    try {
-      return tooltipTitleFmt.format(new Date(ms));
-    } catch {
-      return iso;
-    }
+    return formatWith(tooltipTitleFmt, iso);
   }
 
   let locationDisplay = $derived.by(() => {
@@ -235,7 +251,7 @@
     latitude: number,
     longitude: number,
   ): { savedAt: string } | null {
-    const data = loadCachedSnapshot(latitude, longitude);
+    const data = loadCachedSnapshot(latitude, longitude, { allowStale: true });
     if (!data) return null;
     point = data.point;
     alerts = data.alerts;
@@ -249,18 +265,34 @@
     return { savedAt: data.savedAt };
   }
 
+  type BadgingNavigator = Navigator & {
+    setAppBadge?: (n: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+
+  function ignoreRejection(promise: Promise<void> | undefined): void {
+    void promise?.catch(() => {});
+  }
+
   function updateBadge(): void {
     try {
-      const nav = navigator as Navigator & {
-        setAppBadge?: (n: number) => Promise<void>;
-        clearAppBadge?: () => Promise<void>;
-      };
+      const nav = navigator as BadgingNavigator;
       const count = alerts.features?.length ?? 0;
       if (count > 0) {
-        nav.setAppBadge?.(count);
+        ignoreRejection(nav.setAppBadge?.(count));
       } else {
-        nav.clearAppBadge?.();
+        ignoreRejection(nav.clearAppBadge?.());
       }
+    } catch {
+      // Badging is best-effort
+    }
+  }
+
+  // The badge belongs to this page's alerts: clear it when navigating away
+  // instead of leaving a stale count on the installed app icon.
+  function clearBadge(): void {
+    try {
+      ignoreRejection((navigator as BadgingNavigator).clearAppBadge?.());
     } catch {
       // Badging is best-effort
     }
@@ -410,14 +442,18 @@
     void init();
 
     $effect(() => {
-      // Read hourlyChartData unconditionally so this effect subscribes to it
-      // even on runs before `instance` exists; otherwise late forecast
-      // updates would never rerun the effect and the chart would go stale.
+      // Read hourlyChartData and the tooltip formatter unconditionally so
+      // this effect subscribes to both even on runs before `instance`
+      // exists; otherwise late forecast updates (or a location whose zone
+      // resolves after /points) would leave the chart stale.
       // The dataset list is dynamic (heat index / wind chill appear only
       // when NWS provides them), so sync the full config each run.
       const data = hourlyChartData;
+      const formatter = tooltipTitleFmt;
       if (instance) {
-        const next = buildChartConfig(data, formatIso);
+        const next = buildChartConfig(data, (iso) =>
+          formatWith(formatter, iso),
+        );
         instance.data.labels = next.data.labels;
         instance.data.datasets = next.data.datasets;
         instance.update("none");
@@ -717,11 +753,20 @@
     return () => clearInterval(timer);
   });
 
+  $effect(() => () => clearBadge());
+
   $effect(() => {
     // Load the discussion when the accordion opens, and when the office
     // changes while it is open: navigating remounts the <details> (still
-    // open per afdOpen) without emitting a toggle event.
-    if (!officeId || !afdOpen) return;
+    // open per afdOpen) without emitting a toggle event. Failures are
+    // recorded in afdFailedOffice so this effect cannot retry itself.
+    const status = {
+      fetchedOffice: afdFetchedOffice,
+      loadingOffice: afdLoadingOffice,
+      failedOffice: afdFailedOffice,
+      hasProduct: afd !== null,
+    };
+    if (!shouldAutoLoadAfd(status, officeId, afdOpen)) return;
     if (afdDetailsEl && !afdDetailsEl.open) afdDetailsEl.open = true;
     void loadAfd(true);
   });
@@ -740,6 +785,7 @@
     afdLoadingOffice = null;
     afdError = null;
     afdFetchedOffice = null;
+    afdFailedOffice = null;
     hourlyForecastProcessed = false;
     isOffline = false;
     fetchedAt = null;
@@ -812,6 +858,7 @@
     const requestOffice = officeId;
     afdLoadingOffice = requestOffice;
     afdError = null;
+    afdFailedOffice = null;
     try {
       const data = await fetchData<AfdProduct>(
         `https://api.weather.gov/products/types/AFD/locations/${requestOffice}/latest`,
@@ -824,6 +871,9 @@
       console.error("Error fetching AFD:", error);
       afdError =
         "Unable to load the Area Forecast Discussion. Please try again.";
+      // Remember the failure so the auto-load effect stays quiet until the
+      // user explicitly retries (which calls this function directly).
+      afdFailedOffice = requestOffice;
     } finally {
       if (afdLoadingOffice === requestOffice) afdLoadingOffice = null;
     }

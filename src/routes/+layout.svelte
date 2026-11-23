@@ -112,21 +112,72 @@
   });
 
   $effect(() => {
+    const container = navigator.serviceWorker;
+    if (!container) return;
+
     function onSwMessage(event: MessageEvent) {
       if (event.data?.type === "SW_UPDATED") swUpdated = true;
     }
-    navigator.serviceWorker?.addEventListener("message", onSwMessage);
+    container.addEventListener("message", onSwMessage);
+
+    // The service worker no longer calls skipWaiting() on install, so a new
+    // worker waits for the user's "Update" click. Surface it as soon as it
+    // finishes installing instead of waiting for SvelteKit's version poll.
+    let registration: ServiceWorkerRegistration | null = null;
+    let watched: ServiceWorker | null = null;
+
+    function onSwStateChange() {
+      if (watched?.state === "installed" && container.controller) {
+        swUpdated = true;
+      }
+    }
+
+    function watch(worker: ServiceWorker | null) {
+      if (watched) watched.removeEventListener("statechange", onSwStateChange);
+      watched = worker;
+      watched?.addEventListener("statechange", onSwStateChange);
+    }
+
+    function onUpdateFound() {
+      watch(registration?.installing ?? null);
+    }
+
+    void container
+      .getRegistration()
+      .then((reg) => {
+        if (!reg) return;
+        registration = reg;
+        registration.addEventListener("updatefound", onUpdateFound);
+        if (reg.waiting && container.controller) swUpdated = true;
+        watch(reg.installing);
+      })
+      .catch(() => {});
+
     return () => {
-      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
+      container.removeEventListener("message", onSwMessage);
+      registration?.removeEventListener("updatefound", onUpdateFound);
+      watch(null);
     };
   });
 
   function reload() {
-    // Tell the waiting SW to activate, then reload into the new version.
-    if (navigator.serviceWorker?.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: "SKIP_WAITING" });
+    // Tell the waiting SW to activate, then reload into the new version once
+    // it controls this page (its activate handler clears the old cache).
+    const container = navigator.serviceWorker;
+    if (!container?.controller) {
+      window.location.reload();
+      return;
     }
-    setTimeout(() => window.location.reload(), 300);
+    let reloaded = false;
+    const go = () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    container.addEventListener("controllerchange", go, { once: true });
+    container.controller.postMessage({ type: "SKIP_WAITING" });
+    // Fallback when activation never emits a controller change.
+    setTimeout(go, 1500);
   }
 </script>
 

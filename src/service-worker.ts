@@ -40,7 +40,11 @@ self.addEventListener("install", (event) => {
     } catch {
       // ignore - navigation fallback will just miss
     }
-    await self.skipWaiting();
+    // Deliberately do NOT call skipWaiting() here. Activating immediately
+    // deletes the previous cache while old pages are still open, so their
+    // lazily imported chunks (maplibre-gl, chart.js) would 404. The waiting
+    // worker activates when the user accepts the update banner
+    // (`SKIP_WAITING` below) or when no old clients remain.
   }
 
   event.waitUntil(addFilesToCache());

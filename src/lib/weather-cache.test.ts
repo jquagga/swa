@@ -82,6 +82,20 @@ describe("save/load roundtrip", () => {
     expect(loadCachedSnapshot(38.9, -77)).toBeNull();
   });
 
+  it("serves stale snapshots to the offline fallback, capped at a week", () => {
+    saveCachedSnapshot(38.9, -77, snapshot());
+    const raw = storedRaw(38.9, -77);
+
+    raw.savedAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    localStorage.setItem(cacheKey(38.9, -77), JSON.stringify(raw));
+    expect(loadCachedSnapshot(38.9, -77)).toBeNull();
+    expect(loadCachedSnapshot(38.9, -77, { allowStale: true })).not.toBeNull();
+
+    raw.savedAt = new Date(Date.now() - 8 * 24 * 3_600_000).toISOString();
+    localStorage.setItem(cacheKey(38.9, -77), JSON.stringify(raw));
+    expect(loadCachedSnapshot(38.9, -77, { allowStale: true })).toBeNull();
+  });
+
   it("rejects other cache versions", () => {
     saveCachedSnapshot(38.9, -77, snapshot());
     const raw = storedRaw(38.9, -77);

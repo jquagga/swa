@@ -303,7 +303,7 @@
     } catch (e) {
       if (req !== requestId) return;
       console.error("Open-Meteo fetch failed:", e);
-      const cached = loadOpenMeteoSnapshot(lat, lon);
+      const cached = loadOpenMeteoSnapshot(lat, lon, { allowStale: true });
       if (cached) {
         series = cached.series;
         timezone = cached.timezone;

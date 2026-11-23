@@ -76,6 +76,9 @@ export interface CachedSnapshot {
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+// Offline fallback may serve a snapshot past the freshness TTL, but not
+// indefinitely: a forecast older than this is more misleading than useful.
+const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHED_TILES = 10;
 const CACHE_INDEX_KEY = "swa:weather:index";
 const CACHE_KEY_PREFIX = "swa:weather:";
@@ -182,10 +185,16 @@ export function saveCachedSnapshot(
   }
 }
 
+export interface LoadCachedOptions {
+  /** Accept a snapshot past the freshness TTL (still capped at 7 days). */
+  allowStale?: boolean;
+}
+
 /** Read a fresh cached snapshot, or null when missing/stale/versioned out. */
 export function loadCachedSnapshot(
   latitude: number,
   longitude: number,
+  options: LoadCachedOptions = {},
 ): CachedSnapshot | null {
   try {
     const key = cacheKey(latitude, longitude);
@@ -195,7 +204,11 @@ export function loadCachedSnapshot(
     if (!data?.savedAt || !data?.point?.properties) return null;
     if (data.v !== CACHE_VERSION) return null;
     if (!data?.gridData?.properties) return null;
-    if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
+    const ageMs = Date.now() - Date.parse(data.savedAt);
+    if (!Number.isFinite(ageMs)) return null;
+    if (ageMs > (options.allowStale ? MAX_STALE_MS : CACHE_TTL_MS)) {
+      return null;
+    }
     normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
     writeCacheIndex(key);
     return {
