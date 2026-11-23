@@ -31,6 +31,9 @@ export interface WeatherAlert {
       description: string;
       instruction: string;
       effective?: string;
+      /** Event end (preferred) or message expiry, per NWS. */
+      ends?: string | null;
+      expires?: string | null;
     };
   }>;
 }
@@ -76,6 +79,9 @@ export interface CachedSnapshot {
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+// Offline fallback may serve a snapshot past the freshness TTL, but not
+// indefinitely: a forecast older than this is more misleading than useful.
+const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHED_TILES = 10;
 const CACHE_INDEX_KEY = "swa:weather:index";
 const CACHE_KEY_PREFIX = "swa:weather:";
@@ -142,6 +148,28 @@ export function normalizeCachedAlertSeverity(alerts: WeatherAlert): void {
   }
 }
 
+/**
+ * Drop alerts whose end/expiry is already in the past. Cached snapshots can
+ * be days old (offline fallback), and the page labels whatever survives as
+ * "Active alerts" — restoring expired warnings as current is misleading.
+ * Unknown or unparseable timestamps are kept rather than hidden.
+ */
+export function filterActiveAlerts(
+  alerts: WeatherAlert,
+  nowMs = Date.now(),
+): WeatherAlert {
+  if (!alerts.features) return { features: [] };
+  return {
+    ...alerts,
+    features: alerts.features.filter((alert) => {
+      const end = alert.properties.ends ?? alert.properties.expires;
+      if (!end) return true;
+      const endMs = Date.parse(end);
+      return !Number.isFinite(endMs) || endMs > nowMs;
+    }),
+  };
+}
+
 /** Persist the current forecast snapshot for offline fallback. */
 export function saveCachedSnapshot(
   latitude: number,
@@ -182,10 +210,16 @@ export function saveCachedSnapshot(
   }
 }
 
+export interface LoadCachedOptions {
+  /** Accept a snapshot past the freshness TTL (still capped at 7 days). */
+  allowStale?: boolean;
+}
+
 /** Read a fresh cached snapshot, or null when missing/stale/versioned out. */
 export function loadCachedSnapshot(
   latitude: number,
   longitude: number,
+  options: LoadCachedOptions = {},
 ): CachedSnapshot | null {
   try {
     const key = cacheKey(latitude, longitude);
@@ -195,12 +229,17 @@ export function loadCachedSnapshot(
     if (!data?.savedAt || !data?.point?.properties) return null;
     if (data.v !== CACHE_VERSION) return null;
     if (!data?.gridData?.properties) return null;
-    if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
+    const ageMs = Date.now() - Date.parse(data.savedAt);
+    if (!Number.isFinite(ageMs)) return null;
+    if (ageMs > (options.allowStale ? MAX_STALE_MS : CACHE_TTL_MS)) {
+      return null;
+    }
     normalizeCachedAlertSeverity(data.alerts ?? { features: [] });
+    const alerts = filterActiveAlerts(data.alerts ?? { features: [] });
     writeCacheIndex(key);
     return {
       point: data.point,
-      alerts: data.alerts ?? { features: [] },
+      alerts,
       forecast: data.forecast ?? {},
       gridData: data.gridData ?? {},
       NWSURL: data.NWSURL ?? "",

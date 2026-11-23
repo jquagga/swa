@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cacheKey,
+  filterActiveAlerts,
   loadCachedSnapshot,
   normalizeCachedAlertSeverity,
   saveCachedSnapshot,
@@ -82,6 +83,55 @@ describe("save/load roundtrip", () => {
     expect(loadCachedSnapshot(38.9, -77)).toBeNull();
   });
 
+  it("serves stale snapshots to the offline fallback, capped at a week", () => {
+    saveCachedSnapshot(38.9, -77, snapshot());
+    const raw = storedRaw(38.9, -77);
+
+    raw.savedAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    localStorage.setItem(cacheKey(38.9, -77), JSON.stringify(raw));
+    expect(loadCachedSnapshot(38.9, -77)).toBeNull();
+    expect(loadCachedSnapshot(38.9, -77, { allowStale: true })).not.toBeNull();
+
+    raw.savedAt = new Date(Date.now() - 8 * 24 * 3_600_000).toISOString();
+    localStorage.setItem(cacheKey(38.9, -77), JSON.stringify(raw));
+    expect(loadCachedSnapshot(38.9, -77, { allowStale: true })).toBeNull();
+  });
+
+  it("drops expired alerts when restoring a snapshot", () => {
+    const now = Date.now();
+    saveCachedSnapshot(38.9, -77, {
+      ...snapshot(),
+      alerts: {
+        features: [
+          {
+            properties: {
+              id: "old",
+              severity: "Minor",
+              event: "Old",
+              description: "",
+              instruction: "",
+              ends: new Date(now - 60_000).toISOString(),
+            },
+          },
+          {
+            properties: {
+              id: "live",
+              severity: "Minor",
+              event: "Live",
+              description: "",
+              instruction: "",
+              ends: new Date(now + 3_600_000).toISOString(),
+            },
+          },
+        ],
+      },
+    });
+    const loaded = loadCachedSnapshot(38.9, -77);
+    expect(loaded?.alerts.features.map((f) => f.properties.id)).toEqual([
+      "live",
+    ]);
+  });
+
   it("rejects other cache versions", () => {
     saveCachedSnapshot(38.9, -77, snapshot());
     const raw = storedRaw(38.9, -77);
@@ -136,5 +186,60 @@ describe("normalizeCachedAlertSeverity", () => {
     expect(() =>
       normalizeCachedAlertSeverity({} as WeatherAlert),
     ).not.toThrow();
+  });
+});
+
+describe("filterActiveAlerts", () => {
+  const now = Date.parse("2026-01-01T12:00:00Z");
+
+  function alert(
+    id: string,
+    fields: { ends?: string | null; expires?: string | null } = {},
+  ): WeatherAlert["features"][number] {
+    return {
+      properties: {
+        id,
+        severity: "Minor",
+        event: "Test",
+        description: "",
+        instruction: "",
+        ...fields,
+      },
+    };
+  }
+
+  it("drops alerts whose end or expiry has passed", () => {
+    const filtered = filterActiveAlerts(
+      {
+        features: [
+          alert("past-ends", { ends: "2026-01-01T11:00:00Z" }),
+          alert("future-ends", { ends: "2026-01-01T13:00:00Z" }),
+          alert("past-expires", {
+            ends: null,
+            expires: "2026-01-01T11:00:00Z",
+          }),
+          alert("no-end"),
+          alert("bad-end", { ends: "not-a-date" }),
+        ],
+      },
+      now,
+    );
+    expect(filtered.features.map((f) => f.properties.id)).toEqual([
+      "future-ends",
+      "no-end",
+      "bad-end",
+    ]);
+  });
+
+  it("keeps unknown expiries rather than hiding the alert", () => {
+    const filtered = filterActiveAlerts(
+      { features: [alert("no-end"), alert("null-end", { ends: null })] },
+      now,
+    );
+    expect(filtered.features).toHaveLength(2);
+  });
+
+  it("tolerates a missing features array", () => {
+    expect(filterActiveAlerts({} as WeatherAlert, now).features).toEqual([]);
   });
 });

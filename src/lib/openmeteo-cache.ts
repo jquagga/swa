@@ -11,6 +11,9 @@ export interface OpenMeteoSnapshot {
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
+// Offline fallback may serve a snapshot past the freshness TTL, but not
+// indefinitely: a forecast older than this is more misleading than useful.
+const MAX_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHED_TILES = 10;
 const CACHE_INDEX_KEY = "swa:openmeteo:index";
 const CACHE_KEY_PREFIX = "swa:openmeteo:";
@@ -72,9 +75,15 @@ export function saveOpenMeteoSnapshot(
   }
 }
 
+export interface LoadOpenMeteoOptions {
+  /** Accept a snapshot past the freshness TTL (still capped at 7 days). */
+  allowStale?: boolean;
+}
+
 export function loadOpenMeteoSnapshot(
   latitude: number,
   longitude: number,
+  options: LoadOpenMeteoOptions = {},
 ): OpenMeteoSnapshot | null {
   try {
     const raw = localStorage.getItem(openMeteoCacheKey(latitude, longitude));
@@ -82,7 +91,11 @@ export function loadOpenMeteoSnapshot(
     const data = JSON.parse(raw) as OpenMeteoSnapshot & { v?: number };
     if (!data?.savedAt || !data?.series?.timeMs?.length) return null;
     if (data.v !== CACHE_VERSION) return null;
-    if (Date.now() - Date.parse(data.savedAt) > CACHE_TTL_MS) return null;
+    const ageMs = Date.now() - Date.parse(data.savedAt);
+    if (!Number.isFinite(ageMs)) return null;
+    if (ageMs > (options.allowStale ? MAX_STALE_MS : CACHE_TTL_MS)) {
+      return null;
+    }
     return data;
   } catch {
     return null;

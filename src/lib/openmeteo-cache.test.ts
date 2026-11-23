@@ -99,6 +99,25 @@ describe("save/load roundtrip", () => {
     expect(loadOpenMeteoSnapshot(52.5, 13.4)).toBeNull();
   });
 
+  it("serves stale snapshots to the offline fallback, capped at a week", () => {
+    saveOpenMeteoSnapshot(52.5, 13.4, snapshot());
+    const key = openMeteoCacheKey(52.5, 13.4);
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error("expected cached payload");
+    const data = JSON.parse(raw) as { savedAt: string };
+
+    data.savedAt = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    localStorage.setItem(key, JSON.stringify(data));
+    expect(loadOpenMeteoSnapshot(52.5, 13.4)).toBeNull();
+    expect(
+      loadOpenMeteoSnapshot(52.5, 13.4, { allowStale: true }),
+    ).not.toBeNull();
+
+    data.savedAt = new Date(Date.now() - 8 * 24 * 3_600_000).toISOString();
+    localStorage.setItem(key, JSON.stringify(data));
+    expect(loadOpenMeteoSnapshot(52.5, 13.4, { allowStale: true })).toBeNull();
+  });
+
   it("rejects other cache versions", () => {
     saveOpenMeteoSnapshot(52.5, 13.4, snapshot());
     const key = openMeteoCacheKey(52.5, 13.4);

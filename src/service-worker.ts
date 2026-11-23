@@ -6,7 +6,41 @@ const self = globalThis.self as unknown as ServiceWorkerGlobalScope & {
   __SWA_VERSION?: string;
 };
 
-const CACHE = `cache-${version}`;
+const CACHE_PREFIX = "cache-";
+const CACHE = `${CACHE_PREFIX}${version}`;
+// Remembers the build that was current at the last activation. Activate keeps
+// exactly that previous cache so tabs still running the old app can keep
+// loading their content-hashed chunks after another tab applies an update.
+const META_CACHE = "__swa_meta__";
+const META_KEY = "/meta.json";
+
+interface SwMeta {
+  current?: string;
+}
+
+async function readMeta(): Promise<SwMeta | null> {
+  try {
+    const cache = await caches.open(META_CACHE);
+    const response = await cache.match(META_KEY);
+    return response ? ((await response.json()) as SwMeta) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeMeta(meta: SwMeta): Promise<void> {
+  try {
+    const cache = await caches.open(META_CACHE);
+    await cache.put(
+      META_KEY,
+      new Response(JSON.stringify(meta), {
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  } catch {
+    // best-effort
+  }
+}
 
 // `immutable` (Vite output) and `assets` (static dir) paths are relative to
 // the base path, so resolve them to absolute pathnames that can be matched
@@ -40,7 +74,11 @@ self.addEventListener("install", (event) => {
     } catch {
       // ignore - navigation fallback will just miss
     }
-    await self.skipWaiting();
+    // Deliberately do NOT call skipWaiting() here. Activating immediately
+    // deletes the previous cache while old pages are still open, so their
+    // lazily imported chunks (maplibre-gl, chart.js) would 404. The waiting
+    // worker activates when the user accepts the update banner
+    // (`SKIP_WAITING` below) or when no old clients remain.
   }
 
   event.waitUntil(addFilesToCache());
@@ -56,9 +94,27 @@ self.addEventListener("activate", (event) => {
     } catch {
       // ignore — progressive enhancement
     }
+
+    // Keep the cache from the build that was current until this activation
+    // (plus one older fallback when upgrading from a worker that predates
+    // the meta entry). Any other open tab is still on that build and may
+    // lazily import chunks this deployment no longer serves; the fetch
+    // handler below falls back to these caches.
+    const meta = await readMeta();
+    const candidates = (await caches.keys()).filter(
+      (key) => key.startsWith(CACHE_PREFIX) && key !== CACHE,
+    );
+    const previous =
+      meta?.current && meta.current !== CACHE
+        ? meta.current
+        : (candidates[0] ?? null);
+
     for (const key of await caches.keys()) {
-      if (key !== CACHE) await caches.delete(key);
+      if (key === CACHE || key === META_CACHE || key === previous) continue;
+      await caches.delete(key);
     }
+    await writeMeta({ current: CACHE });
+
     await self.clients.claim();
     await broadcast("SW_UPDATED");
   }
@@ -134,6 +190,17 @@ self.addEventListener("fetch", (event) => {
         throw new Error("invalid response from fetch");
       }
 
+      // A client from the previous build can request a content-hashed chunk
+      // this deployment no longer serves. Serve the retained previous cache
+      // instead of surfacing a 404 into a dynamic import.
+      if (
+        (response.status === 404 || response.status === 410) &&
+        url.origin === self.location.origin
+      ) {
+        const retained = await caches.match(event.request);
+        if (retained) return retained;
+      }
+
       if (
         response.status === 200 &&
         url.origin === self.location.origin &&
@@ -144,7 +211,9 @@ self.addEventListener("fetch", (event) => {
 
       return response;
     } catch (err) {
-      const response = await cache.match(event.request);
+      // Search every retained cache: an old client's chunk lives in the
+      // previous build's cache, not the current one.
+      const response = await caches.match(event.request);
 
       if (response) {
         return response;
