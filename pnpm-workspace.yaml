@@ -17,4 +17,4 @@ overrides:
   # so they can't float to the patched line on their own. 11.0.8 is the
   # newest 11.x past minimumReleaseAge; 11.0.7+ also clears the v11.0.0
   # quadratic-compile regression (GHSA-cf2h-pxjq-68xw).
-  minimatch: 11.0.8
+  minimatch: 11.0.9
